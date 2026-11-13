@@ -13,6 +13,12 @@ The point is not to prove she is slow. The point is to make visible:
 
 > **No PHI.** Never enter patient names, MRNs, dates of birth, or identifying details. Use a short generic description only, e.g. "DME order follow-up — wheelchair" or "school form — complex patient".
 
+## Feedback, suggestions, and bugs
+
+Use the Google Form: https://docs.google.com/forms/d/e/1FAIpQLScd_fsY-B3A2AiI4-EwMtFP4WyT56Yk1As_pT2pULxEW0xu0A/viewform
+
+It records feedback, suggestions, missing task buttons, and bug reports. The same link is a button at the top of `tracker.html` and in the Muse tracker page. No PHI in the form either.
+
 ## Two ways to use it
 
 ### 1. The Muse artifact (easiest)
