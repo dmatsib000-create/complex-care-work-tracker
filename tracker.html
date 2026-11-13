@@ -11,6 +11,7 @@
   main{max-width:980px;margin:0 auto;padding:16px}
   .warn{background:#fff3cd;border:1px solid #e6c87a;padding:8px 12px;border-radius:8px;font-size:13px}
   #running{display:none;background:#0f5132;color:#fff;padding:14px;border-radius:12px;margin:14px 0;font-size:18px}
+  #running.long{background:#8a5a00}
   #running .elapsed{font-size:32px;font-weight:700;font-variant-numeric:tabular-nums}
   button{cursor:pointer}
   .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px;margin:14px 0}
@@ -38,7 +39,7 @@
 
   <p style="margin:14px 0"><a href="https://docs.google.com/forms/d/e/1FAIpQLScd_fsY-B3A2AiI4-EwMtFP4WyT56Yk1As_pT2pULxEW0xu0A/viewform" target="_blank" rel="noopener" style="display:inline-block;padding:12px 18px;border-radius:10px;background:#123c4a;color:#fff;text-decoration:none;font-weight:600">Feedback, suggestions &amp; bug reports</a> <span class="muted">Missing a task button? Something broken? Tell us there, it takes two minutes.</span></p>
 
-  <div id="running">Now timing: <b id="rLabel"></b><br><span class="elapsed" id="rElapsed">00:00</span> <span id="rSince" class="muted" style="color:#d1e7dd"></span></div>
+  <div id="running">Now timing: <b id="rLabel"></b><br><span class="elapsed" id="rElapsed">00:00</span> <span id="rSince" class="muted" style="color:#d1e7dd"></span><div id="rLong" style="display:none;font-size:14px;margin-top:6px">Still running? This timer has been on a long time. When you stop it you can correct the minutes or discard it.</div></div>
 
   <h2>Complex Care</h2>
   <div class="grid" id="gridComplex"></div>
@@ -113,6 +114,15 @@ let TAXONOMY = [
  {label:"Healthy urgent visit",clinic:"Non-complex Healthy Urgent",facing:true,who:"Only a physician"},
  {label:"Healthy urgent inbox / follow-up",clinic:"Non-complex Healthy Urgent",facing:false,who:"Clerical / admin"}
 ];
+// Timers longer than this are checked on stop, in case one was left running.
+const LONG_TIMER_MIN = 120;
+// Escape text before putting it into HTML, so labels/notes with < & " cannot break the page.
+const esc = v => String(v ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+// Calendar day (YYYY-MM-DD) in the user's own time zone, not UTC.
+const pad2 = n => String(n).padStart(2,"0");
+const localDay = d => { d = new Date(d); return d.getFullYear()+"-"+pad2(d.getMonth()+1)+"-"+pad2(d.getDate()); };
+const dayNum = ymd => { const [y,m,d] = ymd.split("-").map(Number); return Math.round(new Date(y,m-1,d).getTime()/86400000); };
+const fmtDur = m => m >= 60 ? Math.floor(m/60)+"h "+(m%60)+"m" : m+"m";
 const LS_B="ccwt_buttons_v1", LS_E="ccwt_entries_v1", LS_R="ccwt_running_v1";
 let buttons = JSON.parse(localStorage.getItem(LS_B)||"null") || TAXONOMY;
 let entries = JSON.parse(localStorage.getItem(LS_E)||"[]");
@@ -120,16 +130,25 @@ let running = JSON.parse(localStorage.getItem(LS_R)||"null");
 const save=()=>{localStorage.setItem(LS_B,JSON.stringify(buttons));localStorage.setItem(LS_E,JSON.stringify(entries));localStorage.setItem(LS_R,JSON.stringify(running));};
 function start(btn){ stop(false); running={...btn,startedAt:Date.now()}; save(); render(); }
 function stop(renderAfter=true){ if(!running) { if(renderAfter) render(); return; }
-  const mins=Math.max(1,Math.round((Date.now()-running.startedAt)/60000));
+  let mins=Math.max(1,Math.round((Date.now()-running.startedAt)/60000));
+  if(mins>LONG_TIMER_MIN){
+    const started=new Date(running.startedAt), sameDay=localDay(started)===localDay(Date.now());
+    const ans=prompt(`"${running.label}" ran for ${fmtDur(mins)} (started ${sameDay?"today":started.toLocaleDateString()} at ${started.toLocaleTimeString([], {hour:"numeric",minute:"2-digit"})}). Was it left running?\n\nOK saves the minutes in the box. Change them to the real time first if needed.\nCancel discards this entry.`, mins);
+    if(ans===null){ running=null; save(); if(renderAfter) render(); return; }
+    const fixed=parseInt(ans,10);
+    if(fixed>0) mins=fixed;
+  }
   entries.unshift({id:Date.now(),date:new Date(running.startedAt).toISOString(),label:running.label,clinic:running.clinic,facing:running.facing,who:running.who,minutes:mins,note:""});
   running=null; save(); if(renderAfter) render(); }
 function tick(){ if(!running) return; const s=Math.floor((Date.now()-running.startedAt)/1000);
-  document.getElementById("rElapsed").textContent=String(Math.floor(s/60)).padStart(2,"0")+":"+String(s%60).padStart(2,"0"); }
+  const h=Math.floor(s/3600), m=Math.floor(s/60)%60;
+  document.getElementById("rElapsed").textContent=(h?h+":"+pad2(m):pad2(m))+":"+pad2(s%60);
+  const long=s/60>LONG_TIMER_MIN; document.getElementById("running").classList.toggle("long",long); document.getElementById("rLong").style.display=long?"block":"none"; }
 setInterval(tick,1000);
-function inRange(e){ const f=document.getElementById("from").value, t=document.getElementById("to").value; const d=e.date.slice(0,10); return (!f||d>=f)&&(!t||d<=t); }
+function inRange(e){ const f=document.getElementById("from").value, t=document.getElementById("to").value; const d=localDay(e.date); return (!f||d>=f)&&(!t||d<=t); }
 function render(){
   const mk=(b,urgent)=>{ const el=document.createElement("button"); el.className="task"+(urgent?" urgent":"")+((running&&running.label===b.label&&running.clinic===b.clinic)?" active":"");
-    el.innerHTML=`<b>${b.label}</b><span>${b.facing?"Patient-facing":"Not patient-facing"}<br>${b.who}${b.who==="Only a physician"?"":" — does not require a doctor"}</span>`;
+    el.innerHTML=`<b>${esc(b.label)}</b><span>${b.facing?"Patient-facing":"Not patient-facing"}<br>${esc(b.who)}${b.who==="Only a physician"?"":" — does not require a doctor"}</span>`;
     el.onclick=()=> (running&&running.label===b.label&&running.clinic===b.clinic) ? stop() : start(b); return el; };
   const gc=document.getElementById("gridComplex"), gu=document.getElementById("gridUrgent"); gc.innerHTML=""; gu.innerHTML="";
   buttons.forEach(b=> (b.clinic==="Complex Care"?gc:gu).appendChild(mk(b,b.clinic!=="Complex Care")));
@@ -144,11 +163,20 @@ function render(){
   const urgentM=rs.filter(e=>e.clinic!=="Complex Care").reduce((a,e)=>a+e.minutes,0);
   const h=m=>(m/60).toFixed(1)+"h";
   document.getElementById("summary").innerHTML=[["Total",h(total)],["Did not require a physician",h(nonDoc)+(total?` (${Math.round(nonDoc/total*100)}%)`:"")],["Clerical",h(cler)],["Care coordination",h(coord)],["Not patient-facing",h(invis)],["Healthy urgent (dumped)",h(urgentM)]].map(([k,v])=>`<span class="pill"><b>${k}:</b> ${v}</span>`).join("");
-  document.getElementById("fte").textContent = nonDoc ? `Delegable work in this range: ${h(nonDoc)} ≈ ${(nonDoc/60/40).toFixed(2)} of a 40h support FTE for the period shown.` : "";
-  document.getElementById("summaryText").textContent=`In this period I logged ${h(total)} of work. ${h(nonDoc)} (${total?Math.round(nonDoc/total*100):0}%) did not require a physician: ${h(cler)} clerical and ${h(coord)} care coordination. ${h(invis)} was not patient-facing. ${h(urgentM)} was non-complex healthy urgent work assigned on top of complex care. This is necessary complex-clinic work, not inefficiency — it needs clerical and care-coordination support.`;
+  // Weeks covered: the chosen From/To, or the first to last logged day when left blank.
+  const days=rs.map(e=>localDay(e.date)).sort();
+  const fromV=document.getElementById("from").value, toV=document.getElementById("to").value;
+  const spanStart=fromV||days[0], spanEnd=toV||days[days.length-1];
+  const spanDays=(spanStart&&spanEnd)?Math.max(1,dayNum(spanEnd)-dayNum(spanStart)+1):0;
+  const weeks=spanDays/7, perWeek=weeks?nonDoc/weeks:0;
+  let fteLine="";
+  if(nonDoc&&spanDays>=7) fteLine=`Delegable work: ${h(nonDoc)} over ${spanDays} days (${weeks.toFixed(1)} weeks) = ${h(perWeek)} per week ≈ ${(perWeek/60/40).toFixed(2)} of a 40h support FTE.`;
+  else if(nonDoc) fteLine=`Delegable work: ${h(nonDoc)} over ${spanDays} day${spanDays===1?"":"s"}. Log at least a full week for a per-week support FTE estimate.`;
+  document.getElementById("fte").textContent = fteLine;
+  document.getElementById("summaryText").textContent=`In this period I logged ${h(total)} of work. ${h(nonDoc)} (${total?Math.round(nonDoc/total*100):0}%) did not require a physician: ${h(cler)} clerical and ${h(coord)} care coordination. ${h(invis)} was not patient-facing. ${h(urgentM)} was non-complex healthy urgent work assigned on top of complex care. ${nonDoc&&spanDays>=7?`That is about ${h(perWeek)} a week of delegable work, roughly ${(perWeek/60/40).toFixed(2)} of a 40-hour support FTE. `:""}This is necessary complex-clinic work, not inefficiency — it needs clerical and care-coordination support.`;
   // log
-  document.getElementById("log").innerHTML=rs.map(e=>`<tr><td>${e.date.slice(0,10)}</td><td>${e.label}</td><td>${e.clinic}</td><td>${e.minutes}</td><td>${e.facing?"Yes":"No"}</td><td>${e.who}</td><td><input value="${(e.note||"").replace(/"/g,"&quot;")}" onchange="editNote(${e.id},this.value)" placeholder="optional"></td><td><button onclick="delEntry(${e.id})">Delete</button></td></tr>`).join("");
-  document.getElementById("buttonList").innerHTML=buttons.map((b,i)=>`<div class="row"><span class="pill">${b.label} · ${b.clinic} · ${b.who}</span><button onclick="delButton(${i})">Remove button</button></div>`).join("");
+  document.getElementById("log").innerHTML=rs.map(e=>`<tr><td>${localDay(e.date)}</td><td>${esc(e.label)}</td><td>${esc(e.clinic)}</td><td>${e.minutes}</td><td>${e.facing?"Yes":"No"}</td><td>${esc(e.who)}</td><td><input value="${esc(e.note)}" onchange="editNote(${e.id},this.value)" placeholder="optional"></td><td><button onclick="delEntry(${e.id})">Delete</button></td></tr>`).join("");
+  document.getElementById("buttonList").innerHTML=buttons.map((b,i)=>`<div class="row"><span class="pill">${esc(b.label)} · ${esc(b.clinic)} · ${esc(b.who)}</span><button onclick="delButton(${i})">Remove button</button></div>`).join("");
 }
 window.delEntry=id=>{entries=entries.filter(e=>e.id!==id);save();render();};
 window.editNote=(id,v)=>{const e=entries.find(x=>x.id===id); if(e){e.note=v; save();}};
