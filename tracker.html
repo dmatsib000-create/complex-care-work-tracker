@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Complex Care Work Tracker — Single Click</title>
+<style>
+  body{font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;margin:0;background:#f6f7f9;color:#16202a}
+  header{padding:16px 20px;background:#123c4a;color:#fff}
+  header h1{margin:0;font-size:20px} header p{margin:4px 0 0;opacity:.85;font-size:13px}
+  main{max-width:980px;margin:0 auto;padding:16px}
+  .warn{background:#fff3cd;border:1px solid #e6c87a;padding:8px 12px;border-radius:8px;font-size:13px}
+  #running{display:none;background:#0f5132;color:#fff;padding:14px;border-radius:12px;margin:14px 0;font-size:18px}
+  #running .elapsed{font-size:32px;font-weight:700;font-variant-numeric:tabular-nums}
+  button{cursor:pointer}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px;margin:14px 0}
+  .task{padding:18px 12px;border-radius:14px;border:2px solid #cbd5e1;background:#fff;text-align:left;min-height:88px}
+  .task.active{border-color:#0f5132;background:#d1e7dd}
+  .task b{display:block;font-size:16px;margin-bottom:6px}
+  .task span{font-size:12px;color:#475569;display:block;line-height:1.4}
+  .urgent{border-style:dashed}
+  #stop{width:100%;padding:16px;font-size:18px;border-radius:12px;border:0;background:#b02a37;color:#fff}
+  section{background:#fff;border-radius:12px;padding:16px;margin:16px 0}
+  table{width:100%;border-collapse:collapse;font-size:13px} td,th{padding:6px;border-bottom:1px solid #e5e7eb;text-align:left}
+  .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  input,select{padding:8px;border:1px solid #cbd5e1;border-radius:8px}
+  .pill{background:#eef2ff;border-radius:999px;padding:4px 10px;font-size:12px}
+  .muted{color:#64748b;font-size:13px}
+</style>
+</head>
+<body>
+<header>
+  <h1>Complex Care Work Tracker</h1>
+  <p>One click starts. One click stops and saves. Tap a different button to switch — the old one saves automatically.</p>
+</header>
+<main>
+  <div class="warn"><strong>No PHI.</strong> Never type a patient name, MRN, or date of birth. Generic labels only.</div>
+
+  <div id="running">Now timing: <b id="rLabel"></b><br><span class="elapsed" id="rElapsed">00:00</span> <span id="rSince" class="muted" style="color:#d1e7dd"></span></div>
+
+  <h2>Complex Care</h2>
+  <div class="grid" id="gridComplex"></div>
+  <h2>Non-complex Healthy Urgents (assigned on top)</h2>
+  <div class="grid" id="gridUrgent"></div>
+
+  <button id="stop">■ Stop and save</button>
+  <p class="muted">Forgot to click? Use Manual add below. Wrong button? Edit the saved entry in the log — nothing is locked.</p>
+
+  <section>
+    <h2>Today / this week — the case for support</h2>
+    <div id="summary" class="row"></div>
+    <p id="fte" style="font-weight:600"></p>
+    <p class="muted">Framing: this is volume + misallocation, not speed. Hours that did not require a physician, but were necessary for a complex clinic, are support work currently done by a physician.</p>
+    <div class="row">
+      <label>From <input type="date" id="from"></label>
+      <label>To <input type="date" id="to"></label>
+      <button id="applyRange">Apply range</button>
+      <button id="exportCsv">Export CSV</button>
+      <button id="copySummary">Copy summary text</button>
+    </div>
+    <pre id="summaryText" style="white-space:pre-wrap;background:#f8fafc;padding:12px;border-radius:8px"></pre>
+  </section>
+
+  <section>
+    <h2>Manual add (forgotten work)</h2>
+    <div class="row">
+      <input id="mLabel" placeholder="Label, e.g. Forms">
+      <input id="mMinutes" type="number" min="1" placeholder="Minutes" style="width:100px">
+      <select id="mClinic"><option>Complex Care</option><option>Non-complex Healthy Urgent</option></select>
+      <select id="mWho"><option>Clerical / admin</option><option>Care coordinator</option><option>Only a physician</option><option>RN</option><option>MA</option><option>Social work</option></select>
+      <label><input type="checkbox" id="mFacing"> Patient-facing</label>
+      <button id="mAdd">Add</button>
+    </div>
+  </section>
+
+  <section>
+    <h2>Buttons — make them yours</h2>
+    <p class="muted">Add, rename, or delete buttons. Change a button's preset clinic, patient-facing flag, and who could do it instead. Only you know the ins and outs.</p>
+    <div class="row">
+      <input id="bLabel" placeholder="New button label">
+      <select id="bClinic"><option>Complex Care</option><option>Non-complex Healthy Urgent</option></select>
+      <select id="bWho"><option>Clerical / admin</option><option>Care coordinator</option><option>Only a physician</option><option>RN</option><option>MA</option><option>Social work</option></select>
+      <label><input type="checkbox" id="bFacing"> Patient-facing</label>
+      <button id="bAdd">Add button</button>
+    </div>
+    <div id="buttonList"></div>
+  </section>
+
+  <section>
+    <h2>Log</h2>
+    <table><thead><tr><th>Date</th><th>Task</th><th>Clinic</th><th>Min</th><th>Facing?</th><th>Who could do it</th><th>Note (optional, no PHI)</th><th></th></tr></thead><tbody id="log"></tbody></table>
+  </section>
+</main>
+<script>
+// === EDIT THIS LIST FREELY — it is also in config/taxonomy.json ===
+let TAXONOMY = [
+ {label:"Complex visit",clinic:"Complex Care",facing:true,who:"Only a physician"},
+ {label:"Complex inbox",clinic:"Complex Care",facing:false,who:"Only a physician"},
+ {label:"Notes / documentation",clinic:"Complex Care",facing:false,who:"Only a physician"},
+ {label:"Phone with family",clinic:"Complex Care",facing:true,who:"Care coordinator"},
+ {label:"Forms",clinic:"Complex Care",facing:false,who:"Clerical / admin"},
+ {label:"Prior auth",clinic:"Complex Care",facing:false,who:"Clerical / admin"},
+ {label:"Referral coordination",clinic:"Complex Care",facing:false,who:"Care coordinator"},
+ {label:"DME / supplies",clinic:"Complex Care",facing:false,who:"Care coordinator"},
+ {label:"Scheduling",clinic:"Complex Care",facing:false,who:"Clerical / admin"},
+ {label:"Results follow-up",clinic:"Complex Care",facing:false,who:"Care coordinator"},
+ {label:"Prescription coordination",clinic:"Complex Care",facing:false,who:"Clerical / admin"},
+ {label:"Care plan coordination",clinic:"Complex Care",facing:false,who:"Care coordinator"},
+ {label:"School / specialist / insurer call",clinic:"Complex Care",facing:false,who:"Care coordinator"},
+ {label:"Records chasing",clinic:"Complex Care",facing:false,who:"Clerical / admin"},
+ {label:"Healthy urgent visit",clinic:"Non-complex Healthy Urgent",facing:true,who:"Only a physician"},
+ {label:"Healthy urgent inbox / follow-up",clinic:"Non-complex Healthy Urgent",facing:false,who:"Clerical / admin"}
+];
+const LS_B="ccwt_buttons_v1", LS_E="ccwt_entries_v1", LS_R="ccwt_running_v1";
+let buttons = JSON.parse(localStorage.getItem(LS_B)||"null") || TAXONOMY;
+let entries = JSON.parse(localStorage.getItem(LS_E)||"[]");
+let running = JSON.parse(localStorage.getItem(LS_R)||"null");
+const save=()=>{localStorage.setItem(LS_B,JSON.stringify(buttons));localStorage.setItem(LS_E,JSON.stringify(entries));localStorage.setItem(LS_R,JSON.stringify(running));};
+function start(btn){ stop(false); running={...btn,startedAt:Date.now()}; save(); render(); }
+function stop(renderAfter=true){ if(!running) { if(renderAfter) render(); return; }
+  const mins=Math.max(1,Math.round((Date.now()-running.startedAt)/60000));
+  entries.unshift({id:Date.now(),date:new Date(running.startedAt).toISOString(),label:running.label,clinic:running.clinic,facing:running.facing,who:running.who,minutes:mins,note:""});
+  running=null; save(); if(renderAfter) render(); }
+function tick(){ if(!running) return; const s=Math.floor((Date.now()-running.startedAt)/1000);
+  document.getElementById("rElapsed").textContent=String(Math.floor(s/60)).padStart(2,"0")+":"+String(s%60).padStart(2,"0"); }
+setInterval(tick,1000);
+function inRange(e){ const f=document.getElementById("from").value, t=document.getElementById("to").value; const d=e.date.slice(0,10); return (!f||d>=f)&&(!t||d<=t); }
+function render(){
+  const mk=(b,urgent)=>{ const el=document.createElement("button"); el.className="task"+(urgent?" urgent":"")+((running&&running.label===b.label&&running.clinic===b.clinic)?" active":"");
+    el.innerHTML=`<b>${b.label}</b><span>${b.facing?"Patient-facing":"Not patient-facing"}<br>${b.who}${b.who==="Only a physician"?"":" — does not require a doctor"}</span>`;
+    el.onclick=()=> (running&&running.label===b.label&&running.clinic===b.clinic) ? stop() : start(b); return el; };
+  const gc=document.getElementById("gridComplex"), gu=document.getElementById("gridUrgent"); gc.innerHTML=""; gu.innerHTML="";
+  buttons.forEach(b=> (b.clinic==="Complex Care"?gc:gu).appendChild(mk(b,b.clinic!=="Complex Care")));
+  document.getElementById("running").style.display=running?"block":"none";
+  if(running){ document.getElementById("rLabel").textContent=running.label; document.getElementById("rSince").textContent="since "+new Date(running.startedAt).toLocaleTimeString(); tick(); }
+  // summary
+  const rs=entries.filter(inRange); const total=rs.reduce((a,e)=>a+e.minutes,0);
+  const nonDoc=rs.filter(e=>e.who!=="Only a physician").reduce((a,e)=>a+e.minutes,0);
+  const cler=rs.filter(e=>e.who==="Clerical / admin").reduce((a,e)=>a+e.minutes,0);
+  const coord=rs.filter(e=>e.who==="Care coordinator").reduce((a,e)=>a+e.minutes,0);
+  const invis=rs.filter(e=>!e.facing).reduce((a,e)=>a+e.minutes,0);
+  const urgentM=rs.filter(e=>e.clinic!=="Complex Care").reduce((a,e)=>a+e.minutes,0);
+  const h=m=>(m/60).toFixed(1)+"h";
+  document.getElementById("summary").innerHTML=[["Total",h(total)],["Did not require a physician",h(nonDoc)+(total?` (${Math.round(nonDoc/total*100)}%)`:"")],["Clerical",h(cler)],["Care coordination",h(coord)],["Not patient-facing",h(invis)],["Healthy urgent (dumped)",h(urgentM)]].map(([k,v])=>`<span class="pill"><b>${k}:</b> ${v}</span>`).join("");
+  document.getElementById("fte").textContent = nonDoc ? `Delegable work in this range: ${h(nonDoc)} ≈ ${(nonDoc/60/40).toFixed(2)} of a 40h support FTE for the period shown.` : "";
+  document.getElementById("summaryText").textContent=`In this period I logged ${h(total)} of work. ${h(nonDoc)} (${total?Math.round(nonDoc/total*100):0}%) did not require a physician: ${h(cler)} clerical and ${h(coord)} care coordination. ${h(invis)} was not patient-facing. ${h(urgentM)} was non-complex healthy urgent work assigned on top of complex care. This is necessary complex-clinic work, not inefficiency — it needs clerical and care-coordination support.`;
+  // log
+  document.getElementById("log").innerHTML=rs.map(e=>`<tr><td>${e.date.slice(0,10)}</td><td>${e.label}</td><td>${e.clinic}</td><td>${e.minutes}</td><td>${e.facing?"Yes":"No"}</td><td>${e.who}</td><td><input value="${(e.note||"").replace(/"/g,"&quot;")}" onchange="editNote(${e.id},this.value)" placeholder="optional"></td><td><button onclick="delEntry(${e.id})">Delete</button></td></tr>`).join("");
+  document.getElementById("buttonList").innerHTML=buttons.map((b,i)=>`<div class="row"><span class="pill">${b.label} · ${b.clinic} · ${b.who}</span><button onclick="delButton(${i})">Remove button</button></div>`).join("");
+}
+window.delEntry=id=>{entries=entries.filter(e=>e.id!==id);save();render();};
+window.editNote=(id,v)=>{const e=entries.find(x=>x.id===id); if(e){e.note=v; save();}};
+window.delButton=i=>{buttons.splice(i,1);save();render();};
+document.getElementById("stop").onclick=()=>stop();
+document.getElementById("applyRange").onclick=render;
+document.getElementById("mAdd").onclick=()=>{const label=document.getElementById("mLabel").value.trim(); const mins=parseInt(document.getElementById("mMinutes").value,10); if(!label||!mins) return alert("Label and minutes needed");
+ entries.unshift({id:Date.now(),date:new Date().toISOString(),label,clinic:document.getElementById("mClinic").value,facing:document.getElementById("mFacing").checked,who:document.getElementById("mWho").value,minutes:mins,note:""}); save(); render();};
+document.getElementById("bAdd").onclick=()=>{const label=document.getElementById("bLabel").value.trim(); if(!label) return; buttons.push({label,clinic:document.getElementById("bClinic").value,who:document.getElementById("bWho").value,facing:document.getElementById("bFacing").checked}); save(); render();};
+document.getElementById("exportCsv").onclick=()=>{const rows=[["date","label","clinic","minutes","patient_facing","who_could_do","note"],...entries.map(e=>[e.date,e.label,e.clinic,e.minutes,e.facing,e.who,e.note||""])];
+ const csv=rows.map(r=>r.map(x=>`"${String(x).replace(/"/g,'""')}"`).join(",")).join("\n"); const a=document.createElement("a"); a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv"})); a.download="complex-care-work.csv"; a.click();};
+document.getElementById("copySummary").onclick=()=>navigator.clipboard.writeText(document.getElementById("summaryText").textContent);
+render();
+</script>
+</body>
+</html>

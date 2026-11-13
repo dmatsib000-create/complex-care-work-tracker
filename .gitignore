@@ -1,0 +1,4 @@
+tracker.html export / Claude artifact exports
+*.csv
+!examples/*.csv
+.DS_Store
