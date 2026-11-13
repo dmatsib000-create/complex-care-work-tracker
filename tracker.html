@@ -27,6 +27,11 @@
   input,select{padding:8px;border:1px solid #cbd5e1;border-radius:8px}
   .pill{background:#eef2ff;border-radius:999px;padding:4px 10px;font-size:12px}
   .muted{color:#64748b;font-size:13px}
+  .scroll{overflow-x:auto}
+  #logTable input:not([type=checkbox]),#logTable select,#buttonList input:not([type=checkbox]),#buttonList select{padding:4px 6px;font-size:13px}
+  #logTable input[type=date]{width:130px} #logTable input[type=number]{width:60px}
+  #running .extras{margin-top:10px;font-size:14px} #running select{padding:4px 6px}
+  #buttonList .row{margin:6px 0}
 </style>
 </head>
 <body>
@@ -39,7 +44,14 @@
 
   <p style="margin:14px 0"><a href="https://docs.google.com/forms/d/e/1FAIpQLScd_fsY-B3A2AiI4-EwMtFP4WyT56Yk1As_pT2pULxEW0xu0A/viewform" target="_blank" rel="noopener" style="display:inline-block;padding:12px 18px;border-radius:10px;background:#123c4a;color:#fff;text-decoration:none;font-weight:600">Feedback, suggestions &amp; bug reports</a> <span class="muted">Missing a task button? Something broken? Tell us there, it takes two minutes.</span></p>
 
-  <div id="running">Now timing: <b id="rLabel"></b><br><span class="elapsed" id="rElapsed">00:00</span> <span id="rSince" class="muted" style="color:#d1e7dd"></span><div id="rLong" style="display:none;font-size:14px;margin-top:6px">Still running? This timer has been on a long time. When you stop it you can correct the minutes or discard it.</div></div>
+  <div id="running">Now timing: <b id="rLabel"></b><br><span class="elapsed" id="rElapsed">00:00</span> <span id="rSince" class="muted" style="color:#d1e7dd"></span>
+    <div id="rLong" style="display:none;font-size:14px;margin-top:6px">Still running? This timer has been on a long time. When you stop it you can correct the minutes or discard it.</div>
+    <div class="row extras">
+      <label>Source (optional) <select id="rSource"></select></label>
+      <label><input type="checkbox" id="rInterrupted"> Interrupted a visit</label>
+      <span id="rAfter"></span>
+    </div>
+  </div>
 
   <h2>Complex Care</h2>
   <div class="grid" id="gridComplex"></div>
@@ -47,7 +59,7 @@
   <div class="grid" id="gridUrgent"></div>
 
   <button id="stop">■ Stop and save</button>
-  <p class="muted">Forgot to click? Use Manual add below. Wrong button? Edit the saved entry in the log — nothing is locked.</p>
+  <p class="muted">Forgot to click? Use Manual add below. Wrong button? Fix any field on the saved entry in the log. Nothing is locked.</p>
 
   <section>
     <h2>Today / this week — the case for support</h2>
@@ -62,36 +74,49 @@
       <button id="copySummary">Copy summary text</button>
     </div>
     <pre id="summaryText" style="white-space:pre-wrap;background:#f8fafc;padding:12px;border-radius:8px"></pre>
+    <h3>Top delegable categories</h3>
+    <p class="muted">Work in this range that did not require a physician, largest first.</p>
+    <div class="scroll"><table><thead><tr><th>Task</th><th>Hours</th><th>% of delegable</th><th>Per week</th><th>Who could do it</th></tr></thead><tbody id="topDelegable"></tbody></table></div>
   </section>
 
   <section>
     <h2>Manual add (forgotten work)</h2>
     <div class="row">
-      <input id="mLabel" placeholder="Label, e.g. Forms">
+      <input id="mLabel" list="labelList" placeholder="Label, e.g. Forms">
+      <datalist id="labelList"></datalist>
       <input id="mMinutes" type="number" min="1" placeholder="Minutes" style="width:100px">
-      <select id="mClinic"><option>Complex Care</option><option>Non-complex Healthy Urgent</option></select>
-      <select id="mWho"><option>Clerical / admin</option><option>Care coordinator</option><option>Only a physician</option><option>RN</option><option>MA</option><option>Social work</option></select>
+      <label>Date <input id="mDate" type="date"></label>
+      <label>Start time (optional) <input id="mTime" type="time"></label>
+    </div>
+    <div class="row" style="margin-top:8px">
+      <select id="mClinic"></select>
+      <select id="mWho"></select>
+      <select id="mSource"></select>
       <label><input type="checkbox" id="mFacing"> Patient-facing</label>
+      <label><input type="checkbox" id="mAfter"> After hours</label>
+      <label><input type="checkbox" id="mInterrupted"> Interrupted a visit</label>
       <button id="mAdd">Add</button>
     </div>
+    <p class="muted">Picking a label that matches a button fills in its presets. A start time outside clinic hours ticks After hours for you.</p>
   </section>
 
   <section>
     <h2>Buttons — make them yours</h2>
-    <p class="muted">Add, rename, or delete buttons. Change a button's preset clinic, patient-facing flag, and who could do it instead. Only you know the ins and outs.</p>
+    <p class="muted">Add, rename, or delete buttons. Change a button's preset clinic, patient-facing flag, and who could do it instead. Only you know the ins and outs. Changes apply to new taps; saved entries keep what they had.</p>
     <div class="row">
       <input id="bLabel" placeholder="New button label">
-      <select id="bClinic"><option>Complex Care</option><option>Non-complex Healthy Urgent</option></select>
-      <select id="bWho"><option>Clerical / admin</option><option>Care coordinator</option><option>Only a physician</option><option>RN</option><option>MA</option><option>Social work</option></select>
+      <select id="bClinic"></select>
+      <select id="bWho"></select>
       <label><input type="checkbox" id="bFacing"> Patient-facing</label>
       <button id="bAdd">Add button</button>
     </div>
-    <div id="buttonList"></div>
+    <details style="margin-top:10px"><summary>Edit or remove existing buttons (<span id="bCount"></span>)</summary><div id="buttonList"></div></details>
   </section>
 
   <section>
     <h2>Log</h2>
-    <table><thead><tr><th>Date</th><th>Task</th><th>Clinic</th><th>Min</th><th>Facing?</th><th>Who could do it</th><th>Note (optional, no PHI)</th><th></th></tr></thead><tbody id="log"></tbody></table>
+    <p class="muted">Every field can be corrected here. After hours is set automatically from the start time and can be changed.</p>
+    <div class="scroll"><table id="logTable"><thead><tr><th>Date</th><th>Task</th><th>Clinic</th><th>Min</th><th>Patient-facing</th><th>Who could do it</th><th>Source</th><th>After hours</th><th>Interrupted a visit</th><th>Note (optional, no PHI)</th><th></th></tr></thead><tbody id="log"></tbody></table></div>
   </section>
 </main>
 <script>
@@ -114,6 +139,12 @@ let TAXONOMY = [
  {label:"Healthy urgent visit",clinic:"Non-complex Healthy Urgent",facing:true,who:"Only a physician"},
  {label:"Healthy urgent inbox / follow-up",clinic:"Non-complex Healthy Urgent",facing:false,who:"Clerical / admin"}
 ];
+// Option lists for the dropdowns (same as config/taxonomy.json). Edit freely.
+const CLINICS = ["Complex Care","Non-complex Healthy Urgent"];
+const WHO_OPTIONS = ["Only a physician","Clerical / admin","Care coordinator","RN","MA","Social work","Pharmacist","System / automation fix"];
+const SOURCES = ["Family","School","Pharmacy","Insurer","Specialist","Inbox","Phone","Internal","Walk-in"];
+// Clinic hours. Work that starts before CLINIC_START_HOUR, at or after CLINIC_END_HOUR, or on a weekend is marked after hours.
+const CLINIC_START_HOUR = 8, CLINIC_END_HOUR = 17;
 // Timers longer than this are checked on stop, in case one was left running.
 const LONG_TIMER_MIN = 120;
 // Escape text before putting it into HTML, so labels/notes with < & " cannot break the page.
@@ -123,12 +154,23 @@ const pad2 = n => String(n).padStart(2,"0");
 const localDay = d => { d = new Date(d); return d.getFullYear()+"-"+pad2(d.getMonth()+1)+"-"+pad2(d.getDate()); };
 const dayNum = ymd => { const [y,m,d] = ymd.split("-").map(Number); return Math.round(new Date(y,m-1,d).getTime()/86400000); };
 const fmtDur = m => m >= 60 ? Math.floor(m/60)+"h "+(m%60)+"m" : m+"m";
+const isAfterHours = t => { const d=new Date(t), hr=d.getHours()+d.getMinutes()/60, wd=d.getDay(); return wd===0||wd===6||hr<CLINIC_START_HOUR||hr>=CLINIC_END_HOUR; };
+// <option> list; keeps a custom current value that is not in the list.
+const opts = (list,cur) => (cur&&!list.includes(cur)?[...list,cur]:list).map(o=>`<option${o===cur?" selected":""}>${esc(o)}</option>`).join("");
+const sourceOpts = cur => `<option value="">Source: not set</option>`+opts(SOURCES,cur);
+const $ = id => document.getElementById(id);
+
 const LS_B="ccwt_buttons_v1", LS_E="ccwt_entries_v1", LS_R="ccwt_running_v1";
 let buttons = JSON.parse(localStorage.getItem(LS_B)||"null") || TAXONOMY;
 let entries = JSON.parse(localStorage.getItem(LS_E)||"[]");
 let running = JSON.parse(localStorage.getItem(LS_R)||"null");
 const save=()=>{localStorage.setItem(LS_B,JSON.stringify(buttons));localStorage.setItem(LS_E,JSON.stringify(entries));localStorage.setItem(LS_R,JSON.stringify(running));};
-function start(btn){ stop(false); running={...btn,startedAt:Date.now()}; save(); render(); }
+// Entries saved before after-hours tracking existed: work it out from their start time.
+entries.forEach(e=>{ if(e.afterHours===undefined) e.afterHours=isAfterHours(e.date); });
+let lastId = entries.reduce((a,e)=>Math.max(a,e.id||0),0);
+const newId = () => (lastId = Math.max(Date.now(), lastId+1));
+
+function start(btn){ stop(false); running={label:btn.label,clinic:btn.clinic,facing:btn.facing,who:btn.who,startedAt:Date.now(),source:"",interrupted:false}; save(); render(); }
 function stop(renderAfter=true){ if(!running) { if(renderAfter) render(); return; }
   let mins=Math.max(1,Math.round((Date.now()-running.startedAt)/60000));
   if(mins>LONG_TIMER_MIN){
@@ -138,57 +180,143 @@ function stop(renderAfter=true){ if(!running) { if(renderAfter) render(); return
     const fixed=parseInt(ans,10);
     if(fixed>0) mins=fixed;
   }
-  entries.unshift({id:Date.now(),date:new Date(running.startedAt).toISOString(),label:running.label,clinic:running.clinic,facing:running.facing,who:running.who,minutes:mins,note:""});
+  entries.unshift({id:newId(),date:new Date(running.startedAt).toISOString(),label:running.label,clinic:running.clinic,facing:running.facing,who:running.who,minutes:mins,note:"",
+    source:running.source||"",afterHours:isAfterHours(running.startedAt),interrupted:!!running.interrupted});
   running=null; save(); if(renderAfter) render(); }
 function tick(){ if(!running) return; const s=Math.floor((Date.now()-running.startedAt)/1000);
   const h=Math.floor(s/3600), m=Math.floor(s/60)%60;
-  document.getElementById("rElapsed").textContent=(h?h+":"+pad2(m):pad2(m))+":"+pad2(s%60);
-  const long=s/60>LONG_TIMER_MIN; document.getElementById("running").classList.toggle("long",long); document.getElementById("rLong").style.display=long?"block":"none"; }
+  $("rElapsed").textContent=(h?h+":"+pad2(m):pad2(m))+":"+pad2(s%60);
+  const long=s/60>LONG_TIMER_MIN; $("running").classList.toggle("long",long); $("rLong").style.display=long?"block":"none"; }
 setInterval(tick,1000);
-function inRange(e){ const f=document.getElementById("from").value, t=document.getElementById("to").value; const d=localDay(e.date); return (!f||d>=f)&&(!t||d<=t); }
-function render(){
-  const mk=(b,urgent)=>{ const el=document.createElement("button"); el.className="task"+(urgent?" urgent":"")+((running&&running.label===b.label&&running.clinic===b.clinic)?" active":"");
+function inRange(e){ const f=$("from").value, t=$("to").value; const d=localDay(e.date); return (!f||d>=f)&&(!t||d<=t); }
+
+function render(){ renderButtons(); renderRunning(); renderSummary(); renderLog(); renderButtonList(); }
+
+function renderButtons(){
+  const isRunning=b=>running&&running.label===b.label&&running.clinic===b.clinic;
+  const mk=(b,urgent)=>{ const el=document.createElement("button"); el.className="task"+(urgent?" urgent":"")+(isRunning(b)?" active":"");
     el.innerHTML=`<b>${esc(b.label)}</b><span>${b.facing?"Patient-facing":"Not patient-facing"}<br>${esc(b.who)}${b.who==="Only a physician"?"":" — does not require a doctor"}</span>`;
-    el.onclick=()=> (running&&running.label===b.label&&running.clinic===b.clinic) ? stop() : start(b); return el; };
-  const gc=document.getElementById("gridComplex"), gu=document.getElementById("gridUrgent"); gc.innerHTML=""; gu.innerHTML="";
+    el.onclick=()=> isRunning(b) ? stop() : start(b); return el; };
+  const gc=$("gridComplex"), gu=$("gridUrgent"); gc.innerHTML=""; gu.innerHTML="";
   buttons.forEach(b=> (b.clinic==="Complex Care"?gc:gu).appendChild(mk(b,b.clinic!=="Complex Care")));
-  document.getElementById("running").style.display=running?"block":"none";
-  if(running){ document.getElementById("rLabel").textContent=running.label; document.getElementById("rSince").textContent="since "+new Date(running.startedAt).toLocaleTimeString(); tick(); }
-  // summary
-  const rs=entries.filter(inRange); const total=rs.reduce((a,e)=>a+e.minutes,0);
-  const nonDoc=rs.filter(e=>e.who!=="Only a physician").reduce((a,e)=>a+e.minutes,0);
-  const cler=rs.filter(e=>e.who==="Clerical / admin").reduce((a,e)=>a+e.minutes,0);
-  const coord=rs.filter(e=>e.who==="Care coordinator").reduce((a,e)=>a+e.minutes,0);
-  const invis=rs.filter(e=>!e.facing).reduce((a,e)=>a+e.minutes,0);
-  const urgentM=rs.filter(e=>e.clinic!=="Complex Care").reduce((a,e)=>a+e.minutes,0);
+  $("labelList").innerHTML=buttons.map(b=>`<option value="${esc(b.label)}">`).join("");
+}
+
+function renderRunning(){
+  $("running").style.display=running?"block":"none";
+  if(!running) return;
+  $("rLabel").textContent=running.label; $("rSince").textContent="since "+new Date(running.startedAt).toLocaleTimeString();
+  $("rSource").innerHTML=sourceOpts(running.source); $("rInterrupted").checked=!!running.interrupted;
+  $("rAfter").textContent=isAfterHours(running.startedAt)?"After hours":"";
+  tick();
+}
+
+function renderSummary(){
+  const rs=entries.filter(inRange); const sum=a=>a.reduce((t,e)=>t+e.minutes,0);
+  const total=sum(rs), nonDocE=rs.filter(e=>e.who!=="Only a physician"), nonDoc=sum(nonDocE);
+  const cler=sum(rs.filter(e=>e.who==="Clerical / admin")), coord=sum(rs.filter(e=>e.who==="Care coordinator"));
+  const invis=sum(rs.filter(e=>!e.facing)), urgentM=sum(rs.filter(e=>e.clinic!=="Complex Care"));
+  const afterE=rs.filter(e=>e.afterHours), afterM=sum(afterE), intN=rs.filter(e=>e.interrupted).length;
   const h=m=>(m/60).toFixed(1)+"h";
-  document.getElementById("summary").innerHTML=[["Total",h(total)],["Did not require a physician",h(nonDoc)+(total?` (${Math.round(nonDoc/total*100)}%)`:"")],["Clerical",h(cler)],["Care coordination",h(coord)],["Not patient-facing",h(invis)],["Healthy urgent (dumped)",h(urgentM)]].map(([k,v])=>`<span class="pill"><b>${k}:</b> ${v}</span>`).join("");
   // Weeks covered: the chosen From/To, or the first to last logged day when left blank.
   const days=rs.map(e=>localDay(e.date)).sort();
-  const fromV=document.getElementById("from").value, toV=document.getElementById("to").value;
+  const fromV=$("from").value, toV=$("to").value;
   const spanStart=fromV||days[0], spanEnd=toV||days[days.length-1];
   const spanDays=(spanStart&&spanEnd)?Math.max(1,dayNum(spanEnd)-dayNum(spanStart)+1):0;
-  const weeks=spanDays/7, perWeek=weeks?nonDoc/weeks:0;
+  const weeks=spanDays/7, fullWeek=spanDays>=7, perWeek=weeks?nonDoc/weeks:0;
+  const pills=[["Total",h(total)]];
+  if(fullWeek) pills.push(["Per week",h(total/weeks)]);
+  pills.push(["Did not require a physician",h(nonDoc)+(total?` (${Math.round(nonDoc/total*100)}%)`:"")],["Clerical",h(cler)],["Care coordination",h(coord)],["Not patient-facing",h(invis)],["Healthy urgent (dumped)",h(urgentM)],
+    ["After hours",`${h(afterM)} (${afterE.length} ${afterE.length===1?"entry":"entries"})`],["Interrupted a visit",`${intN} ${intN===1?"time":"times"}`]);
+  $("summary").innerHTML=pills.map(([k,v])=>`<span class="pill"><b>${k}:</b> ${v}</span>`).join("");
   let fteLine="";
-  if(nonDoc&&spanDays>=7) fteLine=`Delegable work: ${h(nonDoc)} over ${spanDays} days (${weeks.toFixed(1)} weeks) = ${h(perWeek)} per week ≈ ${(perWeek/60/40).toFixed(2)} of a 40h support FTE.`;
+  if(nonDoc&&fullWeek) fteLine=`Delegable work: ${h(nonDoc)} over ${spanDays} days (${weeks.toFixed(1)} weeks) = ${h(perWeek)} per week ≈ ${(perWeek/60/40).toFixed(2)} of a 40h support FTE.`;
   else if(nonDoc) fteLine=`Delegable work: ${h(nonDoc)} over ${spanDays} day${spanDays===1?"":"s"}. Log at least a full week for a per-week support FTE estimate.`;
-  document.getElementById("fte").textContent = fteLine;
-  document.getElementById("summaryText").textContent=`In this period I logged ${h(total)} of work. ${h(nonDoc)} (${total?Math.round(nonDoc/total*100):0}%) did not require a physician: ${h(cler)} clerical and ${h(coord)} care coordination. ${h(invis)} was not patient-facing. ${h(urgentM)} was non-complex healthy urgent work assigned on top of complex care. ${nonDoc&&spanDays>=7?`That is about ${h(perWeek)} a week of delegable work, roughly ${(perWeek/60/40).toFixed(2)} of a 40-hour support FTE. `:""}This is necessary complex-clinic work, not inefficiency — it needs clerical and care-coordination support.`;
-  // log
-  document.getElementById("log").innerHTML=rs.map(e=>`<tr><td>${localDay(e.date)}</td><td>${esc(e.label)}</td><td>${esc(e.clinic)}</td><td>${e.minutes}</td><td>${e.facing?"Yes":"No"}</td><td>${esc(e.who)}</td><td><input value="${esc(e.note)}" onchange="editNote(${e.id},this.value)" placeholder="optional"></td><td><button onclick="delEntry(${e.id})">Delete</button></td></tr>`).join("");
-  document.getElementById("buttonList").innerHTML=buttons.map((b,i)=>`<div class="row"><span class="pill">${esc(b.label)} · ${esc(b.clinic)} · ${esc(b.who)}</span><button onclick="delButton(${i})">Remove button</button></div>`).join("");
+  $("fte").textContent=fteLine;
+  // Top delegable categories, grouped by task label.
+  const groups={}; nonDocE.forEach(e=>{ const g=groups[e.label]||(groups[e.label]={label:e.label,min:0,who:new Set()}); g.min+=e.minutes; g.who.add(e.who); });
+  const top=Object.values(groups).sort((a,b)=>b.min-a.min);
+  $("topDelegable").innerHTML=top.length?top.map(g=>`<tr><td>${esc(g.label)}</td><td>${h(g.min)}</td><td>${Math.round(g.min/nonDoc*100)}%</td><td>${fullWeek?h(g.min/weeks):"–"}</td><td>${esc([...g.who].join(", "))}</td></tr>`).join(""):`<tr><td colspan="5" class="muted">No delegable work logged in this range yet.</td></tr>`;
+  const topText=top.slice(0,3).map(g=>`${g.label} (${h(g.min)})`).join(", ");
+  $("summaryText").textContent=
+    `In this period${spanDays?` (${spanDays} day${spanDays===1?"":"s"})`:""} I logged ${h(total)} of work${fullWeek?`, about ${h(total/weeks)} a week`:""}. `+
+    `${h(nonDoc)} (${total?Math.round(nonDoc/total*100):0}%) did not require a physician: ${h(cler)} clerical and ${h(coord)} care coordination. `+
+    `${topText?`The largest delegable categories were ${topText}. `:""}`+
+    `${h(invis)} was not patient-facing. ${h(urgentM)} was non-complex healthy urgent work assigned on top of complex care. `+
+    `${afterM?`${h(afterM)} was done after hours. `:""}`+
+    `${intN?`This work interrupted a visit ${intN} ${intN===1?"time":"times"}. `:""}`+
+    `${nonDoc&&fullWeek?`That is about ${h(perWeek)} a week of delegable work, roughly ${(perWeek/60/40).toFixed(2)} of a 40-hour support FTE. `:""}`+
+    `This is necessary complex-clinic work, not inefficiency — it needs clerical and care-coordination support.`;
 }
+
+function renderLog(){
+  const rs=entries.filter(inRange).sort((a,b)=>b.date.localeCompare(a.date));
+  $("log").innerHTML=rs.map(e=>{ const id=e.id, on=(f,val)=>`onchange="editEntry(${id},'${f}',${val})"`;
+    return `<tr>
+    <td><input type="date" value="${localDay(e.date)}" ${on("day","this.value")}></td>
+    <td><input value="${esc(e.label)}" ${on("label","this.value")}></td>
+    <td><select ${on("clinic","this.value")}>${opts(CLINICS,e.clinic)}</select></td>
+    <td><input type="number" min="1" value="${e.minutes}" ${on("minutes","this.value")}></td>
+    <td><input type="checkbox" ${e.facing?"checked":""} ${on("facing","this.checked")} aria-label="Patient-facing"></td>
+    <td><select ${on("who","this.value")}>${opts(WHO_OPTIONS,e.who)}</select></td>
+    <td><select ${on("source","this.value")}>${sourceOpts(e.source)}</select></td>
+    <td><input type="checkbox" ${e.afterHours?"checked":""} ${on("afterHours","this.checked")} aria-label="After hours"></td>
+    <td><input type="checkbox" ${e.interrupted?"checked":""} ${on("interrupted","this.checked")} aria-label="Interrupted a visit"></td>
+    <td><input value="${esc(e.note)}" ${on("note","this.value")} placeholder="optional"></td>
+    <td><button onclick="delEntry(${id})">Delete</button></td></tr>`; }).join("");
+}
+
+function renderButtonList(){
+  $("bCount").textContent=buttons.length;
+  $("buttonList").innerHTML=buttons.map((b,i)=>{ const on=(f,val)=>`onchange="editButton(${i},'${f}',${val})"`;
+    return `<div class="row">
+    <input value="${esc(b.label)}" ${on("label","this.value")} aria-label="Button label">
+    <select ${on("clinic","this.value")}>${opts(CLINICS,b.clinic)}</select>
+    <select ${on("who","this.value")}>${opts(WHO_OPTIONS,b.who)}</select>
+    <label><input type="checkbox" ${b.facing?"checked":""} ${on("facing","this.checked")}> Patient-facing</label>
+    <button onclick="delButton(${i})">Remove button</button></div>`; }).join("");
+}
+
 window.delEntry=id=>{entries=entries.filter(e=>e.id!==id);save();render();};
-window.editNote=(id,v)=>{const e=entries.find(x=>x.id===id); if(e){e.note=v; save();}};
+window.editEntry=(id,field,v)=>{ const e=entries.find(x=>x.id===id); if(!e) return;
+  if(field==="day"){ if(!v) return render(); const [y,m,d]=v.split("-").map(Number); const t=new Date(e.date); t.setFullYear(y,m-1,d); e.date=t.toISOString(); }
+  else if(field==="minutes"){ const n=parseInt(v,10); if(!(n>0)) return render(); e.minutes=n; }
+  else if(field==="label"){ v=v.trim(); if(!v) return render(); e.label=v; }
+  else e[field]=v;
+  save(); field==="day" ? render() : renderSummary(); };
+window.editButton=(i,field,v)=>{ const b=buttons[i]; if(!b) return;
+  if(field==="label"){ v=v.trim(); if(!v) return renderButtonList(); }
+  // Keep a running timer attached to the button it was started from.
+  if(running&&running.label===b.label&&running.clinic===b.clinic){ running[field]=v; if(field==="label") $("rLabel").textContent=v; }
+  b[field]=v; save(); renderButtons(); };
 window.delButton=i=>{buttons.splice(i,1);save();render();};
-document.getElementById("stop").onclick=()=>stop();
-document.getElementById("applyRange").onclick=render;
-document.getElementById("mAdd").onclick=()=>{const label=document.getElementById("mLabel").value.trim(); const mins=parseInt(document.getElementById("mMinutes").value,10); if(!label||!mins) return alert("Label and minutes needed");
- entries.unshift({id:Date.now(),date:new Date().toISOString(),label,clinic:document.getElementById("mClinic").value,facing:document.getElementById("mFacing").checked,who:document.getElementById("mWho").value,minutes:mins,note:""}); save(); render();};
-document.getElementById("bAdd").onclick=()=>{const label=document.getElementById("bLabel").value.trim(); if(!label) return; buttons.push({label,clinic:document.getElementById("bClinic").value,who:document.getElementById("bWho").value,facing:document.getElementById("bFacing").checked}); save(); render();};
-document.getElementById("exportCsv").onclick=()=>{const rows=[["date","label","clinic","minutes","patient_facing","who_could_do","note"],...entries.map(e=>[e.date,e.label,e.clinic,e.minutes,e.facing,e.who,e.note||""])];
+
+$("rSource").onchange=e=>{ if(running){ running.source=e.target.value; save(); } };
+$("rInterrupted").onchange=e=>{ if(running){ running.interrupted=e.target.checked; save(); } };
+$("stop").onclick=()=>stop();
+$("applyRange").onclick=render;
+
+// Manual add
+$("mClinic").innerHTML=opts(CLINICS); $("bClinic").innerHTML=opts(CLINICS);
+$("mWho").innerHTML=opts(WHO_OPTIONS,"Clerical / admin"); $("bWho").innerHTML=opts(WHO_OPTIONS,"Clerical / admin");
+$("mSource").innerHTML=sourceOpts("");
+$("mDate").value=localDay(Date.now());
+const manualStart=()=>{ const [y,m,d]=($("mDate").value||localDay(Date.now())).split("-").map(Number);
+  const [hh,mm]=($("mTime").value||"12:00").split(":").map(Number); return new Date(y,m-1,d,hh,mm); };
+$("mLabel").onchange=()=>{ const b=buttons.find(x=>x.label===$("mLabel").value.trim()); if(!b) return;
+  $("mClinic").innerHTML=opts(CLINICS,b.clinic); $("mWho").innerHTML=opts(WHO_OPTIONS,b.who); $("mFacing").checked=!!b.facing; };
+const autoAfter=()=>{ if($("mTime").value) $("mAfter").checked=isAfterHours(manualStart()); };
+$("mTime").onchange=autoAfter; $("mDate").onchange=autoAfter;
+$("mAdd").onclick=()=>{ const label=$("mLabel").value.trim(); const mins=parseInt($("mMinutes").value,10); if(!label||!(mins>0)) return alert("Label and minutes needed");
+  entries.unshift({id:newId(),date:manualStart().toISOString(),label,clinic:$("mClinic").value,facing:$("mFacing").checked,who:$("mWho").value,minutes:mins,note:"",
+    source:$("mSource").value,afterHours:$("mAfter").checked,interrupted:$("mInterrupted").checked});
+  save(); render();
+  ["mLabel","mMinutes","mTime"].forEach(id=>$(id).value=""); ["mAfter","mInterrupted"].forEach(id=>$(id).checked=false); };
+
+$("bAdd").onclick=()=>{const label=$("bLabel").value.trim(); if(!label) return; buttons.push({label,clinic:$("bClinic").value,who:$("bWho").value,facing:$("bFacing").checked}); $("bLabel").value=""; save(); render();};
+$("exportCsv").onclick=()=>{const rows=[["date","label","clinic","minutes","patient_facing","who_could_do","note","source","after_hours","interrupted_visit"],...entries.map(e=>[e.date,e.label,e.clinic,e.minutes,e.facing,e.who,e.note||"",e.source||"",!!e.afterHours,!!e.interrupted])];
  const csv=rows.map(r=>r.map(x=>`"${String(x).replace(/"/g,'""')}"`).join(",")).join("\n"); const a=document.createElement("a"); a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv"})); a.download="complex-care-work.csv"; a.click();};
-document.getElementById("copySummary").onclick=()=>navigator.clipboard.writeText(document.getElementById("summaryText").textContent);
+$("copySummary").onclick=()=>navigator.clipboard.writeText($("summaryText").textContent);
 render();
 </script>
 </body>

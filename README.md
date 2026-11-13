@@ -34,6 +34,7 @@ Both use the same taxonomy in `config/taxonomy.json`.
 Only the clinician doing this work knows its ins and outs, so nothing here is locked:
 
 - **In the artifact:** Settings lets you add, rename, or remove task categories, sources, clinic types, and who-could-do-this options. Changes apply to new entries immediately.
+- **In the standalone file:** The Buttons section lets you add, rename, re-preset, or remove buttons. Clinic hours (used to mark after-hours work) are `CLINIC_START_HOUR` and `CLINIC_END_HOUR` near the top of the script.
 - **In this repo:** Edit `config/taxonomy.json` to change the starter lists for the standalone tracker and for future imports. Edit the lists at the top of `tracker.html` (`const TAXONOMY = ...`) to change the standalone file itself.
 - Add categories freely. If a task does not fit, create the category on the spot and log it — a growing "Other / doesn't fit" pile is itself evidence that the taxonomy of the job is bigger than the job description.
 
@@ -43,7 +44,9 @@ Only the clinician doing this work knows its ins and outs, so nothing here is lo
 
 Each large button is a task type with its defaults preset (clinic, patient-facing or not, who could do it instead). She taps, works, taps again. An optional one-line note can be added afterwards, and a wrong preset can be fixed on the saved entry, but neither ever blocks the next tap.
 
-A manual add exists only for forgotten work (label + minutes).
+While a timer runs she can optionally pick a source (who asked) and tick "Interrupted a visit". After hours is set automatically from the start time (before 8am, from 5pm, or weekends). Every field on a saved entry can be corrected in the log.
+
+A manual add exists only for forgotten work: label, minutes, and the date (and optionally the start time) it actually happened, so yesterday's work can be backdated.
 
 ## What is being logged
 
