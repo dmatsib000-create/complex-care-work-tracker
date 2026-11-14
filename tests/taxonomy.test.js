@@ -10,12 +10,14 @@ const root = path.join(__dirname, "..");
 const html = fs.readFileSync(path.join(root, "tracker.html"), "utf8");
 const json = JSON.parse(fs.readFileSync(path.join(root, "config", "taxonomy.json"), "utf8"));
 
-// Evaluate one `let NAME = ...;` or `const NAME = ...;` declaration from the page's script.
-function fromPage(name) {
-  const m = html.match(new RegExp(`(?:let|const) ${name} = (\\[[\\s\\S]*?\\]);`));
-  assert.ok(m, `${name} not found in tracker.html`);
-  return new Function(`return ${m[1]};`)();
+// Run the SETTINGS block from the page's script (the names, TAXONOMY and the option lists) and return its values.
+function settings() {
+  const m = html.match(/\/\/ =+ SETTINGS START =+([\s\S]*?)\/\/ =+ SETTINGS END =+/);
+  assert.ok(m, "SETTINGS START / SETTINGS END markers not found in tracker.html");
+  return new Function(`${m[1]}; return { TAXONOMY, CLINICS, WHO_OPTIONS, SOURCES, PHYSICIAN, CLERICAL, COORDINATOR, COMPLEX, URGENT, RENAMES };`)();
 }
+const page = settings();
+const fromPage = (name) => page[name];
 
 test("buttons match config/taxonomy.json", () => {
   const page = fromPage("TAXONOMY");
@@ -27,6 +29,14 @@ test("dropdown lists match config/taxonomy.json", () => {
   assert.deepEqual(fromPage("CLINICS"), json.clinic_types);
   assert.deepEqual(fromPage("WHO_OPTIONS"), json.who_could_do_options);
   assert.deepEqual(fromPage("SOURCES"), json.sources);
+});
+
+test("the names the logic depends on are in the option lists", () => {
+  assert.ok(page.WHO_OPTIONS.includes(page.PHYSICIAN));
+  assert.ok(page.WHO_OPTIONS.includes(page.CLERICAL));
+  assert.ok(page.WHO_OPTIONS.includes(page.COORDINATOR));
+  assert.ok(page.CLINICS.includes(page.COMPLEX));
+  assert.ok(page.CLINICS.includes(page.URGENT));
 });
 
 test("every button uses a known clinic and role", () => {
