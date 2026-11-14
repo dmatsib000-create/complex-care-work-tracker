@@ -111,3 +111,13 @@ test("CSV export: selected range only, oldest first, local dates, safe for sprea
   assert.equal(lines[1], '"2026-11-09","Café forms","Complex Care","30","No","Clerical / admin","","","No","No",""');
   assert.equal(lines[2], '"2026-11-10","\'=SUM(A1)","Complex Care","30","No","Clerical / admin","","","Yes","No","21:00"');
 });
+
+test("RN work has its own highlighter in the report split", async () => {
+  const p = await openTracker(browser, { storage: { entries: [
+    entry("2026-11-10T09:00", { label: "Phone with family", who: "RN", minutes: 30 }),
+    entry("2026-11-10T10:00", { label: "Forms", minutes: 30 }),
+  ] } });
+  await p.click("#tab-report"); await p.click('#presets [data-range="week"]');
+  assert.equal(await p.locator("#splitBar .r-rn").count(), 1);
+  assert.match(await p.textContent("#splitLegend"), /RN: 0\.5 h \(50%\)/);
+});

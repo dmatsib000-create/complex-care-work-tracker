@@ -12,7 +12,7 @@ test("opens on Track with no timer running", async () => {
   assert.ok(await p.isVisible("#view-track"));
   assert.ok(!(await p.isVisible("#rangeBox")), "the date range only shows on Report and Entries");
   assert.ok(!(await p.isVisible("#running")));
-  assert.equal(await p.locator(".tile").count(), 22);
+  assert.equal(await p.locator(".tile").count(), 20);
   assert.deepEqual(p.errors, []);
 });
 
@@ -153,4 +153,27 @@ test("the label of an active clinician tile is readable on the dark tile", async
   await p.click(".tile >> text=Complex visit");
   const color = await p.$eval(".tile.active .mark", (el) => getComputedStyle(el).color);
   assert.equal(color, "rgb(255, 255, 255)");
+});
+
+test("'Needed a clinical decision' turns a support task into clinician work for that entry only", async () => {
+  const p = await openTracker(browser);
+  await p.click(".tile >> text=Phone with family");
+  assert.ok(await p.isVisible("#rClinician"), "offered for support tasks");
+  await p.check("#rClinician");
+  assert.equal(await p.locator("#track .blk.r-doc").count(), 1, "the live block turns physician blue");
+  await p.click("#stop");
+  await p.click(".tile >> text=Phone with family");
+  assert.ok(!(await p.isChecked("#rClinician")), "the next call starts unticked");
+  await p.click("#stop");
+  assert.deepEqual((await savedEntries(p)).map((e) => e.who), ["RN", "Physician or PA"]);
+  await p.click(".tile >> text=Complex visit");
+  assert.ok(!(await p.isVisible("#rClinician")), "not offered for clinician tasks");
+});
+
+test("unticking 'Needed a clinical decision' returns the task to its preset role", async () => {
+  const p = await openTracker(browser);
+  await p.click(".tile >> text=Forms");
+  await p.check("#rClinician"); await p.uncheck("#rClinician");
+  await p.click("#stop");
+  assert.equal((await savedEntries(p))[0].who, "Clerical / admin");
 });

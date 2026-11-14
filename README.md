@@ -83,7 +83,7 @@ Add categories freely. If a task does not fit, create the category on the spot a
 
 Each large button is a task type with its defaults preset (clinic, patient-facing or not, who could do it instead). She taps, works, taps again. An optional one-line note can be added afterwards, and a wrong preset can be fixed on the saved entry, but neither ever blocks the next tap.
 
-While a timer runs she can optionally pick a source (who asked) and tick "Interrupted a visit". After hours is set automatically from the start time (before 8am, from 5pm, or weekends). Every field on a saved entry can be corrected in the log.
+While a timer runs she can optionally pick a source (who asked) and tick "Interrupted a visit". On a support task she can also tick "Needed a clinician" when this one needed a physician or PA (for example a call where a clinical decision was made); that entry then counts as clinician work. After hours is set automatically from the start time (before 8am, from 5pm, or weekends). Every field on a saved entry can be corrected in the log.
 
 A manual add exists only for forgotten work: label, minutes, and the date (and optionally the start time) it actually happened, so yesterday's work can be backdated.
 
@@ -94,7 +94,7 @@ A manual add exists only for forgotten work: label, minutes, and the date (and o
 | Date + minutes | Volume and time are the argument |
 | Clinic type: Complex Care vs Non-complex Healthy Urgent | Separates her clinic from the dumped work |
 | Patient-facing? Yes / No | Makes invisible work visible |
-| Task category | e.g. Visit, Inbox, Notes, Family call: clinical decision, Peer-to-peer, Phone with family, Forms, Prior auth, Authorization / renewal cycle, Home health / PDN / PPEC orders, PDN / PPEC staffing gap, Referral coordination, DME / supplies, Scheduling, Results, Portal result follow-up, Prescriptions, Care plan coordination, Records |
+| Task category | e.g. Visit, Inbox, Notes, Peer-to-peer / appeal, Phone with family, Results follow-up, HH / PDN / PPEC orders, PDN shift gaps, Referral coordination, DME / supplies, Care plan coordination, Forms, Prior auth, Auth renewals, Prescriptions, Scheduling, Records |
 | Does this need a physician or PA? | The single most important field |
 | Who could do this instead? | Physician or PA, Clerical / admin, Care coordinator, RN, MA, Social work, Pharmacist, Plan case manager, System / automation fix |
 | Source / who asked | Family, School, Pharmacy, Insurer, Specialist, Inbox, Phone, Internal |
@@ -123,10 +123,10 @@ Framing for a supervisor conversation: see `docs/making-the-case.md`. The claim 
 Cited research reports set the starter buttons and roles. They are kept in the repository only in encrypted form (see `research/README.md`). In short:
 
 - **"Physician or PA", not "Only a physician".** Federal rules and many state laws let a PA sign many of the orders and forms a physician signs, so the line that matters for staffing is clinician versus support staff. What a PA is actually assigned follows state law and the employer's policies (privileges, supervision protocol, co-signature rules). Entries saved as "Only a physician" by earlier versions are renamed automatically.
-- **Calls are split.** "Family call: clinical decision" (a decision is made or changed) needs a clinician; other family calls ("Phone with family") default to RN, because protocol triage is generally RN scope.
-- **Prior auth is split.** The peer-to-peer and clinical argument need a clinician; paperwork and the renewal calendar ("Authorization / renewal cycle") are clerical.
-- **Medicaid renewal cycles get their own buttons.** "Home health / PDN / PPEC orders" (an RN can draft; the clinician signs) and "PDN / PPEC staffing gap" (the Medicaid plan's case manager is contracted to coordinate this; logged as "Plan case manager").
-- **Results go to RN by default.** Relaying results the clinician has already classified is RN scope; "Portal result follow-up" captures family questions after results reach the portal.
+- **Calls default to RN, with a tick for decisions.** "Phone with family" and "Results follow-up" default to RN, because protocol triage and relaying classified results are generally RN scope. She often cannot know when a call starts whether it will need a decision, so instead of a separate button she ticks "Needed a clinician" in the timer bar and that call counts as clinician work.
+- **Prior auth is split.** The peer-to-peer and clinical argument need a clinician; paperwork and the renewal calendar ("Prior auth", "Auth renewals") are clerical.
+- **Medicaid renewal cycles get their own buttons.** "HH / PDN / PPEC orders" (home health, private duty nursing and PPEC orders and plans of care; an RN can draft, the clinician signs) and "PDN shift gaps" (the Medicaid plan's case manager is contracted to coordinate this; logged as "Plan case manager").
+- **The buttons are ordered by role, and each role has its own highlighter:** aqua for RN, orange for care coordinator, yellow for clerical, pink for other roles such as the plan case manager. The three main colours match the three staffing asks.
 
 Each split is labeled in the reports as a law or payer rule, published evidence, or professional convention. Change any default to fit the clinic.
 
