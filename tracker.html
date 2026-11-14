@@ -171,10 +171,15 @@
   .editor{grid-column:1/-1;background:var(--surface);border:1px solid var(--rule);border-radius:10px;padding:var(--s4);margin-top:var(--s2)}
   .empty{padding:var(--s5);background:var(--surface);border:1px dashed var(--rule-strong);border-radius:10px;color:var(--muted)}
 
+  /* Save status: always under the header, says how much work is not in a backup yet */
+  #safe{margin:var(--s2) 0 0;font-size:14px;color:var(--muted);display:flex;flex-wrap:wrap;gap:0 var(--s3);align-items:center}
+  #safe .btn.quiet{padding:4px 0}
+  #safe.due{color:var(--ink);background:var(--warn-bg);border:1px solid #E6C87A;border-radius:8px;padding:6px 10px;gap:var(--s1) var(--s3)}
+  #safe.due #safeText{font-weight:600}
+  #safeSave{padding:5px 12px}
+  #safe:not(.due) #safeSave{display:none}
+
   /* Buttons view */
-  .backup{background:var(--surface);border:1px solid var(--rule);border-radius:10px;padding:var(--s3) var(--s4);margin-bottom:var(--s3)}
-  .backup p{margin:0 0 var(--s2);max-width:68ch}
-  #nudge{margin:var(--s2) 0 0;font-size:14px;background:var(--warn-bg);border:1px solid #E6C87A;border-radius:8px;padding:6px 10px;display:flex;flex-wrap:wrap;gap:var(--s2);align-items:center}
   .warnbox{background:var(--warn-bg);border:1px solid #E6C87A;border-radius:10px;padding:var(--s3) var(--s4);margin-bottom:var(--s4)}
   .warnbox[hidden]{display:none}
   .blist{margin-top:var(--s4)}
@@ -183,11 +188,20 @@
   .bitem{display:grid;grid-template-columns:minmax(160px,1.4fr) minmax(150px,1fr) minmax(150px,1fr) auto auto;gap:var(--s2) var(--s3);align-items:center;padding:var(--s2) 0;border-bottom:1px solid var(--rule)}
 
   /* Long-timer check: shown instead of saving a timer that may have been left running */
-  #longPanel{border:0;border-radius:12px;padding:var(--s5);max-width:420px;width:calc(100% - 32px);color:var(--ink);background:var(--surface)}
-  #longPanel::backdrop{background:rgba(30,40,54,.55)}
-  #longPanel h2{font-size:20px;font-weight:800;margin:0 0 var(--s2)}
-  #longPanel p{margin:0 0 var(--s3)}
-  #longPanel .actions{display:flex;flex-wrap:wrap;gap:var(--s2);margin-top:var(--s4)}
+  dialog{border:0;border-radius:12px;padding:var(--s5);max-width:420px;width:calc(100% - 32px);color:var(--ink);background:var(--surface)}
+  dialog::backdrop{background:rgba(30,40,54,.55)}
+  dialog h2{font-size:20px;font-weight:800;margin:0 0 var(--s2)}
+  dialog p{margin:0 0 var(--s3)}
+  dialog .actions{display:flex;flex-wrap:wrap;gap:var(--s2);margin-top:var(--s4)}
+
+  /* Back up and restore panel */
+  #backupPanel{max-width:480px;max-height:calc(100% - 32px)}
+  #backupPanel h3{font-size:16px;font-weight:800;margin:var(--s5) 0 var(--s1);padding-top:var(--s4);border-top:1px solid var(--rule)}
+  #backupPanel .actions{margin-top:0}
+  #bpStatus{font-size:17px;font-weight:600}
+  #backupMsg{margin:var(--s3) 0 0;padding:var(--s2) var(--s3);border-left:3px solid var(--doc);background:var(--paper);font-size:15px}
+  #backupMsg:empty{display:none}
+  #bpClose{position:absolute;top:var(--s3);right:var(--s3)}
   #longError{color:#9B1C1C;font-size:14px;min-height:1.2em;margin:var(--s1) 0 0}
   footer{border-top:1px solid var(--rule);padding:var(--s4) 0 var(--s6);font-size:14px;color:var(--muted)}
 
@@ -218,7 +232,7 @@
   </div>
   <p id="todayLine"></p>
   <p class="phi"><b>No patient identifiers.</b> Never type a name, MRN, or date of birth. Generic labels only.</p>
-  <p id="nudge" hidden><span id="nudgeText"></span><button class="btn quiet" id="nudgeSave">Save a backup now</button></p>
+  <p id="safe"><span id="safeText"></span><button class="btn primary" id="safeSave">Save backup file</button><button class="btn quiet" id="safeMore">Back up or restore</button></p>
   <nav role="tablist" aria-label="Sections">
     <button role="tab" id="tab-track" aria-controls="view-track" data-view="track">Track</button>
     <button role="tab" id="tab-report" aria-controls="view-report" data-view="report">Report</button>
@@ -290,15 +304,6 @@
 
   <!-- ENTRIES -->
   <section class="view" id="view-entries" role="tabpanel" aria-labelledby="tab-entries" hidden>
-    <div class="backup">
-      <p>Entries are saved in this browser only. Save a backup file to keep them safe, or to carry them to another device or browser. Restoring adds entries from the file and skips any already here.</p>
-      <div class="row">
-        <button class="btn primary" id="backupSave">Save backup file</button>
-        <button class="btn" id="backupLoad">Restore from backup file</button>
-        <input type="file" id="backupFile" accept=".json,application/json" hidden>
-        <span id="backupMsg" class="small muted" aria-live="polite"></span>
-      </div>
-    </div>
     <details class="add" id="addBox">
       <summary>Add work you forgot to time</summary>
       <div class="form-grid">
@@ -373,6 +378,23 @@
     <button class="btn danger" id="longDiscard">Discard it</button>
     <button class="btn quiet" id="longKeep">Keep timing</button>
   </div>
+</dialog>
+
+<dialog id="backupPanel" aria-labelledby="bpTitle">
+  <button class="btn quiet" id="bpClose">Close</button>
+  <h2 id="bpTitle">Back up and restore</h2>
+  <p id="bpStatus"></p>
+  <p>Clearing browsing data, using a private window, or a work computer that resets when you sign out can erase what is saved here. A backup file is a copy you keep somewhere else.</p>
+  <div class="actions"><button class="btn primary" id="backupSave">Save backup file</button></div>
+  <p class="small muted" id="bpHint" style="margin:var(--s2) 0 0"></p>
+  <h3>Restore from a backup file</h3>
+  <p>Use this on a new phone or computer, or if entries go missing. Entries in the file are added; entries already here are kept.</p>
+  <div class="actions">
+    <button class="btn" id="backupLoad">Restore from backup file</button>
+    <input type="file" id="backupFile" accept=".json,application/json" hidden>
+  </div>
+  <p class="small muted" id="bpIos" style="margin:var(--s3) 0 0" hidden>On iPhone, Safari and an icon added to the Home Screen keep separate entries. To switch, save a backup in one and restore it in the other.</p>
+  <p id="backupMsg" aria-live="polite"></p>
 </dialog>
 
 <script>
@@ -502,10 +524,14 @@ function loadState(){
   rememberKeyNames();
   return repaired||renamedAny;
 }
+let persistAsked=false;
 const save=()=>{ try{
   if(buttonsCustom) localStorage.setItem(LS_B,JSON.stringify(buttons)); else localStorage.removeItem(LS_B);
   localStorage.setItem(LS_E,JSON.stringify(entries)); localStorage.setItem(LS_R,JSON.stringify(running));
-  }catch(e){ alert("This browser would not save the change (storage may be full or blocked). Save a backup file from Entries now."); } };
+  // Once there is work to lose, ask the browser not to clear this page's storage on its own (supported browsers only).
+  if(!persistAsked&&entries.length&&navigator.storage&&navigator.storage.persist){ persistAsked=true; navigator.storage.persist().catch(()=>{}); }
+  }catch(e){ alert("This browser would not save the change (storage may be full or blocked). Save a backup file now so nothing is lost.");
+    if(typeof openBackup==="function") openBackup(); } };
 const buttonsChanged = () => { buttonsCustom = buttonKey(buttons)!==buttonKey(TAXONOMY); save(); };
 if(loadState()) save();
 
@@ -887,25 +913,54 @@ $("copySummary").onclick=()=>navigator.clipboard.writeText($("summaryText").text
 const LS_BACKUP="ccwt_last_backup_v1";
 const lastBackupAt=()=>{ try{ return +localStorage.getItem(LS_BACKUP)||0; }catch(e){ return 0; } };
 const daysAgo=t=>Math.floor((Date.now()-t)/86400000);
+// Calendar days, so a backup saved yesterday evening reads "yesterday" the next morning.
+const ago=t=>{ const d=Math.round((Date.parse(localDay(Date.now()))-Date.parse(localDay(t)))/86400000); return d<=0?"today":d===1?"yesterday":d+" days ago"; };
+// When an entry was added or last edited. Ids are creation times, so this needs no extra field.
+const changedAt=e=>Math.max(safeId(e.id)?e.id:0,e.updatedAt||0);
+// Entries added or edited since the last backup file was saved: the work that would be lost today.
+const notBackedUp=()=>{ const t=lastBackupAt(); return entries.filter(e=>changedAt(e)>t); };
+// Phones and tablets get the share sheet (Mail, Files, Drive...), which is easier to find than a download.
+const isIOS=/iP(hone|ad|od)/.test(navigator.userAgent)||(navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1);
+const backupName=()=>`complex-care-work-backup_${localDay(Date.now())}.json`;
+const shareable=f=>{ try{ return matchMedia("(pointer:coarse)").matches&&!!navigator.canShare&&navigator.canShare({files:[f]}); }catch(e){ return false; } };
 function renderBackup(){
-  const t=lastBackupAt(), d=t?daysAgo(t):null;
-  $("lastBackup").textContent = t ? `Last backup saved ${d===0?"today":d===1?"yesterday":d+" days ago"}.` : "No backup saved yet. Save one from Entries.";
-  // Nudge when there is work to lose: never backed up and the oldest entry is 2+ days old, or the last backup is a week old.
-  const oldest=entries.reduce((a,e)=>Math.min(a,new Date(e.date).getTime()),Date.now());
-  const show=entries.length>0 && (t ? d>=7 : daysAgo(oldest)>=2);
-  $("nudge").hidden=!show;
-  if(show) $("nudgeText").textContent = t ? `Your last backup was ${d} days ago.` : `Your ${entries.length} ${entries.length===1?"entry is":"entries are"} only in this browser.`;
+  const t=lastBackupAt(), n=entries.length, un=notBackedUp();
+  // Amber when there is real work to lose: something not backed up that is 2 or more days old.
+  const oldest=un.reduce((a,e)=>Math.min(a,changedAt(e)),Date.now());
+  const due=un.length>0&&daysAgo(oldest)>=2;
+  const text = !n ? "Nothing saved in this browser yet."
+    : !t ? `Your ${plural(n,"entry is","entries are")} only in this browser. No backup saved yet.`
+    : !un.length ? `Everything is backed up. Last backup ${ago(t)}.`
+    : `${plural(un.length,"entry","entries")} not in a backup yet. Last backup ${ago(t)}.`;
+  $("safe").classList.toggle("due",due);
+  $("safeText").textContent=text;
+  $("safeMore").textContent = n ? "Back up or restore" : "Restore from a backup file";
+  $("lastBackup").textContent = t ? `Last backup saved ${ago(t)}.` : "No backup saved yet.";
+  $("bpStatus").textContent = !n ? "There are no entries in this browser yet." : text;
+  $("backupSave").disabled=!n;
+  $("bpHint").textContent = !n ? "Moving from another phone or computer? Restore a backup file below."
+    : shareable(new File(["{}"],"x.json",{type:"application/json"})) ? "Choose Mail to send it to yourself, or save it to Files or a cloud drive."
+    : "It goes to your Downloads folder. Email it to yourself or move it to a cloud drive so it is kept off this computer.";
+  $("bpIos").hidden=!isIOS;
 }
-function saveBackup(){
-  const data={app:"complex-care-work-tracker",format:1,savedAt:new Date().toISOString(),entries,buttons:buttonsCustom?buttons:null};
-  const a=document.createElement("a"); a.href=URL.createObjectURL(new Blob([JSON.stringify(data,null,1)],{type:"application/json"}));
-  a.download=`complex-care-work-backup_${localDay(Date.now())}.json`; a.click();
+function markBackedUp(){
   try{ localStorage.setItem(LS_BACKUP,String(Date.now())); }catch(e){}
-  // Ask the browser not to clear this page's storage on its own (supported browsers only).
-  if(navigator.storage&&navigator.storage.persist) navigator.storage.persist().catch(()=>{});
-  $("backupMsg").textContent=`Saved ${entries.length} ${entries.length===1?"entry":"entries"}. Keep the file somewhere safe, such as your email or a cloud drive.`;
+  $("backupMsg").textContent=`Saved backup file with ${plural(entries.length,"entry","entries")}. Keep it somewhere other than this device, such as your email or a cloud drive.`;
   renderBackup();
 }
+async function saveBackup(){
+  const data={app:"complex-care-work-tracker",format:1,savedAt:new Date().toISOString(),entries,buttons:buttonsCustom?buttons:null};
+  const blob=new Blob([JSON.stringify(data,null,1)],{type:"application/json"});
+  const file=new File([blob],backupName(),{type:"application/json"});
+  if(shareable(file)){
+    // Only count it as backed up once the share sheet finishes; cancelling it saves nothing.
+    try{ await navigator.share({files:[file],title:"Complex care work backup"}); markBackedUp(); return; }
+    catch(e){ if(e&&e.name==="AbortError"){ $("backupMsg").textContent="Backup not saved. The share was cancelled."; return; } }
+  }
+  const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=backupName(); a.click();
+  markBackedUp();
+}
+function openBackup(){ renderBackup(); const p=$("backupPanel"); if(!p.open) p.showModal(); }
 async function restoreBackup(file){
   const say=t=>$("backupMsg").textContent=t;
   try{
@@ -925,7 +980,10 @@ async function restoreBackup(file){
     const nb=Array.isArray(data.buttons)?data.buttons.filter(validButton).map(cleanButton):[];
     const useButtons=nb.length>0&&buttonKey(nb)!==buttonKey(buttons)
       &&confirm("This backup also has its own task buttons. Use those buttons in this browser? Entries are added either way.");
+    // Everything already here is also in this file: the file is a backup of this browser as of when it was saved.
+    const covered=entries.every(e=>seen.has(e.id)), savedAt=Date.parse(data.savedAt);
     entries=entries.map(e=>newer.get(e.id)||e).concat(incoming).sort((a,b)=>b.date.localeCompare(a.date));
+    if(covered&&savedAt>lastBackupAt()&&savedAt<=Date.now()) try{ localStorage.setItem(LS_BACKUP,String(savedAt)); }catch(e){}
     if(useButtons){ buttons=nb; buttonsCustom=buttonKey(buttons)!==buttonKey(TAXONOMY); }
     save(); render();
     const n=incoming.length;
@@ -938,7 +996,10 @@ async function restoreBackup(file){
   }catch(err){ say("Could not restore from that file. Nothing was changed. Choose a file saved with Save backup file."); }
 }
 $("backupSave").onclick=saveBackup;
-$("nudgeSave").onclick=()=>{ saveBackup(); showView("entries"); };
+$("safeSave").onclick=async()=>{ await saveBackup(); if($("backupMsg").textContent) openBackup(); };
+$("safeMore").onclick=openBackup;
+$("bpClose").onclick=()=>$("backupPanel").close();
+$("backupPanel").addEventListener("close",()=>{ $("backupMsg").textContent=""; });
 $("backupLoad").onclick=()=>$("backupFile").click();
 $("backupFile").onchange=e=>{ const f=e.target.files[0]; if(f) restoreBackup(f); e.target.value=""; };
 
