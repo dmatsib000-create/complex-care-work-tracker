@@ -4,7 +4,7 @@ const assert = require("node:assert/strict");
 const fs = require("fs");
 const os = require("os");
 const path = require("path");
-const { chromium, entry, openTracker, savedEntries, saved, answerDialogs } = require("./helpers");
+const { chromium, entry, openTracker, savedEntries, saved, answerDialogs, newContext, TRACKER } = require("./helpers");
 
 let browser, dir;
 before(async () => { browser = await chromium.launch(); dir = fs.mkdtempSync(path.join(os.tmpdir(), "ccwt-backup-")); });
@@ -151,4 +151,65 @@ test("editing an entry records when it was edited", async () => {
   const [e] = await savedEntries(p);
   const t0 = Date.parse("2026-11-11T10:00:00-08:00"); // the test clock starts here and keeps ticking
   assert.ok(e.updatedAt >= t0 && e.updatedAt < t0 + 60e3, `updatedAt ${e.updatedAt} is the time of the edit`);
+});
+
+test("a save that fails while the page opens shows the backup panel instead of breaking the page", async () => {
+  const ctx = await newContext(browser);
+  // Storage refuses to save entries once "fail" is set.
+  await ctx.addInitScript(() => { const real = Storage.prototype.setItem;
+    Storage.prototype.setItem = function (k, v) { if (k === "ccwt_entries_v1" && this.getItem("fail") === "1") throw new DOMException("full", "QuotaExceededError"); return real.call(this, k, v); }; });
+  const e = entry("2026-11-10T10:00");
+  const page = await ctx.newPage(); page.errors = []; page.on("pageerror", (x) => page.errors.push(x.message));
+  await page.goto(TRACKER);
+  // A repeated id is repaired as the page opens, so the page saves straight away, and that save fails.
+  await page.evaluate((list) => { localStorage.setItem("ccwt_entries_v1", JSON.stringify(list)); localStorage.setItem("fail", "1"); }, [e, { ...e }]);
+  const seen = answerDialogs(page, [true]);
+  await page.reload();
+  await page.waitForSelector("#backupPanel[open]");
+  assert.match(seen[0], /would not save/);
+  assert.ok((await page.locator(".tile").count()) > 0, "task buttons are drawn");
+  assert.deepEqual(page.errors, []);
+});
+
+test("persistent storage: asked once there are entries, not again on later visits, and on every Save backup file", async () => {
+  const ctx = await newContext(browser);
+  await ctx.addInitScript(() => { window.__asks = 0;
+    Object.defineProperty(navigator, "storage", { value: { persisted: async () => false, persist: async () => { window.__asks++; return false; } } }); });
+  const p = await openTracker(browser, { context: ctx });
+  await p.click(".tile >> text=Forms"); await p.click(".tile >> text=Scheduling"); await p.click("#stop");
+  await p.waitForFunction(() => window.__asks === 1);
+  await p.reload(); // the count starts again at 0 on each page load
+  await p.click(".tile >> text=Forms"); await p.click("#stop");
+  assert.equal(await p.evaluate(() => window.__asks), 0, "not asked again on the next visit");
+  await p.click("#safeMore");
+  await Promise.all([p.waitForEvent("download"), p.click("#backupSave")]);
+  assert.equal(await p.evaluate(() => window.__asks), 1, "Save backup file always asks");
+});
+
+test("restoring an older copy of an entry edited here does not count as backed up", async () => {
+  const at = (t) => Date.parse(t + "-08:00");
+  const original = entry("2026-11-09T10:00", { id: at("2026-11-09T10:30") });
+  const p = await openTracker(browser, { storage: { entries: [{ ...original, minutes: 45, updatedAt: at("2026-11-10T09:00") }] } });
+  const file = writeFile("stale.json", { savedAt: new Date(at("2026-11-10T18:00")).toISOString(), entries: [original] });
+  await restore(p, file);
+  assert.match(await p.textContent("#safeText"), /only in this browser/);
+});
+
+test("button changes after a backup are counted as not backed up", async () => {
+  const p = await openTracker(browser, { storage: { lastBackup: String(Date.parse("2026-11-10T18:00:00-08:00")) } });
+  await p.click("#tab-buttons"); await p.fill("#bLabel", "Equipment letters"); await p.click("#bAdd");
+  assert.equal(await p.textContent("#safeText"), "Button changes not in a backup yet. Last backup yesterday.");
+  assert.ok(await p.isEnabled("#backupSave"), "buttons alone can be backed up");
+  const q = await openTracker(browser, { storage: { lastBackup: String(Date.parse("2026-11-10T18:00:00-08:00")),
+    entries: [entry("2026-11-11T09:00", { id: Date.parse("2026-11-11T09:30:00-08:00") })] } });
+  await q.click("#tab-buttons"); await q.fill("#bLabel", "Equipment letters"); await q.click("#bAdd");
+  assert.equal(await q.textContent("#safeText"), "1 entry and button changes not in a backup yet. Last backup yesterday.");
+});
+
+test("backup panel: Save has focus, and a tap outside closes it", async () => {
+  const p = await openTracker(browser, { storage: { entries: [entry("2026-11-10T10:00")] } });
+  await p.click("#safeMore");
+  assert.equal(await p.evaluate(() => document.activeElement.id), "backupSave");
+  await p.mouse.click(5, 5);
+  assert.ok(!(await p.isVisible("#backupPanel")));
 });

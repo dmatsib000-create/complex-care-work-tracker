@@ -201,7 +201,11 @@
   #bpStatus{font-size:17px;font-weight:600}
   #backupMsg{margin:var(--s3) 0 0;padding:var(--s2) var(--s3);border-left:3px solid var(--doc);background:var(--paper);font-size:15px}
   #backupMsg:empty{display:none}
-  #bpClose{position:absolute;top:var(--s3);right:var(--s3)}
+  /* Title and Close stay in view when the panel scrolls on a short screen */
+  .bp-head{position:sticky;top:calc(-1 * var(--s5));z-index:1;display:flex;justify-content:space-between;align-items:center;gap:var(--s3);
+    margin:calc(-1 * var(--s5)) 0 var(--s2);padding:var(--s4) 0 var(--s2);background:var(--surface)}
+  .bp-head h2{margin:0}
+  #bpClose{padding:6px 0}
   #longError{color:#9B1C1C;font-size:14px;min-height:1.2em;margin:var(--s1) 0 0}
   footer{border-top:1px solid var(--rule);padding:var(--s4) 0 var(--s6);font-size:14px;color:var(--muted)}
 
@@ -381,11 +385,10 @@
 </dialog>
 
 <dialog id="backupPanel" aria-labelledby="bpTitle">
-  <button class="btn quiet" id="bpClose">Close</button>
-  <h2 id="bpTitle">Back up and restore</h2>
+  <div class="bp-head"><h2 id="bpTitle">Back up and restore</h2><button class="btn quiet" id="bpClose">Close</button></div>
   <p id="bpStatus"></p>
   <p>Clearing browsing data, using a private window, or a work computer that resets when you sign out can erase what is saved here. A backup file is a copy you keep somewhere else.</p>
-  <div class="actions"><button class="btn primary" id="backupSave">Save backup file</button></div>
+  <div class="actions"><button class="btn primary" id="backupSave" autofocus>Save backup file</button></div>
   <p class="small muted" id="bpHint" style="margin:var(--s2) 0 0"></p>
   <h3>Restore from a backup file</h3>
   <p>Use this on a new phone or computer, or if entries go missing. Entries in the file are added; entries already here are kept.</p>
@@ -524,15 +527,31 @@ function loadState(){
   rememberKeyNames();
   return repaired||renamedAny;
 }
-let persistAsked=false;
+// Ask the browser not to clear this page's storage on its own (supported browsers only). Some browsers (Firefox)
+// show a question for this, so without a click on Save backup file it is asked at most once in this browser.
+const LS_PERSIST="ccwt_persist_asked_v1";
+let persistChecked=false;
+function askPersist(clicked){
+  const st=navigator.storage; if(!st||!st.persist) return;
+  if(clicked){ st.persist().catch(()=>{}); return; }
+  if(persistChecked) return; persistChecked=true;
+  let asked=false; try{ asked=!!localStorage.getItem(LS_PERSIST); }catch(e){ return; }
+  if(asked) return;
+  (st.persisted?st.persisted():Promise.resolve(false)).then(done=>{ if(done) return;
+    try{ localStorage.setItem(LS_PERSIST,"1"); }catch(e){} return st.persist(); }).catch(()=>{});
+}
 const save=()=>{ try{
   if(buttonsCustom) localStorage.setItem(LS_B,JSON.stringify(buttons)); else localStorage.removeItem(LS_B);
   localStorage.setItem(LS_E,JSON.stringify(entries)); localStorage.setItem(LS_R,JSON.stringify(running));
-  // Once there is work to lose, ask the browser not to clear this page's storage on its own (supported browsers only).
-  if(!persistAsked&&entries.length&&navigator.storage&&navigator.storage.persist){ persistAsked=true; navigator.storage.persist().catch(()=>{}); }
+  if(entries.length) askPersist(false);
   }catch(e){ alert("This browser would not save the change (storage may be full or blocked). Save a backup file now so nothing is lost.");
-    if(typeof openBackup==="function") openBackup(); } };
-const buttonsChanged = () => { buttonsCustom = buttonKey(buttons)!==buttonKey(TAXONOMY); save(); };
+    // Opened after the current script finishes: this can run while the page is still starting up.
+    setTimeout(()=>openBackup(),0); } };
+// When buttons were last changed on the page, so the save status can tell if the change is in a backup.
+const LS_BTN_CHANGED="ccwt_buttons_changed_v1";
+const buttonsChangedAt=()=>{ try{ return +localStorage.getItem(LS_BTN_CHANGED)||0; }catch(e){ return 0; } };
+const buttonsChanged = () => { buttonsCustom = buttonKey(buttons)!==buttonKey(TAXONOMY);
+  try{ localStorage.setItem(LS_BTN_CHANGED,String(Date.now())); }catch(e){} save(); };
 if(loadState()) save();
 
 // Minutes the running timer has been on (at least 1).
@@ -903,8 +922,7 @@ $("exportCsv").onclick=()=>{ const rs=entries.filter(inRange).sort((a,b)=>a.date
   // The leading byte-order mark tells Excel the file is UTF-8, so accented letters survive.
   const csv="\ufeff"+rows.map(r=>r.map(csvCell).join(",")).join("\n");
   const first=localDay(rs[0].date), last=localDay(rs[rs.length-1].date);
-  const a=document.createElement("a"); a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv"}));
-  a.download=`complex-care-work_${$("from").value||first}_to_${$("to").value||last}.csv`; a.click(); };
+  download(new Blob([csv],{type:"text/csv"}),`complex-care-work_${$("from").value||first}_to_${$("to").value||last}.csv`); };
 $("copySummary").onclick=()=>navigator.clipboard.writeText($("summaryText").textContent)
   .then(()=>$("copied").textContent="Copied. Paste it into an email or document.")
   .catch(()=>$("copied").textContent="Could not copy. Select the text above and copy it instead.");
@@ -923,23 +941,31 @@ const notBackedUp=()=>{ const t=lastBackupAt(); return entries.filter(e=>changed
 const isIOS=/iP(hone|ad|od)/.test(navigator.userAgent)||(navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1);
 const backupName=()=>`complex-care-work-backup_${localDay(Date.now())}.json`;
 const shareable=f=>{ try{ return matchMedia("(pointer:coarse)").matches&&!!navigator.canShare&&navigator.canShare({files:[f]}); }catch(e){ return false; } };
+const SHARES_FILES=shareable(new File(["{}"],"x.json",{type:"application/json"}));
+// Download a file, and let the browser free it once the download has started.
+function download(blob,name){ const url=URL.createObjectURL(blob), a=document.createElement("a");
+  a.href=url; a.download=name; a.click(); setTimeout(()=>URL.revokeObjectURL(url),10000); }
 function renderBackup(){
   const t=lastBackupAt(), n=entries.length, un=notBackedUp();
+  // Button changes made on the page since the last backup (changes back to the file's list included).
+  const bt=buttonsChangedAt(), btnNew=bt>t&&(buttonsCustom||t>0);
+  const has=n>0||buttonsCustom;
   // Amber when there is real work to lose: something not backed up that is 2 or more days old.
-  const oldest=un.reduce((a,e)=>Math.min(a,changedAt(e)),Date.now());
-  const due=un.length>0&&daysAgo(oldest)>=2;
-  const text = !n ? "Nothing saved in this browser yet."
-    : !t ? `Your ${plural(n,"entry is","entries are")} only in this browser. No backup saved yet.`
-    : !un.length ? `Everything is backed up. Last backup ${ago(t)}.`
-    : `${plural(un.length,"entry","entries")} not in a backup yet. Last backup ${ago(t)}.`;
+  const oldest=un.reduce((a,e)=>Math.min(a,changedAt(e)),btnNew?bt:Date.now());
+  const due=(un.length>0||btnNew)&&daysAgo(oldest)>=2;
+  const what=[un.length&&plural(un.length,"entry","entries"),btnNew&&(un.length?"button changes":"Button changes")].filter(Boolean).join(" and ");
+  const text = !has ? "Nothing saved in this browser yet."
+    : !t ? (n?`Your ${plural(n,"entry is","entries are")} only in this browser.`:"Your button changes are only in this browser.")+" No backup saved yet."
+    : !what ? `Everything is backed up. Last backup ${ago(t)}.`
+    : `${what} not in a backup yet. Last backup ${ago(t)}.`;
   $("safe").classList.toggle("due",due);
   $("safeText").textContent=text;
-  $("safeMore").textContent = n ? "Back up or restore" : "Restore from a backup file";
+  $("safeMore").textContent = has ? "Back up or restore" : "Restore from a backup file";
   $("lastBackup").textContent = t ? `Last backup saved ${ago(t)}.` : "No backup saved yet.";
-  $("bpStatus").textContent = !n ? "There are no entries in this browser yet." : text;
-  $("backupSave").disabled=!n;
-  $("bpHint").textContent = !n ? "Moving from another phone or computer? Restore a backup file below."
-    : shareable(new File(["{}"],"x.json",{type:"application/json"})) ? "Choose Mail to send it to yourself, or save it to Files or a cloud drive."
+  $("bpStatus").textContent = !has ? "There are no entries in this browser yet." : text;
+  $("backupSave").disabled=!has;
+  $("bpHint").textContent = !has ? "Moving from another phone or computer? Restore a backup file below."
+    : SHARES_FILES ? "Choose Mail to send it to yourself, or save it to Files or a cloud drive."
     : "It goes to your Downloads folder. Email it to yourself or move it to a cloud drive so it is kept off this computer.";
   $("bpIos").hidden=!isIOS;
 }
@@ -952,12 +978,13 @@ async function saveBackup(){
   const data={app:"complex-care-work-tracker",format:1,savedAt:new Date().toISOString(),entries,buttons:buttonsCustom?buttons:null};
   const blob=new Blob([JSON.stringify(data,null,1)],{type:"application/json"});
   const file=new File([blob],backupName(),{type:"application/json"});
-  if(shareable(file)){
+  askPersist(true);
+  if(SHARES_FILES&&shareable(file)){
     // Only count it as backed up once the share sheet finishes; cancelling it saves nothing.
     try{ await navigator.share({files:[file],title:"Complex care work backup"}); markBackedUp(); return; }
     catch(e){ if(e&&e.name==="AbortError"){ $("backupMsg").textContent="Backup not saved. The share was cancelled."; return; } }
   }
-  const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=backupName(); a.click();
+  download(blob,backupName());
   markBackedUp();
 }
 function openBackup(){ renderBackup(); const p=$("backupPanel"); if(!p.open) p.showModal(); }
@@ -970,6 +997,9 @@ async function restoreBackup(file){
     // Work out everything before changing anything, so a bad file cannot leave a half-finished restore.
     // An entry already here is replaced only if the backup's copy was edited more recently.
     const byId=new Map(entries.map(e=>[e.id,e])), seen=new Set(), incoming=[], newer=new Map(); let skipped=0, bad=0;
+    // When each entry in the file was last edited (0 if never), to tell whether the file is a full backup of this browser.
+    const fileEdit=new Map();
+    list.forEach(raw=>{ if(validEntry(raw)&&safeId(raw.id)&&!fileEdit.has(raw.id)) fileEdit.set(raw.id,Number.isSafeInteger(raw.updatedAt)?raw.updatedAt:0); });
     list.forEach(raw=>{ if(!validEntry(raw)){ bad++; return; }
       if(safeId(raw.id)&&(byId.has(raw.id)||seen.has(raw.id))){
         const mine=byId.get(raw.id), theirs=cleanEntry(raw);
@@ -980,11 +1010,15 @@ async function restoreBackup(file){
     const nb=Array.isArray(data.buttons)?data.buttons.filter(validButton).map(cleanButton):[];
     const useButtons=nb.length>0&&buttonKey(nb)!==buttonKey(buttons)
       &&confirm("This backup also has its own task buttons. Use those buttons in this browser? Entries are added either way.");
-    // Everything already here is also in this file: the file is a backup of this browser as of when it was saved.
-    const covered=entries.every(e=>seen.has(e.id)), savedAt=Date.parse(data.savedAt);
-    entries=entries.map(e=>newer.get(e.id)||e).concat(incoming).sort((a,b)=>b.date.localeCompare(a.date));
-    if(covered&&savedAt>lastBackupAt()&&savedAt<=Date.now()) try{ localStorage.setItem(LS_BACKUP,String(savedAt)); }catch(e){}
     if(useButtons){ buttons=nb; buttonsCustom=buttonKey(buttons)!==buttonKey(TAXONOMY); }
+    // The file is a full backup of this browser if it has every entry here, each at least as recently edited,
+    // and the same buttons. Then this browser counts as backed up as of when the file was saved.
+    const fileButtons=nb.length?nb:TAXONOMY, savedAt=Date.parse(data.savedAt);
+    const covered=entries.every(e=>fileEdit.has(e.id)&&fileEdit.get(e.id)>=(e.updatedAt||0))&&buttonKey(buttons)===buttonKey(fileButtons);
+    entries=entries.map(e=>newer.get(e.id)||e).concat(incoming).sort((a,b)=>b.date.localeCompare(a.date));
+    if(covered&&savedAt>lastBackupAt()&&savedAt<=Date.now()) try{ localStorage.setItem(LS_BACKUP,String(savedAt));
+      // The buttons here are the file's, so any earlier change to them is in this backup too.
+      if(buttonsChangedAt()>savedAt) localStorage.setItem(LS_BTN_CHANGED,String(savedAt)); }catch(e){}
     save(); render();
     const n=incoming.length;
     const was=k=>k===1?"was":"were";
@@ -999,6 +1033,9 @@ $("backupSave").onclick=saveBackup;
 $("safeSave").onclick=async()=>{ await saveBackup(); if($("backupMsg").textContent) openBackup(); };
 $("safeMore").onclick=openBackup;
 $("bpClose").onclick=()=>$("backupPanel").close();
+// A tap on the dimmed page outside the panel closes it.
+$("backupPanel").addEventListener("click",e=>{ const r=$("backupPanel").getBoundingClientRect();
+  if(e.target===$("backupPanel")&&(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)) $("backupPanel").close(); });
 $("backupPanel").addEventListener("close",()=>{ $("backupMsg").textContent=""; });
 $("backupLoad").onclick=()=>$("backupFile").click();
 $("backupFile").onchange=e=>{ const f=e.target.files[0]; if(f) restoreBackup(f); e.target.value=""; };
@@ -1038,7 +1075,7 @@ function renderSetupWarn(){ const p=settingsProblems(); $("setupWarn").hidden=!p
 // ---------- Staying current ----------
 // Another tab or window saved a change: reload from storage so this tab does not overwrite it.
 function reloadFromStorage(){ loadState(); if(openEdit!=null&&!entries.some(e=>e.id===openEdit)) openEdit=null; render(); }
-window.addEventListener("storage",e=>{ if(e.key===null||[LS_E,LS_B,LS_R].includes(e.key)) reloadFromStorage(); else if(e.key===LS_BACKUP) renderBackup(); });
+window.addEventListener("storage",e=>{ if(e.key===null||[LS_E,LS_B,LS_R].includes(e.key)) reloadFromStorage(); else if(e.key===LS_BACKUP||e.key===LS_BTN_CHANGED) renderBackup(); });
 // A new day while the page is open: move "Today"/"This week" etc. and the manual-add date to the new day.
 let shownDay=localDay(Date.now());
 function checkDay(){ const d=localDay(Date.now()); if(d===shownDay) return false; shownDay=d;
