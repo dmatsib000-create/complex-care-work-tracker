@@ -172,6 +172,9 @@
   .empty{padding:var(--s5);background:var(--surface);border:1px dashed var(--rule-strong);border-radius:10px;color:var(--muted)}
 
   /* Buttons view */
+  .backup{background:var(--surface);border:1px solid var(--rule);border-radius:10px;padding:var(--s3) var(--s4);margin-bottom:var(--s3)}
+  .backup p{margin:0 0 var(--s2);max-width:68ch}
+  #nudge{margin:var(--s2) 0 0;font-size:14px;background:var(--warn-bg);border:1px solid #E6C87A;border-radius:8px;padding:6px 10px;display:flex;flex-wrap:wrap;gap:var(--s2);align-items:center}
   .warnbox{background:var(--warn-bg);border:1px solid #E6C87A;border-radius:10px;padding:var(--s3) var(--s4);margin-bottom:var(--s4)}
   .warnbox[hidden]{display:none}
   .blist{margin-top:var(--s4)}
@@ -206,6 +209,7 @@
   </div>
   <p id="todayLine"></p>
   <p class="phi"><b>No patient identifiers.</b> Never type a name, MRN, or date of birth. Generic labels only.</p>
+  <p id="nudge" hidden><span id="nudgeText"></span><button class="btn quiet" id="nudgeSave">Save a backup now</button></p>
   <nav role="tablist" aria-label="Sections">
     <button role="tab" id="tab-track" aria-controls="view-track" data-view="track">Track</button>
     <button role="tab" id="tab-report" aria-controls="view-report" data-view="report">Report</button>
@@ -276,6 +280,15 @@
 
   <!-- ENTRIES -->
   <section class="view" id="view-entries" role="tabpanel" aria-labelledby="tab-entries" hidden>
+    <div class="backup">
+      <p>Entries are saved in this browser only. Save a backup file to keep them safe, or to carry them to another device or browser. Restoring adds entries from the file and skips any already here.</p>
+      <div class="row">
+        <button class="btn primary" id="backupSave">Save backup file</button>
+        <button class="btn" id="backupLoad">Restore from backup file</button>
+        <input type="file" id="backupFile" accept=".json,application/json" hidden>
+        <span id="backupMsg" class="small muted" aria-live="polite"></span>
+      </div>
+    </div>
     <details class="add" id="addBox">
       <summary>Add work you forgot to time</summary>
       <div class="form-grid">
@@ -320,7 +333,7 @@
 </main>
 
 <footer class="wrap">
-  Entries are saved only in this browser on this device. Export a CSV from Report to back them up.
+  Entries are saved only in this browser on this device. <span id="lastBackup"></span>
   <a href="https://docs.google.com/forms/d/e/1FAIpQLScd_fsY-B3A2AiI4-EwMtFP4WyT56Yk1As_pT2pULxEW0xu0A/viewform" target="_blank" rel="noopener">Send feedback, suggest a task button, or report a bug</a>.
 </footer>
 
@@ -426,7 +439,7 @@ function tick(){ if(!running) return; const t=elapsedText();
 setInterval(tick,1000);
 function inRange(e){ const f=$("from").value, t=$("to").value; const d=localDay(e.date); return (!f||d>=f)&&(!t||d<=t); }
 
-function render(){ renderToday(); renderButtons(); renderRunning(); renderSummary(); renderLog(); renderButtonList(); }
+function render(){ renderToday(); renderButtons(); renderRunning(); renderSummary(); renderLog(); renderButtonList(); renderBackup(); }
 
 // ---------- Views ----------
 let view="track";
@@ -679,6 +692,56 @@ $("exportCsv").onclick=()=>{ const rs=entries.filter(inRange).sort((a,b)=>a.date
 $("copySummary").onclick=()=>navigator.clipboard.writeText($("summaryText").textContent)
   .then(()=>$("copied").textContent="Copied. Paste it into an email or document.")
   .catch(()=>$("copied").textContent="Could not copy. Select the text above and copy it instead.");
+// ---------- Backup file: save and restore ----------
+// One JSON file holds every entry, plus the button list if it was changed here. Nothing is sent anywhere.
+const LS_BACKUP="ccwt_last_backup_v1";
+const lastBackupAt=()=>{ try{ return +localStorage.getItem(LS_BACKUP)||0; }catch(e){ return 0; } };
+const daysAgo=t=>Math.floor((Date.now()-t)/86400000);
+function renderBackup(){
+  const t=lastBackupAt(), d=t?daysAgo(t):null;
+  $("lastBackup").textContent = t ? `Last backup saved ${d===0?"today":d===1?"yesterday":d+" days ago"}.` : "No backup saved yet. Save one from Entries.";
+  // Nudge when there is work to lose: never backed up and the oldest entry is 2+ days old, or the last backup is a week old.
+  const oldest=entries.reduce((a,e)=>Math.min(a,new Date(e.date).getTime()),Date.now());
+  const show=entries.length>0 && (t ? d>=7 : daysAgo(oldest)>=2);
+  $("nudge").hidden=!show;
+  if(show) $("nudgeText").textContent = t ? `Your last backup was ${d} days ago.` : `Your ${entries.length} ${entries.length===1?"entry is":"entries are"} only in this browser.`;
+}
+function saveBackup(){
+  const data={app:"complex-care-work-tracker",format:1,savedAt:new Date().toISOString(),entries,buttons:buttonsCustom?buttons:null};
+  const a=document.createElement("a"); a.href=URL.createObjectURL(new Blob([JSON.stringify(data,null,1)],{type:"application/json"}));
+  a.download=`complex-care-work-backup_${localDay(Date.now())}.json`; a.click();
+  try{ localStorage.setItem(LS_BACKUP,String(Date.now())); }catch(e){}
+  // Ask the browser not to clear this page's storage on its own (supported browsers only).
+  if(navigator.storage&&navigator.storage.persist) navigator.storage.persist().catch(()=>{});
+  $("backupMsg").textContent=`Saved ${entries.length} ${entries.length===1?"entry":"entries"}. Keep the file somewhere safe, such as your email or a cloud drive.`;
+  renderBackup();
+}
+const validEntry=e=>e&&typeof e==="object"&&typeof e.label==="string"&&e.label&&!isNaN(new Date(e.date))&&Number(e.minutes)>0;
+async function restoreBackup(file){
+  let data; try{ data=JSON.parse(await file.text()); }catch(e){ $("backupMsg").textContent="That file is not a backup from this tracker. Choose a file saved with Save backup file."; return; }
+  const list=Array.isArray(data)?data:data&&data.entries;
+  if(!Array.isArray(list)){ $("backupMsg").textContent="That file has no entries in it. Choose a file saved with Save backup file."; return; }
+  const have=new Set(entries.map(e=>e.id)); let added=0, skipped=0, bad=0;
+  list.forEach(e=>{ if(!validEntry(e)){ bad++; return; } if(have.has(e.id)){ skipped++; return; }
+    const id=(typeof e.id==="number"&&isFinite(e.id))?e.id:newId(); have.add(id);
+    entries.push({id,date:new Date(e.date).toISOString(),label:String(e.label),clinic:String(e.clinic||"Complex Care"),facing:!!e.facing,who:String(e.who||"Only a physician"),
+      minutes:Math.round(Number(e.minutes)),note:String(e.note||""),source:String(e.source||""),afterHours:e.afterHours===undefined?isAfterHours(e.date):!!e.afterHours,interrupted:!!e.interrupted}); added++; });
+  entries.sort((a,b)=>b.date.localeCompare(a.date));
+  lastId=entries.reduce((a,e)=>Math.max(a,e.id||0),0);
+  let btnNote="";
+  if(Array.isArray(data.buttons)&&data.buttons.length&&buttonKey(data.buttons)!==buttonKey(buttons)
+     && confirm("This backup also has its own task buttons. Use those buttons in this browser? Entries are added either way.")){
+    buttons=data.buttons.filter(b=>b&&b.label).map(b=>({label:String(b.label),clinic:String(b.clinic||"Complex Care"),facing:!!b.facing,who:String(b.who||"Only a physician")}));
+    buttonsChanged(); btnNote=" Buttons updated from the backup.";
+  }
+  save(); render();
+  $("backupMsg").textContent=`Added ${added} ${added===1?"entry":"entries"}.`+(skipped?` ${skipped} ${skipped===1?"was":"were"} already here.`:"")+(bad?` ${bad} could not be read and ${bad===1?"was":"were"} skipped.`:"")+btnNote;
+}
+$("backupSave").onclick=saveBackup;
+$("nudgeSave").onclick=()=>{ saveBackup(); showView("entries"); };
+$("backupLoad").onclick=()=>$("backupFile").click();
+$("backupFile").onchange=e=>{ const f=e.target.files[0]; if(f) restoreBackup(f); e.target.value=""; };
+
 showView("track");
 setRange(rangeKey);
 </script>

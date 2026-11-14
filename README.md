@@ -98,7 +98,10 @@ Framing for a supervisor conversation — see `docs/making-the-case.md`. The cla
 ## Privacy and safety
 
 - No PHI, ever, in either version.
-- The standalone file stores data only in your browser on your device. Export CSV to back it up.
+- The standalone file stores data only in your browser on your device. Nothing is sent anywhere.
+- **Back it up:** Entries tab, Save backup file. It downloads one small `.json` file with every entry (and your button changes). Keep it in your email or a cloud drive. The page reminds you if you have not saved one for a week.
+- **Move to another device or browser:** open the tracker there, Entries tab, Restore from backup file. Entries are added; any already there are skipped, so restoring the same file twice is harmless.
+- **iPhone / Safari:** Safari can clear a website's saved data if the site is not opened for about a week. Save backups regularly, or add the page to your Home Screen.
 - This repo is private by default in spirit: do not publish logs containing clinic-identifying operational details without checking your employer's policies.
 
 ## Licence / ownership
