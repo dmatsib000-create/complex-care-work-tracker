@@ -25,7 +25,7 @@ It records feedback, suggestions, missing task buttons, and bug reports. The sam
 Open the **Complex Care Work Tracker** artifact in Muse. Log entries there, edit the categories in Settings, and use the Dashboard / Report view to summarise a week or a month.
 
 ### 2. The standalone file (no account, fully yours)
-Open `tracker.html` in any browser. It saves entries only in that browser (localStorage), exports CSV, and can be edited directly — it is one self-contained file with no server and no dependencies.
+Open `tracker.html` in any browser. It saves entries only in that browser (localStorage), exports CSV for the selected date range (local dates and start times), and can be edited directly — it is one self-contained file with no server and no dependencies.
 
 Both use the same taxonomy in `config/taxonomy.json`.
 
@@ -35,7 +35,7 @@ Only the clinician doing this work knows its ins and outs, so nothing here is lo
 
 - **In the artifact:** Settings lets you add, rename, or remove task categories, sources, clinic types, and who-could-do-this options. Changes apply to new entries immediately.
 - **In the standalone file:** The Buttons section lets you add, rename, re-preset, or remove buttons. Clinic hours (used to mark after-hours work) are `CLINIC_START_HOUR` and `CLINIC_END_HOUR` near the top of the script.
-- **In this repo:** Edit `config/taxonomy.json` to change the starter lists for the standalone tracker and for future imports. Edit the lists at the top of `tracker.html` (`const TAXONOMY = ...`) to change the standalone file itself.
+- **In this repo:** Edit `config/taxonomy.json` to change the starter lists for the standalone tracker and for future imports. Edit the lists at the top of `tracker.html` (`const TAXONOMY = ...`) to change the standalone file itself. If buttons were also changed on the page in that browser, the page keeps those and shows a "Use the file's list instead" button to switch to the file's list.
 - Add categories freely. If a task does not fit, create the category on the spot and log it — a growing "Other / doesn't fit" pile is itself evidence that the taxonomy of the job is bigger than the job description.
 
 ## How it works — single click
@@ -64,7 +64,7 @@ A manual add exists only for forgotten work: label, minutes, and the date (and o
 
 ## Reading the results — the argument it makes
 
-The dashboard / report answers, for any date range:
+The dashboard / report answers, for any date range (Today, This week, Last 7 days, Last 4 weeks, All time, or custom dates; it opens on This week):
 
 - **Total hours logged**, and hours per week
 - **% of time that did not require a physician**

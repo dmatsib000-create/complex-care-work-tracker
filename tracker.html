@@ -32,6 +32,8 @@
   #logTable input[type=date]{width:130px} #logTable input[type=number]{width:60px}
   #running .extras{margin-top:10px;font-size:14px} #running select{padding:4px 6px}
   #buttonList .row{margin:6px 0}
+  .presets button{padding:6px 12px;border-radius:999px;border:1px solid #cbd5e1;background:#fff}
+  .presets button.on{background:#123c4a;color:#fff;border-color:#123c4a}
 </style>
 </head>
 <body>
@@ -62,15 +64,20 @@
   <p class="muted">Forgot to click? Use Manual add below. Wrong button? Fix any field on the saved entry in the log. Nothing is locked.</p>
 
   <section>
-    <h2>Today / this week — the case for support</h2>
+    <h2>The case for support</h2>
+    <div class="row presets" id="presets">
+      <button data-range="today">Today</button><button data-range="week">This week</button><button data-range="7d">Last 7 days</button><button data-range="4w">Last 4 weeks</button><button data-range="all">All time</button>
+    </div>
+    <div class="row" style="margin:8px 0">
+      <label>From <input type="date" id="from"></label>
+      <label>To <input type="date" id="to"></label>
+    </div>
+    <p id="rangeLabel" class="muted" style="margin:4px 0 10px"></p>
     <div id="summary" class="row"></div>
     <p id="fte" style="font-weight:600"></p>
     <p class="muted">Framing: this is volume + misallocation, not speed. Hours that did not require a physician, but were necessary for a complex clinic, are support work currently done by a physician.</p>
     <div class="row">
-      <label>From <input type="date" id="from"></label>
-      <label>To <input type="date" id="to"></label>
-      <button id="applyRange">Apply range</button>
-      <button id="exportCsv">Export CSV</button>
+      <button id="exportCsv">Export CSV (this range)</button>
       <button id="copySummary">Copy summary text</button>
     </div>
     <pre id="summaryText" style="white-space:pre-wrap;background:#f8fafc;padding:12px;border-radius:8px"></pre>
@@ -110,6 +117,7 @@
       <label><input type="checkbox" id="bFacing"> Patient-facing</label>
       <button id="bAdd">Add button</button>
     </div>
+    <div id="bCustom" class="warn" style="display:none;margin-top:10px">This browser is using button changes made on this page, so the list at the top of <code>tracker.html</code> is not being used. <button id="bReset">Use the file's list instead</button> <span class="muted">Saved entries are not affected. Changes made here are lost.</span></div>
     <details style="margin-top:10px"><summary>Edit or remove existing buttons (<span id="bCount"></span>)</summary><div id="buttonList"></div></details>
   </section>
 
@@ -161,10 +169,17 @@ const sourceOpts = cur => `<option value="">Source: not set</option>`+opts(SOURC
 const $ = id => document.getElementById(id);
 
 const LS_B="ccwt_buttons_v1", LS_E="ccwt_entries_v1", LS_R="ccwt_running_v1";
-let buttons = JSON.parse(localStorage.getItem(LS_B)||"null") || TAXONOMY;
+// Buttons: the TAXONOMY list above is used unless buttons are changed on the page.
+// Only a list that differs from TAXONOMY is saved in the browser, so editing TAXONOMY in this file takes effect.
+const buttonKey = list => JSON.stringify(list.map(b=>[b.label,b.clinic,!!b.facing,b.who]));
+let savedButtons = JSON.parse(localStorage.getItem(LS_B)||"null");
+if(savedButtons && buttonKey(savedButtons)===buttonKey(TAXONOMY)){ localStorage.removeItem(LS_B); savedButtons=null; }
+let buttons = savedButtons || TAXONOMY.map(b=>({...b}));
+let buttonsCustom = !!savedButtons;
+const buttonsChanged = () => { buttonsCustom = buttonKey(buttons)!==buttonKey(TAXONOMY); save(); };
 let entries = JSON.parse(localStorage.getItem(LS_E)||"[]");
 let running = JSON.parse(localStorage.getItem(LS_R)||"null");
-const save=()=>{localStorage.setItem(LS_B,JSON.stringify(buttons));localStorage.setItem(LS_E,JSON.stringify(entries));localStorage.setItem(LS_R,JSON.stringify(running));};
+const save=()=>{ if(buttonsCustom) localStorage.setItem(LS_B,JSON.stringify(buttons)); else localStorage.removeItem(LS_B);localStorage.setItem(LS_E,JSON.stringify(entries));localStorage.setItem(LS_R,JSON.stringify(running));};
 // Entries saved before after-hours tracking existed: work it out from their start time.
 entries.forEach(e=>{ if(e.afterHours===undefined) e.afterHours=isAfterHours(e.date); });
 let lastId = entries.reduce((a,e)=>Math.max(a,e.id||0),0);
@@ -224,6 +239,11 @@ function renderSummary(){
   const spanStart=fromV||days[0], spanEnd=toV||days[days.length-1];
   const spanDays=(spanStart&&spanEnd)?Math.max(1,dayNum(spanEnd)-dayNum(spanStart)+1):0;
   const weeks=spanDays/7, fullWeek=spanDays>=7, perWeek=weeks?nonDoc/weeks:0;
+  const nice=ymd=>{ const [y,m,d]=ymd.split("-").map(Number); return new Date(y,m-1,d).toLocaleDateString(undefined,{weekday:"short",day:"numeric",month:"short",year:"numeric"}); };
+  const name={today:"Today",week:"This week",["7d"]:"Last 7 days",["4w"]:"Last 4 weeks",all:"All time"}[rangeKey]||"Custom range";
+  $("rangeLabel").textContent = (fromV||toV)
+    ? `${name}: ${fromV?nice(fromV):"first entry"} to ${toV?nice(toV):"latest entry"}${spanDays?` (${spanDays} day${spanDays===1?"":"s"})`:""}, ${rs.length} ${rs.length===1?"entry":"entries"}. The log below shows the same range.`
+    : `All time: ${rs.length} ${rs.length===1?"entry":"entries"}${spanDays?` over ${spanDays} day${spanDays===1?"":"s"}`:""}. The log below shows the same range.`;
   const pills=[["Total",h(total)]];
   if(fullWeek) pills.push(["Per week",h(total/weeks)]);
   pills.push(["Did not require a physician",h(nonDoc)+(total?` (${Math.round(nonDoc/total*100)}%)`:"")],["Clerical",h(cler)],["Care coordination",h(coord)],["Not patient-facing",h(invis)],["Healthy urgent (dumped)",h(urgentM)],
@@ -231,7 +251,7 @@ function renderSummary(){
   $("summary").innerHTML=pills.map(([k,v])=>`<span class="pill"><b>${k}:</b> ${v}</span>`).join("");
   let fteLine="";
   if(nonDoc&&fullWeek) fteLine=`Delegable work: ${h(nonDoc)} over ${spanDays} days (${weeks.toFixed(1)} weeks) = ${h(perWeek)} per week ≈ ${(perWeek/60/40).toFixed(2)} of a 40h support FTE.`;
-  else if(nonDoc) fteLine=`Delegable work: ${h(nonDoc)} over ${spanDays} day${spanDays===1?"":"s"}. Log at least a full week for a per-week support FTE estimate.`;
+  else if(nonDoc) fteLine=`Delegable work: ${h(nonDoc)} over ${spanDays} day${spanDays===1?"":"s"}. `+((fromV&&toV)?"Choose a range of 7 days or more (e.g. Last 4 weeks) for a per-week support FTE estimate.":"Log at least a full week for a per-week support FTE estimate.");
   $("fte").textContent=fteLine;
   // Top delegable categories, grouped by task label.
   const groups={}; nonDocE.forEach(e=>{ const g=groups[e.label]||(groups[e.label]={label:e.label,min:0,who:new Set()}); g.min+=e.minutes; g.who.add(e.who); });
@@ -267,7 +287,7 @@ function renderLog(){
 }
 
 function renderButtonList(){
-  $("bCount").textContent=buttons.length;
+  $("bCount").textContent=buttons.length; $("bCustom").style.display=buttonsCustom?"block":"none";
   $("buttonList").innerHTML=buttons.map((b,i)=>{ const on=(f,val)=>`onchange="editButton(${i},'${f}',${val})"`;
     return `<div class="row">
     <input value="${esc(b.label)}" ${on("label","this.value")} aria-label="Button label">
@@ -288,13 +308,25 @@ window.editButton=(i,field,v)=>{ const b=buttons[i]; if(!b) return;
   if(field==="label"){ v=v.trim(); if(!v) return renderButtonList(); }
   // Keep a running timer attached to the button it was started from.
   if(running&&running.label===b.label&&running.clinic===b.clinic){ running[field]=v; if(field==="label") $("rLabel").textContent=v; }
-  b[field]=v; save(); renderButtons(); };
-window.delButton=i=>{buttons.splice(i,1);save();render();};
+  b[field]=v; buttonsChanged(); renderButtons(); $("bCustom").style.display=buttonsCustom?"block":"none"; };
+window.delButton=i=>{buttons.splice(i,1);buttonsChanged();render();};
+$("bReset").onclick=()=>{ if(!confirm("Replace the buttons in this browser with the list in tracker.html? Saved entries are kept.")) return;
+  buttons=TAXONOMY.map(b=>({...b})); buttonsChanged(); render(); };
 
 $("rSource").onchange=e=>{ if(running){ running.source=e.target.value; save(); } };
 $("rInterrupted").onchange=e=>{ if(running){ running.interrupted=e.target.checked; save(); } };
 $("stop").onclick=()=>stop();
-$("applyRange").onclick=render;
+// Date range presets. The chosen preset is remembered in this browser; custom dates are not.
+const LS_RANGE="ccwt_range_v1";
+const shiftDay=(days)=>{ const d=new Date(); d.setDate(d.getDate()+days); return localDay(d); };
+const RANGES={ today:()=>[shiftDay(0),shiftDay(0)], week:()=>[shiftDay(-((new Date().getDay()+6)%7)),shiftDay(0)],
+  "7d":()=>[shiftDay(-6),shiftDay(0)], "4w":()=>[shiftDay(-27),shiftDay(0)], all:()=>["",""] };
+let rangeKey="week"; try{ const k=localStorage.getItem(LS_RANGE); if(RANGES[k]) rangeKey=k; }catch(e){}
+function setRange(key){ rangeKey=key;
+  if(RANGES[key]){ [$("from").value,$("to").value]=RANGES[key](); try{ localStorage.setItem(LS_RANGE,key); }catch(e){} }
+  document.querySelectorAll("#presets button").forEach(b=>b.classList.toggle("on",b.dataset.range===key)); render(); }
+document.querySelectorAll("#presets button").forEach(b=>b.onclick=()=>setRange(b.dataset.range));
+$("from").onchange=$("to").onchange=()=>setRange("custom");
 
 // Manual add
 $("mClinic").innerHTML=opts(CLINICS); $("bClinic").innerHTML=opts(CLINICS);
@@ -313,11 +345,22 @@ $("mAdd").onclick=()=>{ const label=$("mLabel").value.trim(); const mins=parseIn
   save(); render();
   ["mLabel","mMinutes","mTime"].forEach(id=>$(id).value=""); ["mAfter","mInterrupted"].forEach(id=>$(id).checked=false); };
 
-$("bAdd").onclick=()=>{const label=$("bLabel").value.trim(); if(!label) return; buttons.push({label,clinic:$("bClinic").value,who:$("bWho").value,facing:$("bFacing").checked}); $("bLabel").value=""; save(); render();};
-$("exportCsv").onclick=()=>{const rows=[["date","label","clinic","minutes","patient_facing","who_could_do","note","source","after_hours","interrupted_visit"],...entries.map(e=>[e.date,e.label,e.clinic,e.minutes,e.facing,e.who,e.note||"",e.source||"",!!e.afterHours,!!e.interrupted])];
- const csv=rows.map(r=>r.map(x=>`"${String(x).replace(/"/g,'""')}"`).join(",")).join("\n"); const a=document.createElement("a"); a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv"})); a.download="complex-care-work.csv"; a.click();};
+$("bAdd").onclick=()=>{const label=$("bLabel").value.trim(); if(!label) return; buttons.push({label,clinic:$("bClinic").value,who:$("bWho").value,facing:$("bFacing").checked}); $("bLabel").value=""; buttonsChanged(); render();};
+// CSV of the selected range, oldest first, with local dates and times.
+// Text starting with = + - @ is prefixed with ' so spreadsheets do not run it as a formula.
+const csvCell=x=>{ let v=String(x??""); if(/^[=+\-@\t\r]/.test(v)) v="'"+v; return `"${v.replace(/"/g,'""')}"`; };
+const yn=v=>v?"Yes":"No";
+const hhmm=d=>{ d=new Date(d); return pad2(d.getHours())+":"+pad2(d.getMinutes()); };
+$("exportCsv").onclick=()=>{ const rs=entries.filter(inRange).sort((a,b)=>a.date.localeCompare(b.date));
+  if(!rs.length) return alert("No entries in this range to export. Pick a different range, or All time.");
+  const rows=[["date","label","clinic","minutes","patient_facing","who_could_do","note","source","after_hours","interrupted_visit","start_time"],
+    ...rs.map(e=>[localDay(e.date),e.label,e.clinic,e.minutes,yn(e.facing),e.who,e.note||"",e.source||"",yn(e.afterHours),yn(e.interrupted),hhmm(e.date)])];
+  const csv=rows.map(r=>r.map(csvCell).join(",")).join("\n");
+  const first=localDay(rs[0].date), last=localDay(rs[rs.length-1].date);
+  const a=document.createElement("a"); a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv"}));
+  a.download=`complex-care-work_${$("from").value||first}_to_${$("to").value||last}.csv`; a.click(); };
 $("copySummary").onclick=()=>navigator.clipboard.writeText($("summaryText").textContent);
-render();
+setRange(rangeKey);
 </script>
 </body>
 </html>
