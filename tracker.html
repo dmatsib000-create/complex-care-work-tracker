@@ -170,6 +170,8 @@
   .p-fig{margin:var(--s2) 0 0}
   .p-more{margin:var(--s1) 0 0;font-size:14px;color:var(--muted)}
   .p-warn{margin:var(--s2) 0 0;font-size:14px;color:var(--warn)}
+  #teamOdd{margin:var(--s3) 0 0;max-width:68ch}
+  #teamOdd code{white-space:nowrap}
 
   /* Entries */
   details.add{background:var(--surface);border:1px solid var(--rule);border-radius:10px;padding:var(--s3) var(--s4);margin-bottom:var(--s5)}
@@ -237,7 +239,7 @@
     #todayLine{font-size:15px;min-height:3em} /* room for two lines, so the first tap of the day does not push the buttons down */
     .phi-more{display:none}
     nav{margin-top:var(--s2);gap:var(--s3)}
-    nav button{padding:var(--s2) 0;font-size:15px}
+    nav button{padding:10px 0;font-size:15px} /* about 41px tall: easier to hit one-handed */
     #view-track{display:flex;flex-direction:column;padding-top:var(--s2)}
     #view-track .strip{order:1;margin:var(--s5) 0 0}
     #view-track .howto{order:2}
@@ -249,6 +251,7 @@
     .bitem{grid-template-columns:1fr 1fr}
     .bitem > input{grid-column:1/-1}
     .grid{grid-template-columns:1fr 1fr}
+    .facts{grid-template-columns:1fr 1fr} /* the key figures in pairs, not one long column */
     .run{display:grid;grid-template-columns:1fr auto;gap:var(--s2) var(--s3)}
     .run-time{font-size:24px}
     .run-time small{display:block;margin:2px 0 0}
@@ -393,7 +396,7 @@
 
   <!-- TEAM -->
   <section class="view" id="view-team" role="tabpanel" aria-labelledby="tab-team" hidden>
-    <p class="team-intro">Put together the work of two or more people who each track in their own browser. Each person uses Save backup file and sends you the file. The files are only read for this report: they are never added to the entries in this browser, and they are forgotten when this page is closed or reloaded.</p>
+    <p class="team-intro">Put together the work of two or more clinicians who each track in their own browser. Each one uses Save backup file and sends you the file. The files are only read for this report: they are never added to the entries in this browser, and they are forgotten when this page is closed or reloaded.</p>
     <div class="row">
       <button class="btn primary" id="teamLoad">Add backup files</button>
       <input type="file" id="teamFile" accept=".json,application/json" multiple hidden>
@@ -401,7 +404,7 @@
       <button class="btn quiet danger" id="teamClear" hidden>Clear the team report</button>
     </div>
     <div id="teamMsg" aria-live="polite"></div>
-    <p id="teamEmpty" class="empty" style="margin-top:var(--s4)">No one added yet. Add each person's backup file. You can choose several at once.</p>
+    <p id="teamEmpty" class="empty" style="margin-top:var(--s4)">No one added yet. Add each clinician's backup file. You can choose several at once.</p>
 
     <div id="teamReport" hidden>
       <h2 id="teamHeadline" class="headline"></h2>
@@ -411,11 +414,11 @@
       <dl class="facts" id="teamFacts"></dl>
 
       <div class="rep-sec">
-        <h2>Each person</h2>
-        <p class="muted">Each person is shown by a label. Change it if you like: a letter or a role is enough, no names needed. Each person's weeks count from their own first entry and stop on the day their file was saved.</p>
-        <p id="teamOne" class="warnbox" hidden>Add at least one more person's backup file to make this a team report.</p>
+        <h2>Each clinician</h2>
+        <p class="muted">Each clinician is shown by a label. Change it if you like: a letter or a role is enough, no names needed. Each one's weeks count from their own first entry and stop on the day their file was saved.</p>
+        <p id="teamOne" class="warnbox" hidden>Add at least one more clinician's backup file to make this a team report.</p>
         <ul class="people" id="teamPeople"></ul>
-        <p id="teamOdd" class="small muted" hidden>A role or clinic this page does not list may be another name for one it does, from a copy of the tracker whose settings were changed. If so, add the old name to RENAMES at the top of tracker.html (for example <code>"Front desk": "Clerical / admin"</code>) and reload the page.</p>
+        <p id="teamOdd" class="small muted" hidden>If a role or clinic above is an old name for one this page lists, add it to RENAMES at the top of tracker.html and reload, for example:<br><code>"Front desk": "Clerical / admin"</code></p>
       </div>
 
       <div class="rep-sec">
@@ -426,7 +429,7 @@
 
       <div class="rep-sec">
         <h2>Team summary for your supervisor</h2>
-        <p class="muted">Plain text you can paste into an email. It gives team figures and the spread across people, not a line for each person.</p>
+        <p class="muted">Plain text you can paste into an email. It gives team figures and the spread across clinicians, not a line for each one.</p>
         <p id="teamSummary"></p>
         <div class="row actions">
           <button class="btn primary" id="copyTeam">Copy team summary</button>
@@ -733,7 +736,13 @@ let view="track";
 function showView(v){ view=v;
   document.querySelectorAll("nav button").forEach(b=>{ const on=b.dataset.view===v; b.setAttribute("aria-selected",on); b.tabIndex=on?0:-1; });
   ["track","report","entries","buttons","team"].forEach(k=>$("view-"+k).hidden=k!==v);
-  $("rangeBox").hidden=!(v==="report"||v==="entries"||v==="team"); renderRangeLabel(); }
+  placeRange(); renderRangeLabel(); }
+// The date range is shared by Report, Entries and Team. On Team it goes under "Add backup files", just above the
+// results, and only once someone is in the report: the first thing to do there is add the files.
+function placeRange(){ const box=$("rangeBox");
+  if(view==="team"){ if(box.parentNode!==$("view-team")) $("view-team").insertBefore(box,$("teamReport")); }
+  else if(box.nextElementSibling!==$("view-report")) $("view-report").before(box);
+  box.hidden=!(view==="report"||view==="entries"||(view==="team"&&team.length)); }
 document.querySelectorAll("nav button").forEach(b=>{
   b.onclick=()=>showView(b.dataset.view);
   b.onkeydown=e=>{ if(e.key!=="ArrowRight"&&e.key!=="ArrowLeft") return; const all=[...document.querySelectorAll("nav button")];
@@ -776,13 +785,19 @@ function renderToday(){
 // ---------- Task tiles ----------
 function renderButtons(){
   const isRunning=b=>running&&running.label===b.label&&running.clinic===b.clinic;
+  // Minutes saved today for each task (label and clinic), for the line under clinician tiles.
+  const today=localDay(Date.now()), todayMin=new Map();
+  entries.forEach(e=>{ if(localDay(e.date)===today){ const k=e.label+"|"+e.clinic; todayMin.set(k,(todayMin.get(k)||0)+e.minutes); } });
   const mk=(b,urgent)=>{ const el=document.createElement("button"); const on=isRunning(b);
     el.className=`tile ${roleClass(b.who)}${urgent?" urgent":""}${on?" active":""}`; el.setAttribute("aria-pressed",on);
-    // Every tile has one line under the label: the role, or the running time while it is timing.
-    // Swapping one line for the other keeps the tile the same height, so the buttons do not move under her finger.
-    el.innerHTML=`<span class="t-label"><span class="mark">${esc(b.label)}</span></span>`+
+    // Every tile has one line under the label: the running time while it is timing; otherwise who could do it on support
+    // tiles, and today's time on that task on clinician tiles (their group heading already says they need a clinician).
+    // Swapping one line for another keeps the tile the same height, so the buttons do not move under her finger.
+    const m=todayMin.get(b.label+"|"+b.clinic)||0, meta=isDoc(b.who)?(m?`Today ${hm(m)}`:"Not yet today"):b.who;
+    // Screen readers move from button to button without the group heading, so clinician tiles still say what they are.
+    el.innerHTML=`<span class="t-label"><span class="mark">${esc(b.label)}</span>${isDoc(b.who)?`<span class="sr-only">(needs a physician or PA)</span>`:""}</span>`+
       (on?`<span class="t-live"><span class="dot" aria-hidden="true"></span><span data-live>${elapsedText()}</span></span>`
-         :`<span class="t-meta">${esc(b.who)}</span>`);
+         :`<span class="t-meta">${esc(meta)}</span>`);
     el.onclick=()=> isRunning(b) ? stop() : start(b); return el; };
   const gd=$("gridDoc"), gs=$("gridSupport"), gu=$("gridUrgent"); gd.innerHTML=gs.innerHTML=gu.innerHTML="";
   buttons.forEach(b=>{ if(b.clinic!==COMPLEX) gu.appendChild(mk(b,true)); else (isDoc(b.who)?gd:gs).appendChild(mk(b,false)); });
@@ -847,6 +862,11 @@ function computeReport(list, all, from, to, today){
 }
 // Report times: minutes under an hour ("35 min"), hours to one decimal above ("2.5 h"), so a short range never reads "0.0 h".
 const hrs=m=>{ m=Math.round(m); return !m ? "0 h" : m<60 ? `${m} min` : (m/60).toFixed(1)+" h"; };
+// Times that are read side by side (a legend, a column) share one unit: hours if any of them is an hour or more,
+// minutes otherwise. "1.2 h" next to "0.9 h" compares at a glance; "1.2 h" next to "54 min" does not.
+// A few minutes in an hours list read "<0.1 h", never "0.0 h".
+const listUnit=list=>{ const inHours=list.some(m=>Math.round(m)>=60);
+  return m=>{ m=Math.round(m)||0; return !inHours ? `${m} min` : !m ? "0 h" : m<3 ? "<0.1 h" : (m/60).toFixed(1)+" h"; }; };
 const pctOf=(m,total)=>total?Math.round(m/total*100)+"%":"0%";
 const plural=(n,one,many)=>`${n} ${n===1?one:many}`;
 
@@ -873,11 +893,12 @@ const rangeName=()=>({today:"Today",week:"This week",["7d"]:"Last 7 days",["4w"]
 // The split by who could do the work: [class, label, minutes] for each part with any time.
 const splitSegs=r=>[["r-doc","Needs a physician or PA",r.physician],["r-rn",NURSE,r.nurse],
   ["r-coord",COORDINATOR,r.coordination],["r-cler",CLERICAL,r.clerical],["r-other","Other support roles",r.otherSupport]].filter(s=>s[2]>0);
-const splitSpans=r=>splitSegs(r).map(([c,l,m])=>`<span class="${c}" style="width:${m/r.total*100}%" title="${esc(l)}: ${hrs(m)}"></span>`).join("");
-const splitLabel=r=>splitSegs(r).map(([,l,m])=>`${l} ${hrs(m)}`).join(", ")||"No data";
-function renderSplit(barId,legendId,r){
+const splitUnit=r=>listUnit(splitSegs(r).map(s=>s[2]));
+const splitSpans=r=>{ const u=splitUnit(r); return splitSegs(r).map(([c,l,m])=>`<span class="${c}" style="width:${m/r.total*100}%" title="${esc(l)}: ${u(m)}"></span>`).join(""); };
+const splitLabel=r=>{ const u=splitUnit(r); return splitSegs(r).map(([,l,m])=>`${l} ${u(m)}`).join(", ")||"No data"; };
+function renderSplit(barId,legendId,r){ const u=splitUnit(r);
   $(barId).innerHTML=splitSpans(r); $(barId).setAttribute("aria-label",splitLabel(r)); $(barId).hidden=!r.total;
-  $(legendId).innerHTML=splitSegs(r).map(([c,l,m])=>`<span><i class="key ${c}"></i>${esc(l)}: ${hrs(m)} (${pctOf(m,r.total)})</span>`).join(""); }
+  $(legendId).innerHTML=splitSegs(r).map(([c,l,m])=>`<span><i class="key ${c}"></i>${esc(l)}: ${u(m)} (${pctOf(m,r.total)})</span>`).join(""); }
 // Key figures: [title, value, small print].
 const factsHtml=facts=>facts.map(([k,v,s])=>`<div><dt>${k}</dt><dd>${v}${s?` <small>${s}</small>`:""}</dd></div>`).join("");
 const commonFacts=r=>[
@@ -887,10 +908,10 @@ const commonFacts=r=>[
   ["Interrupted a visit", `${r.interruptions}`, r.interruptions===1?"time":"times"]];
 // Support work by task. `weeks` adds hours a week to each task (0 leaves it out).
 function tasksHtml(r,weeks){
-  const max=r.byTask[0]?.minutes||1;
+  const max=r.byTask[0]?.minutes||1, total=listUnit(r.byTask.map(g=>g.minutes)), perWeek=listUnit(r.byTask.map(g=>weeks?g.minutes/weeks:0));
   return r.byTask.length
     ? r.byTask.map(g=>`<li class="${roleClass(g.mainRole)}"><span>${esc(g.label)}</span><span class="bar" style="width:${g.minutes/max*100}%"></span>
-      <span class="num">${hrs(g.minutes)}<small>${Math.round(g.minutes/r.support*100)}% of support work${weeks?`, ${hrs(g.minutes/weeks)} a week`:""}</small></span>
+      <span class="num">${total(g.minutes)}<small>${Math.round(g.minutes/r.support*100)}% of support work${weeks?`, ${perWeek(g.minutes/weeks)} a week`:""}</small></span>
       <span class="who">${esc(g.roles.join(", "))} could do this</span></li>`).join("")
     : `<li class="empty" style="display:block">No support work logged in this range yet.</li>`; }
 // The line under the range control describes whichever tab is showing.
@@ -1019,7 +1040,7 @@ async function addTeamFiles(files){
         const foreign=good.filter(e=>!had.has(e.id)&&(!safeId(e.id)||e.id<=since)).length;
         if(!p.mine&&savedAt&&(!p.savedAt||savedAt>p.savedAt)&&foreign){ notes.push(`${name} has ${p.label}'s entries plus ${plural(foreign,"older entry","older entries")} that ${foreign===1?"is":"are"} not in ${p.label}'s file, so it may also hold someone else's work (for example after restoring a colleague's backup). It was not added. Ask for a backup from a browser that only one person tracks in.`); }
         else if(!p.mine&&savedAt&&(!p.savedAt||savedAt>p.savedAt)){ team[same]={...person,label:p.label}; notes.push(`${name} is a newer backup of ${p.label}, so it replaces the older one.`); }
-        else notes.push(`${name} has the same entries as ${p.mine?`this browser (${p.label})`:p.label}, so it looks like the same person. It was not added again.`);
+        else notes.push(`${name} has the same entries as ${p.mine?`this browser (${p.label})`:p.label}, so it looks like the same clinician. It was not added again.`);
         continue; }
       person.label=nextLabel(); team.push(person);
       notes.push(`Added ${name} as ${person.label}: ${plural(good.length,"entry","entries")}.`+
@@ -1029,15 +1050,18 @@ async function addTeamFiles(files){
   teamSay(notes); renderTeam();
 }
 
+// [label, minutes] pairs with any time, as "RN 0.4 h", all in one unit.
+const unitLine=parts=>{ parts=parts.filter(([,m])=>m>0); const u=listUnit(parts.map(([,m])=>m)); return parts.map(([l,m])=>`${l} ${u(m)}`); };
+const oddList=list=>{ const u=listUnit(list.map(o=>o.minutes)); return list.map(o=>`${o.name} (${u(o.minutes)})`).join(", "); };
 function renderTeam(){
   const mine=team.some(p=>p.mine);
   $("teamMine").checked=mine; $("teamMine").disabled=!mine&&!entries.length;
-  $("teamClear").hidden=!team.length; $("teamEmpty").hidden=!!team.length; $("teamReport").hidden=!team.length;
+  $("teamClear").hidden=!team.length; $("teamEmpty").hidden=!!team.length; $("teamReport").hidden=!team.length; placeRange();
   const fromV=$("from").value, toV=$("to").value;
   if(!team.length){ teamRangeText=`${rangeName()}${fromV||toV?`: ${fromV?niceDay(fromV):"first entry"} to ${toV?niceDay(toV):"latest entry"}`:""}.`; renderRangeLabel(); return; }
   const t=computeTeam(teamInput(), fromV, toV, localDay(Date.now()));
   teamRangeText=`${rangeName()}${fromV||toV?`: ${fromV?niceDay(fromV):"first entry"} to ${toV?niceDay(toV):"latest entry"}`:""}, `+
-    `${plural(t.count,"entry","entries")} from ${plural(t.people,"person","people")}.`;
+    `${plural(t.count,"entry","entries")} from ${plural(t.people,"clinician","clinicians")}.`;
   renderRangeLabel();
   $("teamOne").hidden=team.length>1;
 
@@ -1052,17 +1076,17 @@ function renderTeam(){
     if(!r.count) body=`<p class="p-fig">Nothing logged in this range.${p.today&&fromV>p.today?` This backup was saved before the range starts.`:""}</p>`;
     else body=`<p class="p-fig"><b>${hrs(r.total)}</b> logged${x.weekly?`, ${hrs(r.totalPerWeek)} a week`:""}. <span class="mark r-cler">${hrs(r.support)} (${pc(r.support)})</span> did not need a physician or PA.</p>
       <div class="split" role="img" aria-label="${esc(splitLabel(r))}">${splitSpans(r)}</div>
-      <p class="p-more">${[[NURSE,r.nurse],[COORDINATOR,r.coordination],[CLERICAL,r.clerical],["Other support",r.otherSupport],["Healthy urgents",r.urgent],
-        ["Not patient-facing",r.notFacing],["After hours",r.afterHours]].filter(([,m])=>m>0).map(([l,m])=>`${l} ${hrs(m)}`)
+      <p class="p-more">${unitLine([[NURSE,r.nurse],[COORDINATOR,r.coordination],[CLERICAL,r.clerical],["Other support",r.otherSupport],
+        ["Healthy urgents",r.urgent],["Not patient-facing",r.notFacing],["After hours",r.afterHours]])
         .concat(r.interruptions?[`Interrupted a visit ${plural(r.interruptions,"time","times")}`]:[]).map(esc).join(" · ")}</p>
       <p class="p-more">${x.weekly?(r.support?`About ${r.fte.toFixed(2)} of a full-time support role (${hrs(r.supportPerWeek)} a week of support work).`:"")
         :`Less than a full week logged in this range (${plural(r.spanDays,"day","days")}${r.startClamped?` from the first entry on ${niceDay(r.firstEver)}`:""}), so not in the weekly figures.`}</p>`;
     const warn=[
-      x.unknownRoles.length?`Roles this page does not list, counted as other support: ${esc(x.unknownRoles.map(o=>`${o.name} (${hrs(o.minutes)})`).join(", "))}.`:"",
-      x.unknownClinics.length?`Clinics this page does not list, counted as work assigned on top: ${esc(x.unknownClinics.map(o=>`${o.name} (${hrs(o.minutes)})`).join(", "))}.`:"",
+      x.unknownRoles.length?`Roles this page does not list, counted as other support: ${esc(oddList(x.unknownRoles))}.`:"",
+      x.unknownClinics.length?`Clinics this page does not list, counted as work assigned on top: ${esc(oddList(x.unknownClinics))}.`:"",
       ...x.shared.map(s=>`${plural(s.n,"entry is","entries are")} also in ${nameOf(s)}'s data, so ${s.n===1?"it":"they"} may be counted twice.`)].filter(Boolean);
-    return `<li class="person"><div class="p-head"><input value="${esc(p.label)}" aria-label="Label for person ${i+1}" onchange="teamLabel(${i},this)">
-      <button class="btn quiet danger" data-remove="${i}" onclick="teamRemove(${i})" aria-label="Remove ${esc(p.label)}">Remove</button></div>
+    return `<li class="person"><div class="p-head"><input value="${esc(p.label)}" aria-label="Label for clinician ${i+1}" onchange="teamLabel(${i},this)">
+      <button class="btn quiet" data-remove="${i}" onclick="teamRemove(${i})" aria-label="Remove ${esc(p.label)}">Remove</button></div>
       <p class="p-src">${src} · ${n}</p>${body}${warn.map(w=>`<p class="p-warn">${w}</p>`).join("")}</li>`; }).join("");
   if(typing){ const el=$("teamPeople").querySelectorAll("input")[typing.i]; if(el){ el.value=typing.v; el.focus(); el.setSelectionRange(typing.at,typing.at); } }
   $("teamOdd").hidden=!t.each.some(x=>x.unknownRoles.length||x.unknownClinics.length);
@@ -1071,20 +1095,20 @@ function renderTeam(){
 function renderTeamTotals(t){
   const w=t.week, pc=m=>pctOf(m,t.total);
   $("teamHeadline").textContent = t.total
-    ? `Across ${plural(t.people,"person","people")}, ${hrs(t.support)} of ${hrs(t.total)} logged (${pc(t.support)}) did not need a physician or PA.`
+    ? `Across ${plural(t.people,"clinician","clinicians")}, ${hrs(t.support)} of ${hrs(t.total)} logged (${pc(t.support)}) did not need a physician or PA.`
     : "Nothing logged in this range by anyone in the team report.";
   const left=[...t.short.map(l=>`${l} (less than a full week logged)`), ...t.empty.map(l=>`${l} (nothing logged in this range)`)];
   $("teamFte").textContent =
-      !t.total ? "Pick a longer range above. Each person's figures stop on the day their backup file was saved."
+      !t.total ? "Pick a longer range above. Each clinician's figures stop on the day their backup file was saved."
     : !t.support ? "All work in this range needed a physician or PA."
     : w&&!w.support ? `None of the support work is from someone with a full week logged in this range, so there is no weekly figure yet.`
     : w ? `Together that is ${hrs(w.support)} a week of support work, about ${w.fte.toFixed(2)} of a full-time support role (40 hours a week), currently done by physicians and PAs.`+
         (left.length?` Not in the weekly figures: ${andList(left)}.`:"")
-    : `Choose a range of 7 days or more (for example Last 4 weeks) to see hours a week and a share of a support role. Each person needs a full week logged in the range to be counted.`;
+    : `Choose a range of 7 days or more (for example Last 4 weeks) to see hours a week and a share of a support role. Each clinician needs a full week logged in the range to be counted.`;
   renderSplit("teamSplit","teamLegend",t); $("teamFacts").hidden=!t.total;
   $("teamFacts").innerHTML=factsHtml([
-    [w?"Logged per week, together":"Total logged", w?hrs(w.total):hrs(t.total),
-      w?(w.people<t.people?`${w.people} of ${t.people} people; ${hrs(t.total)} in total`:`${hrs(t.total)} in total`):""],
+    [!w?"Total logged":w.people<t.people?`Logged per week, ${w.people} of ${t.people} clinicians`:"Logged per week, together",
+      w?hrs(w.total):hrs(t.total), w?`${hrs(t.total)} in total`:""],
     ...commonFacts(t)]);
   $("teamTasks").innerHTML=tasksHtml(t,0);
   $("teamSummary").textContent=teamSummaryText(t);
@@ -1092,7 +1116,7 @@ function renderTeamTotals(t){
 // Editing a label changes only the text that shows it, so the field keeps its place while she moves on.
 window.teamLabel=(i,input)=>{ const p=team[i]; if(!p) return; const v=input.value.trim();
   if(!v||team.some((q,j)=>j!==i&&q.label===v)){ input.value=p.label;
-    return teamSay([v?`"${v}" is already the label of another person. Each person needs a different label, so it was changed back to ${p.label}.`:`A label cannot be empty, so it was changed back to ${p.label}.`]); }
+    return teamSay([v?`"${v}" is already the label of another clinician. Each clinician needs a different label, so it was changed back to ${p.label}.`:`A label cannot be empty, so it was changed back to ${p.label}.`]); }
   p.label=v; document.querySelectorAll(`#teamPeople [data-person="${i}"]`).forEach(el=>el.textContent=v);
   const rm=document.querySelector(`#teamPeople [data-remove="${i}"]`); if(rm) rm.setAttribute("aria-label",`Remove ${v}`);
   renderTeamTotals(computeTeam(teamInput(), $("from").value, $("to").value, localDay(Date.now()))); };
@@ -1158,7 +1182,7 @@ window.editEntry=(id,field,v)=>{ const e=entries.find(x=>x.id===id); if(!e) retu
   else if(field==="label"){ v=v.trim(); if(!v) return render(); e.label=v; }
   else e[field]=v;
   e.updatedAt=Date.now();
-  save(); field==="day" ? render() : (renderSummary(), renderToday(), renderTeam()); };
+  save(); field==="day" ? render() : (renderSummary(), renderToday(), renderButtons(), renderTeam()); };
 window.editButton=(i,field,v)=>{ const b=buttons[i]; if(!b) return;
   if(field==="label"){ v=v.trim(); if(!v) return renderButtonList(); }
   // Keep a running timer attached to the button it was started from.

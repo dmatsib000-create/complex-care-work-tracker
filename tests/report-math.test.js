@@ -98,3 +98,10 @@ test("times under an hour read in minutes, so the first days never show 0.0 h", 
   assert.match(await text([entry("2026-11-11T09:00", { minutes: 59 })]), /I logged 59 min of work/);
   assert.match(await text([entry("2026-11-11T09:00", { minutes: 60 })]), /I logged 1\.0 h of work/);
 });
+
+test("times read side by side share one unit, and never read 0.0 h", async () => {
+  const fmt = (list) => page.evaluate((l) => { const u = listUnit(l); return l.map(u); }, list);
+  assert.deepEqual(await fmt([300, 40, 2, 0]), ["5.0 h", "0.7 h", "<0.1 h", "0 h"]);
+  assert.deepEqual(await fmt([59.6, 40]), ["1.0 h", "0.7 h"], "59.6 min rounds to an hour, so the list is in hours");
+  assert.deepEqual(await fmt([45, 0.2, 0]), ["45 min", "0 min", "0 min"]);
+});

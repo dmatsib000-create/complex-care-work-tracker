@@ -121,3 +121,27 @@ test("RN work has its own highlighter in the report split", async () => {
   assert.equal(await p.locator("#splitBar .r-rn").count(), 1);
   assert.match(await p.textContent("#splitLegend"), /RN: 30 min \(50%\)/);
 });
+
+test("times read side by side share one unit, so they compare at a glance", async () => {
+  const p = await openTracker(browser, { storage: { entries: [
+    entry("2026-11-10T09:00", { label: "Forms", minutes: 120 }),
+    entry("2026-11-10T12:00", { label: "Prior auth", minutes: 40 }),
+    entry("2026-11-10T14:00", { label: "Phone with family", who: "RN", minutes: 30 }),
+  ] } });
+  await report(p, "week");
+  const nums = await p.$$eval("#topDelegable .num", (x) => x.map((y) => y.firstChild.textContent));
+  assert.deepEqual(nums, ["2.0 h", "0.7 h", "0.5 h"], "not 40 min next to 2.0 h");
+  assert.match(await p.textContent("#splitLegend"), /^RN: 0\.5 h \(16%\)Clerical \/ admin: 2\.7 h \(84%\)$/);
+  assert.match(await p.textContent("#headline"), /^3\.2 h of 3\.2 h logged/);
+});
+
+test("phone: key figures sit in pairs, and the tabs are easy to tap", async () => {
+  const p = await openTracker(browser, { viewport: { width: 375, height: 812 }, storage: { entries: [entry("2026-11-10T10:00")] } });
+  await report(p, "week");
+  const tops = await p.$$eval("#summary > div", (x) => x.map((y) => Math.round(y.getBoundingClientRect().top)));
+  assert.equal(tops[0], tops[1], "the first two figures share a row");
+  assert.equal(tops[2], tops[3]);
+  for (const h of await p.$$eval("nav button", (x) => x.map((y) => y.getBoundingClientRect().height)))
+    assert.ok(h >= 40, `tab is ${h}px tall`);
+  assert.equal(await p.evaluate(() => document.documentElement.scrollWidth), 375);
+});
