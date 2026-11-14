@@ -48,7 +48,7 @@ test("renaming a role with a RENAMES line carries old entries, buttons and a run
   assert.equal(who.filter((w) => w === "Front desk").length, 2, "the old entry and the timed one");
   assert.equal((await saved(p, "buttons"))[0].who, "Front desk");
   await p.click("#tab-report"); await p.click('#presets [data-range="week"]');
-  assert.match(await p.textContent("#splitLegend"), /Front desk: 35 min/);
+  assert.match(await p.textContent("#splitLegend"), /Front desk: 0\.6 h/);
   assert.match(await p.textContent("#summaryText"), /35 min clerical/, "still counted as clerical (30 min saved + 5 min timed)");
 });
 

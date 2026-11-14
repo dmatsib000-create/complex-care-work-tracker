@@ -14,7 +14,10 @@ const writeFile = (name, data) => { const f = path.join(dir, name); fs.writeFile
 // A backup file in the shape Save backup file writes. `savedAt` is a local Pacific time like "2026-11-04T17:00".
 const backup = (name, entries, savedAt = "2026-11-11T09:00") =>
   writeFile(name, { app: "complex-care-work-tracker", format: 1, savedAt: new Date(savedAt + "-08:00").toISOString(), entries, buttons: null });
-const team = async (p, range) => { await p.click("#tab-team"); if (range) await p.click(`#presets [data-range="${range}"]`); };
+// The date range is shared with the Report tab, and on the Team tab it only shows once someone is added: pick it on Report.
+const team = async (p, range) => {
+  if (range) { await p.click("#tab-report"); await p.click(`#presets [data-range="${range}"]`); }
+  await p.click("#tab-team"); };
 // Add files and wait for the message that says what happened to each one.
 const add = async (p, files) => {
   await p.evaluate(() => { document.getElementById("teamMsg").textContent = ""; });
@@ -59,6 +62,7 @@ test("backup files are read for the report only: nothing is added to this browse
   await team(p, "4w");
   assert.ok(await p.isVisible("#teamEmpty"));
   assert.ok(!(await p.isVisible("#teamReport")));
+  assert.ok(!(await p.isVisible("#rangeBox")), "the first thing on the Team tab is adding files, not dates");
   const msgs = await add(p, [backup("a.json", peopleA()), backup("b.json", peopleB(), "2026-11-04T17:00")]);
   assert.deepEqual(msgs, ["Added a.json as Clinician A: 7 entries.", "Added b.json as Clinician B: 2 entries."]);
   assert.deepEqual(await labels(p), ["Clinician A", "Clinician B"]);
@@ -68,12 +72,12 @@ test("backup files are read for the report only: nothing is added to this browse
   await p.check("#teamMine");
   assert.deepEqual(await labels(p), ["Clinician C", "Clinician A", "Clinician B"]);
   assert.match(await card(p, 0), /Entries in this browser · 1 entry/s);
-  assert.match(await p.textContent("#teamHeadline"), /^Across 3 people, 10\.0 h of 11\.0 h logged \(91%\) did not need a physician or PA\.$/);
+  assert.match(await p.textContent("#teamHeadline"), /^Across 3 clinicians, 10\.0 h of 11\.0 h logged \(91%\) did not need a physician or PA\.$/);
   // Editing an entry here updates the team figures straight away.
   await p.click("#tab-entries"); await p.click(".e-edit");
   await p.fill('.editor input[type="number"]', "120"); await p.dispatchEvent('.editor input[type="number"]', "change");
   await team(p);
-  assert.match(await p.textContent("#teamHeadline"), /^Across 3 people, 10\.0 h of 12\.0 h logged/);
+  assert.match(await p.textContent("#teamHeadline"), /^Across 3 clinicians, 10\.0 h of 12\.0 h logged/);
   // A label being typed is kept when the page re-renders (for example after a change in another tab).
   const lab = p.locator("#teamPeople .p-head input").nth(1);
   await lab.fill("Site 2 nurse lead"); await p.evaluate(() => render());
@@ -97,11 +101,14 @@ test("team totals, each person's figures, labels, and the copyable summary", asy
   await p.context().grantPermissions(["clipboard-read", "clipboard-write"]);
   await team(p, "4w");
   await add(p, [backup("a.json", peopleA()), backup("b.json", peopleB(), "2026-11-04T17:00"), backup("c.json", peopleC())]);
-  assert.match(await p.textContent("#rangeLabel"), /^Last 4 weeks: .*, 11 entries from 3 people\.$/);
-  assert.match(await p.textContent("#teamHeadline"), /^Across 3 people, 13\.0 h of 13\.0 h logged \(100%\) did not need a physician or PA\.$/);
+  assert.match(await p.textContent("#rangeLabel"), /^Last 4 weeks: .*, 11 entries from 3 clinicians\.$/);
+  // The date range sits under "Add backup files", just above the results.
+  const y = async (sel) => (await p.locator(sel).boundingBox()).y;
+  assert.ok((await y("#teamLoad")) < (await y("#rangeBox")) && (await y("#rangeBox")) < (await y("#teamHeadline")));
+  assert.match(await p.textContent("#teamHeadline"), /^Across 3 clinicians, 13\.0 h of 13\.0 h logged \(100%\) did not need a physician or PA\.$/);
   assert.equal(await p.textContent("#teamFte"),
     "Together that is 5.5 h a week of support work, about 0.14 of a full-time support role (40 hours a week), currently done by physicians and PAs. Not in the weekly figures: Clinician C (less than a full week logged).");
-  assert.match(await p.textContent("#teamFacts"), /Logged per week, together5\.5 h 2 of 3 people; 13\.0 h in total/);
+  assert.match(await p.textContent("#teamFacts"), /Logged per week, 2 of 3 clinicians5\.5 h 13\.0 h in total/);
   assert.match(await p.textContent("#teamLegend"), /RN: 4\.0 h \(31%\).*Care coordinator: 3\.0 h \(23%\).*Clerical \/ admin: 6\.0 h \(46%\)/);
   assert.match(await card(p, 0), /6\.0 h logged, 1\.5 h a week\. 6\.0 h \(100%\) did not need a physician or PA\..*About 0\.04 of a full-time support role/s);
   assert.match(await card(p, 1), /b\.json, saved .*Nov.* · 2 entries.*4\.0 h logged, 4\.0 h a week/s);
@@ -120,7 +127,7 @@ test("team totals, each person's figures, labels, and the copyable summary", asy
   assert.equal(await p.textContent("#teamMsg"), "A label cannot be empty, so it was changed back to Newer clinician.");
   await c.fill("Clinician A"); await c.press("Tab");
   assert.equal(await c.inputValue(), "Newer clinician");
-  assert.match(await p.textContent("#teamMsg"), /"Clinician A" is already the label of another person/);
+  assert.match(await p.textContent("#teamMsg"), /"Clinician A" is already the label of another clinician/);
 
   await p.click("#copyTeam");
   await p.waitForFunction(() => document.getElementById("teamCopied").textContent !== "");
@@ -132,10 +139,14 @@ test("team totals, each person's figures, labels, and the copyable summary", asy
   assert.match(await p.textContent("#teamFte"), /Choose a range of 7 days or more/);
   assert.match(await card(p, 1), /Nothing logged in this range\./s);
 
-  await p.click("#teamPeople .person:nth-child(1) .danger");
+  assert.equal(await p.locator("#teamPeople .danger").count(), 0, "removing one person is not shown as a red, destructive action");
+  await p.click("#teamPeople [data-remove='0']");
   assert.deepEqual(await labels(p), ["Clinician B", "Newer clinician"]);
   await p.click("#teamClear");
   assert.ok(await p.isVisible("#teamEmpty"));
+  assert.ok(!(await p.isVisible("#rangeBox")), "no date range until someone is added");
+  await p.click("#tab-report");
+  assert.ok((await y("#rangeBox")) < (await y("#headline")), "back above the report on the Report tab");
   assert.deepEqual(p.errors, []);
 });
 
@@ -167,13 +178,13 @@ test("the same person is not counted twice; a newer backup replaces the older on
   await team(p, "4w");
   await p.check("#teamMine");
   assert.deepEqual(await add(p, [backup("my-backup.json", mine)]),
-    ["my-backup.json has the same entries as this browser (Clinician A), so it looks like the same person. It was not added again."]);
+    ["my-backup.json has the same entries as this browser (Clinician A), so it looks like the same clinician. It was not added again."]);
 
   // Ids are creation times, as in the tracker: each entry saved when its timer stopped.
   const b = peopleB().map((e) => ({ ...e, id: Date.parse(e.date) + e.minutes * 60000 }));
   await add(p, [backup("b-old.json", b.slice(0, 1), "2026-11-01T09:00")]);
   assert.deepEqual(await add(p, [backup("b-old.json", b.slice(0, 1), "2026-11-01T09:00")]),
-    ["b-old.json has the same entries as Clinician B, so it looks like the same person. It was not added again."]);
+    ["b-old.json has the same entries as Clinician B, so it looks like the same clinician. It was not added again."]);
   assert.deepEqual(await add(p, [backup("b-new.json", b, "2026-11-04T17:00")]), ["b-new.json is a newer backup of Clinician B, so it replaces the older one."]);
   assert.deepEqual(await labels(p), ["Clinician A", "Clinician B"]);
   assert.match(await card(p, 1), /b-new\.json.*2 entries/s);

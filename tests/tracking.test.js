@@ -210,3 +210,23 @@ test("unticking 'Needed a clinical decision' returns the task to its preset role
   await p.click("#stop");
   assert.equal((await savedEntries(p))[0].who, "Clerical / admin");
 });
+
+test("clinician tiles show today's time on that task; support tiles show who could do it", async () => {
+  const p = await openTracker(browser, { storage: { entries: [
+    entry("2026-11-11T08:00", { label: "Complex visit", who: "Physician or PA", minutes: 50 }),
+    entry("2026-11-11T09:00", { label: "Complex visit", who: "Physician or PA", minutes: 60 }),
+    entry("2026-11-10T09:00", { label: "Complex inbox", who: "Physician or PA", minutes: 30 }),
+  ] } });
+  const meta = (label) => p.locator(".tile", { hasText: label }).locator(".t-meta").textContent();
+  assert.equal(await meta("Complex visit"), "Today 1 h 50 min");
+  assert.equal(await meta("Complex inbox"), "Not yet today", "yesterday's work is not counted");
+  assert.equal(await meta("Healthy urgent visit"), "Not yet today");
+  assert.equal(await meta("Phone with family"), "RN");
+  await p.click(".tile >> text=Complex inbox"); await p.clock.runFor(5 * 60000); await p.click("#stop");
+  assert.equal(await meta("Complex inbox"), "Today 5 min");
+  // A change made under Entries shows on the tile straight away.
+  await p.click("#tab-entries"); await p.click(".e-edit >> nth=0");
+  await p.fill('.editor input[type="number"]', "20"); await p.dispatchEvent('.editor input[type="number"]', "change");
+  await p.click("#tab-track");
+  assert.equal(await meta("Complex inbox"), "Today 20 min");
+});
