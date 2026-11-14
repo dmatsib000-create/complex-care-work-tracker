@@ -1,9 +1,9 @@
-date,label,clinic,minutes,patient_facing,who_could_do,note
-2026-01-05,Forms,Complex Care,22,No,Clerical / admin,School and camp forms batch
-2026-01-05,Referral coordination,Complex Care,31,No,Care coordinator,Specialist referral follow-through x2
-2026-01-05,DME / supplies,Complex Care,38,No,Care coordinator,Wheelchair order follow-up 4 calls
-2026-01-05,Complex visit,Complex Care,45,Yes,Only a physician,
-2026-01-05,Healthy urgent visit,Non-complex Healthy Urgent,15,Yes,Only a physician,Healthy child sore throat
-2026-01-05,Healthy urgent inbox / follow-up,Non-complex Healthy Urgent,12,No,Clerical / admin,
-2026-01-06,Prior auth,Complex Care,27,No,Clerical / admin,Medication prior auth paperwork
-2026-01-06,Notes / documentation,Complex Care,40,No,Only a physician,
+date,label,clinic,minutes,patient_facing,who_could_do,note,source,after_hours,interrupted_visit,start_time
+2026-01-05,Forms,Complex Care,22,No,Clerical / admin,School and camp forms batch,School,No,No,
+2026-01-05,Referral coordination,Complex Care,31,No,Care coordinator,Specialist referral follow-through x2,Specialist,No,No,
+2026-01-05,DME / supplies,Complex Care,38,No,Care coordinator,Wheelchair order follow-up 4 calls,Family,No,No,
+2026-01-05,Complex visit,Complex Care,45,Yes,Only a physician,,,No,No,
+2026-01-05,Healthy urgent visit,Non-complex Healthy Urgent,15,Yes,Only a physician,Healthy child sore throat,Walk-in,No,No,
+2026-01-05,Healthy urgent inbox / follow-up,Non-complex Healthy Urgent,12,No,Clerical / admin,,Inbox,No,Yes,
+2026-01-06,Prior auth,Complex Care,27,No,Clerical / admin,Medication prior auth paperwork,Insurer,No,No,
+2026-01-06,Notes / documentation,Complex Care,40,No,Only a physician,,,Yes,No,

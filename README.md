@@ -1,5 +1,9 @@
 # Complex Care Work Tracker
 
+**Open the tracker:** https://dmatsib000-create.github.io/complex-care-work-tracker/tracker.html
+
+Bookmark that link on each phone and computer she uses. Entries are saved in that browser only; use Save backup file (Entries tab) to keep them safe or move them to another device.
+
 A simple, modifiable tracker for a clinician in a complex care clinic to log **all** the work she does — patient-facing and invisible — and to separate:
 
 1. **Complex care work** (her actual clinic)
@@ -17,24 +21,34 @@ The point is not to prove she is slow. The point is to make visible:
 
 Use the Google Form: https://docs.google.com/forms/d/e/1FAIpQLScd_fsY-B3A2AiI4-EwMtFP4WyT56Yk1As_pT2pULxEW0xu0A/viewform
 
-It records feedback, suggestions, missing task buttons, and bug reports. The same link is a button at the top of `tracker.html` and in the Muse tracker page. No PHI in the form either.
+It records feedback, suggestions, missing task buttons, and bug reports. The same link is at the top of the tracker (in the footer on phones). No PHI in the form either.
 
-## Two ways to use it
+## How to use it
 
-### 1. The Muse artifact (easiest)
-Open the **Complex Care Work Tracker** artifact in Muse. Log entries there, edit the categories in Settings, and use the Dashboard / Report view to summarise a week or a month.
+### The tracker page (use this one)
+Open https://dmatsib000-create.github.io/complex-care-work-tracker/tracker.html, or download `tracker.html` and open it in any browser; it is the same page. A downloaded copy keeps its own separate entries, so pick one way and stick to it (or move entries with a backup file).
 
-### 2. The standalone file (no account, fully yours)
-Open `tracker.html` in any browser. It saves entries only in that browser (localStorage), exports CSV, and can be edited directly — it is one self-contained file with no server and no dependencies.
+The page saves entries only in the browser it is opened in (localStorage), exports CSV for the selected date range (local dates and start times), and can be edited directly: it is one self-contained file with no server. It makes no network requests: no fonts or scripts are downloaded. It uses the Atkinson Hyperlegible font if it is installed on the computer, and the system font otherwise.
 
-Both use the same taxonomy in `config/taxonomy.json`.
+The page has four tabs:
+
+- **Track:** today's timeline (blue for work that needs a physician, highlighter yellow and orange for work support staff could do, shaded after hours) and the task buttons, grouped into "Needs a physician" and "Could be done by support staff". While a timer runs, a bar pinned to the bottom of the screen shows it with Stop and save.
+- **Report:** the date range, the headline share of work that did not need a physician, the support-FTE estimate, support work by task, and a summary to copy for a supervisor.
+- **Entries:** the log grouped by day, with Edit on each entry, and "Add work you forgot to time".
+- **Buttons:** add, rename, re-preset, or remove task buttons.
+
+The starter task list is in `config/taxonomy.json` and in the `TAXONOMY` list at the top of `tracker.html`. Keep the two the same; `npm test` checks that they match.
+
+### Earlier Muse artifact (separate, not kept up to date)
+An earlier version was built as a Muse artifact. It is separate from this repository and does not have the fixes and features here (local dates, per-week figures, backups, and so on). Use the tracker page above instead.
 
 ## Make it yours — modifiability
 
 Only the clinician doing this work knows its ins and outs, so nothing here is locked:
 
 - **In the artifact:** Settings lets you add, rename, or remove task categories, sources, clinic types, and who-could-do-this options. Changes apply to new entries immediately.
-- **In this repo:** Edit `config/taxonomy.json` to change the starter lists for the standalone tracker and for future imports. Edit the lists at the top of `tracker.html` (`const TAXONOMY = ...`) to change the standalone file itself.
+- **In the standalone file:** The Buttons section lets you add, rename, re-preset, or remove buttons. Clinic hours (used to mark after-hours work) are `CLINIC_START_HOUR` and `CLINIC_END_HOUR` near the top of the script.
+- **In this repo:** Edit `config/taxonomy.json` to change the starter lists for the standalone tracker and for future imports. Edit the lists at the top of `tracker.html` (`const TAXONOMY = ...`) to change the standalone file itself. If buttons were also changed on the page in that browser, the page keeps those and shows a "Use the file's list instead" button to switch to the file's list.
 - Add categories freely. If a task does not fit, create the category on the spot and log it — a growing "Other / doesn't fit" pile is itself evidence that the taxonomy of the job is bigger than the job description.
 
 ## How it works — single click
@@ -43,7 +57,9 @@ Only the clinician doing this work knows its ins and outs, so nothing here is lo
 
 Each large button is a task type with its defaults preset (clinic, patient-facing or not, who could do it instead). She taps, works, taps again. An optional one-line note can be added afterwards, and a wrong preset can be fixed on the saved entry, but neither ever blocks the next tap.
 
-A manual add exists only for forgotten work (label + minutes).
+While a timer runs she can optionally pick a source (who asked) and tick "Interrupted a visit". After hours is set automatically from the start time (before 8am, from 5pm, or weekends). Every field on a saved entry can be corrected in the log.
+
+A manual add exists only for forgotten work: label, minutes, and the date (and optionally the start time) it actually happened, so yesterday's work can be backdated.
 
 ## What is being logged
 
@@ -61,7 +77,7 @@ A manual add exists only for forgotten work (label + minutes).
 
 ## Reading the results — the argument it makes
 
-The dashboard / report answers, for any date range:
+The dashboard / report answers, for any date range (Today, This week, Last 7 days, Last 4 weeks, All time, or custom dates; it opens on This week):
 
 - **Total hours logged**, and hours per week
 - **% of time that did not require a physician**
@@ -70,7 +86,7 @@ The dashboard / report answers, for any date range:
 - **Complex care vs non-complex healthy urgent** split
 - **Top delegable categories** by hours
 - **After-hours and interruption** counts
-- A rough **support FTE translation**: delegable hours per week ÷ 40 = the fraction of a support FTE already being consumed by physician time (e.g. 12 delegable hrs/week ≈ 0.3 FTE of support work being done at physician cost and physician scarcity)
+- A rough **support FTE translation**: delegable hours per week ÷ 40 = the fraction of a support FTE already being consumed by physician time (e.g. 12 delegable hrs/week ≈ 0.3 FTE of support work being done at physician cost and physician scarcity). Weeks are counted from the first day she logged anything, so choosing a long range early on does not water the figure down; it appears once a full week has been logged.
 
 Framing for a supervisor conversation — see `docs/making-the-case.md`. The claim is:
 
@@ -78,17 +94,34 @@ Framing for a supervisor conversation — see `docs/making-the-case.md`. The cla
 
 ## Files
 
-- `tracker.html` — standalone tracker, one file, works offline
-- `config/taxonomy.json` — editable starter categories (single source for lists)
+- `tracker.html`: the tracker. One file, works offline, nothing to install
+- `config/taxonomy.json`: the starter task list and dropdown options (must match `TAXONOMY` in `tracker.html`)
+- `tests/`: automated browser tests (see Testing)
+- `package.json`: only used to run the tests
 - `docs/data-dictionary.md` — what every field means
 - `docs/making-the-case.md` — how to turn a week of logs into a short, non-defensive ask
 - `docs/sample-report.md` — fill-in template for a 1-page summary to a supervisor
 - `examples/example-entries.csv` — example entries (fictional, no PHI) showing the granularity to aim for
 
+## Testing
+
+The tests open `tracker.html` in a headless browser and check timing, the report figures, editing, backups, two open tabs, phone layout, and that the task list matches `config/taxonomy.json`. They use a fixed clock (a Wednesday morning, Pacific time), so results do not depend on the day they run.
+
+```
+npm install
+npx playwright install chromium
+npm test
+```
+
+Run them before merging changes to `main`, since `main` is what GitHub Pages publishes.
+
 ## Privacy and safety
 
 - No PHI, ever, in either version.
-- The standalone file stores data only in your browser on your device. Export CSV to back it up.
+- The standalone file stores data only in your browser on your device. Nothing is sent anywhere.
+- **Back it up:** Entries tab, Save backup file. It downloads one small `.json` file with every entry (and your button changes). Keep it in your email or a cloud drive. The page reminds you if you have not saved one for a week.
+- **Move to another device or browser:** open the tracker there, Entries tab, Restore from backup file. Entries are added; any already there are skipped, so restoring the same file twice is harmless.
+- **iPhone / Safari:** Safari can clear a website's saved data if the site is not opened for about a week. Save backups regularly, or add the page to your Home Screen.
 - This repo is private by default in spirit: do not publish logs containing clinic-identifying operational details without checking your employer's policies.
 
 ## Licence / ownership
