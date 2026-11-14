@@ -71,9 +71,9 @@ test("the supervisor summary says exactly what the numbers say", async () => {
     .concat([entry("2026-11-10T18:00", { label: "Complex visit", who: "Physician or PA", minutes: 60, afterHours: true, interrupted: true })]);
   assert.equal(await text(all, { from: "2026-10-15", to: "2026-11-11" }),
     "In this period (28 days) I logged 9.0 h of work, about 2.3 h a week. " +
-    "8.0 h (89%) did not require a physician or PA: 0.0 h nursing, 0.0 h care coordination and 8.0 h clerical. " +
+    "8.0 h (89%) did not require a physician or PA: 0 h nursing, 0 h care coordination and 8.0 h clerical. " +
     "The largest delegable categories were Forms (8.0 h). " +
-    "9.0 h was not patient-facing. 0.0 h was non-complex healthy urgent work assigned on top of complex care. " +
+    "9.0 h was not patient-facing. 0 h was non-complex healthy urgent work assigned on top of complex care. " +
     "1.0 h was done after hours. This work interrupted a visit 1 time. " +
     "That is about 2.0 h a week of delegable work, roughly 0.05 of a 40-hour support FTE. " +
     "This is necessary complex-clinic work, not inefficiency. It needs dedicated nursing, care-coordination and clerical support.");
@@ -90,5 +90,11 @@ test("the summary gives nursing hours and names other support roles (plan case m
   assert.deepEqual(r.byRole, [
     { role: "RN", minutes: 60 }, { role: "Plan case manager", minutes: 30 }, { role: "Clerical / admin", minutes: 30 }]);
   assert.equal(r.nurse, 60);
-  assert.match(await text(all), /did not require a physician or PA: 1\.0 h nursing, 0\.0 h care coordination and 0\.5 h clerical\. Other support roles: Plan case manager 0\.5 h\./);
+  assert.match(await text(all), /did not require a physician or PA: 1\.0 h nursing, 0 h care coordination and 30 min clerical\. Other support roles: Plan case manager 30 min\./);
+});
+
+test("times under an hour read in minutes, so the first days never show 0.0 h", async () => {
+  assert.match(await text([entry("2026-11-11T09:00", { minutes: 1 })]), /I logged 1 min of work\. 1 min \(100%\) did not require/);
+  assert.match(await text([entry("2026-11-11T09:00", { minutes: 59 })]), /I logged 59 min of work/);
+  assert.match(await text([entry("2026-11-11T09:00", { minutes: 60 })]), /I logged 1\.0 h of work/);
 });

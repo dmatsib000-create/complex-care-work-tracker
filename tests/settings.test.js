@@ -48,8 +48,8 @@ test("renaming a role with a RENAMES line carries old entries, buttons and a run
   assert.equal(who.filter((w) => w === "Front desk").length, 2, "the old entry and the timed one");
   assert.equal((await saved(p, "buttons"))[0].who, "Front desk");
   await p.click("#tab-report"); await p.click('#presets [data-range="week"]');
-  assert.match(await p.textContent("#splitLegend"), /Front desk: 0\.6 h/);
-  assert.match(await p.textContent("#summaryText"), /0\.6 h clerical/, "still counted as clerical (30 min saved + 5 min timed)");
+  assert.match(await p.textContent("#splitLegend"), /Front desk: 35 min/);
+  assert.match(await p.textContent("#summaryText"), /35 min clerical/, "still counted as clerical (30 min saved + 5 min timed)");
 });
 
 test("renaming the physician role without a RENAMES line is flagged, not silently miscounted", async () => {
@@ -96,7 +96,7 @@ test("renaming the clinic without a RENAMES line is flagged; with one, the work 
     ["const RENAMES = {\n", 'const RENAMES = { "Complex Care": "Complex care clinic",\n']]);
   p = await openTracker(browser, { url: good, storage: { entries: oldEntries() } });
   assert.ok(!(await p.isVisible("#setupWarn")));
-  assert.equal(await summaryFact(p, "Healthy urgents assigned on top"), "0.0 h");
+  assert.equal(await summaryFact(p, "Healthy urgents assigned on top"), "0 h");
 });
 
 test("buttons changed on the page and a running timer under an old name are flagged", async () => {
@@ -112,7 +112,7 @@ test("removing a role that is not a key name does not raise a warning, and its e
   const p = await openTracker(browser, { url, storage: { entries: [entry("2026-11-10T10:00", { who: "Pharmacist", minutes: 30 })] } });
   assert.ok(!(await p.isVisible("#setupWarn")));
   await p.click("#tab-report"); await p.click('#presets [data-range="week"]');
-  assert.match(await p.textContent("#splitLegend"), /Other support roles: 0\.5 h/);
+  assert.match(await p.textContent("#splitLegend"), /Other support roles: 30 min/);
 });
 
 test("removing CLERICAL or COORDINATOR from the list is flagged", async () => {
@@ -154,8 +154,8 @@ test("key names containing quotes or angle brackets display correctly", async ()
     ["const RENAMES = {\n", 'const RENAMES = { "Clerical / admin": "Clerk \\"front\\" <desk>",\n']]);
   const p = await openTracker(browser, { url, storage: { entries: [entry("2026-11-10T10:00")] } });
   await p.click("#tab-report"); await p.click('#presets [data-range="week"]');
-  assert.match(await p.textContent("#splitLegend"), /Clerk "front" <desk>: 0\.5 h/);
-  assert.equal(await p.locator("#splitBar span").first().getAttribute("title"), 'Clerk "front" <desk>: 0.5 h');
+  assert.match(await p.textContent("#splitLegend"), /Clerk "front" <desk>: 30 min/);
+  assert.equal(await p.locator("#splitBar span").first().getAttribute("title"), 'Clerk "front" <desk>: 30 min');
   await p.click("#tab-track");
   assert.match(await p.textContent("#stripLegend"), /Clerk "front" <desk> could do it/);
   assert.deepEqual(p.errors, []);
