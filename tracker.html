@@ -2,131 +2,346 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Complex Care Work Tracker — Single Click</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Complex Care Work Log</title>
+<!-- Optional web font. Without a connection the page falls back to the system font and works the same. -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Next:wght@400;600;800&display=swap" rel="stylesheet">
 <style>
-  body{font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;margin:0;background:#f6f7f9;color:#16202a}
-  header{padding:16px 20px;background:#123c4a;color:#fff}
-  header h1{margin:0;font-size:20px} header p{margin:4px 0 0;opacity:.85;font-size:13px}
-  main{max-width:980px;margin:0 auto;padding:16px}
-  .warn{background:#fff3cd;border:1px solid #e6c87a;padding:8px 12px;border-radius:8px;font-size:13px}
-  #running{display:none;background:#0f5132;color:#fff;padding:14px;border-radius:12px;margin:14px 0;font-size:18px}
-  #running.long{background:#8a5a00}
-  #running .elapsed{font-size:32px;font-weight:700;font-variant-numeric:tabular-nums}
-  button{cursor:pointer}
-  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px;margin:14px 0}
-  .task{padding:18px 12px;border-radius:14px;border:2px solid #cbd5e1;background:#fff;text-align:left;min-height:88px}
-  .task.active{border-color:#0f5132;background:#d1e7dd}
-  .task b{display:block;font-size:16px;margin-bottom:6px}
-  .task span{font-size:12px;color:#475569;display:block;line-height:1.4}
-  .urgent{border-style:dashed}
-  #stop{width:100%;padding:16px;font-size:18px;border-radius:12px;border:0;background:#b02a37;color:#fff}
-  section{background:#fff;border-radius:12px;padding:16px;margin:16px 0}
-  table{width:100%;border-collapse:collapse;font-size:13px} td,th{padding:6px;border-bottom:1px solid #e5e7eb;text-align:left}
-  .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
-  input,select{padding:8px;border:1px solid #cbd5e1;border-radius:8px}
-  .pill{background:#eef2ff;border-radius:999px;padding:4px 10px;font-size:12px}
-  .muted{color:#64748b;font-size:13px}
-  .scroll{overflow-x:auto}
-  #logTable input:not([type=checkbox]),#logTable select,#buttonList input:not([type=checkbox]),#buttonList select{padding:4px 6px;font-size:13px}
-  #logTable input[type=date]{width:130px} #logTable input[type=number]{width:60px}
-  #running .extras{margin-top:10px;font-size:14px} #running select{padding:4px 6px}
-  #buttonList .row{margin:6px 0}
-  .presets button{padding:6px 12px;border-radius:999px;border:1px solid #cbd5e1;background:#fff}
-  .presets button.on{background:#123c4a;color:#fff;border-color:#123c4a}
+  /* Tokens. Blue ink = physician work. Highlighter = work support staff could do. */
+  :root{
+    --paper:#F1F3EE; --surface:#FFFFFF; --ink:#1E2836; --muted:#566170; --rule:#D3D9CE; --rule-strong:#A9B2A5;
+    --doc:#2B4C8C; --hl-cler:#FFE45C; --hl-coord:#FFC27A; --hl-other:#FBEFAE; --hl-edge:#A88900;
+    --dusk:#E4E1EE; --warn:#8A5A00; --warn-bg:#FFF4D6; --focus:#2B4C8C;
+    --font:"Atkinson Hyperlegible Next","Atkinson Hyperlegible",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    --s1:4px; --s2:8px; --s3:12px; --s4:16px; --s5:24px; --s6:32px; --s7:48px;
+  }
+  *{box-sizing:border-box}
+  [hidden]{display:none !important}
+  html{-webkit-text-size-adjust:100%}
+  body{margin:0;background:var(--paper);color:var(--ink);font:400 16px/1.5 var(--font);font-variant-numeric:tabular-nums}
+  body.timing{padding-bottom:150px}
+  a{color:var(--doc)}
+  button,input,select{font:inherit;color:inherit}
+  :focus-visible{outline:3px solid var(--focus);outline-offset:2px;border-radius:6px}
+  .wrap{max-width:1040px;margin:0 auto;padding:0 var(--s4)}
+  .muted{color:var(--muted)}
+  .small{font-size:14px}
+  h1,h2,h3{line-height:1.2;margin:0}
+
+  /* Marker swipe: the highlighter that marks support work everywhere on the page. */
+  .mark{padding:0 .2em;margin:0 -.1em;-webkit-box-decoration-break:clone;box-decoration-break:clone;
+    background:linear-gradient(transparent 12%, var(--m) 12%, var(--m) 88%, transparent 88%)}
+  .r-cler{--m:var(--hl-cler)} .r-coord{--m:var(--hl-coord)} .r-other{--m:var(--hl-other)} .r-doc{--m:transparent}
+
+  /* Header */
+  header{padding:var(--s5) 0 var(--s3)}
+  .top{display:flex;gap:var(--s4);align-items:baseline;justify-content:space-between;flex-wrap:wrap}
+  h1{font-size:22px;font-weight:800;letter-spacing:-.01em}
+  #todayLine{margin:var(--s1) 0 0;font-size:16px}
+  .phi{margin:var(--s2) 0 0;font-size:14px;color:var(--muted)}
+  .phi b{color:var(--ink)}
+
+  /* Tabs */
+  nav{display:flex;gap:var(--s5);border-bottom:1px solid var(--rule);margin-top:var(--s3);overflow-x:auto}
+  nav button{background:none;border:0;padding:var(--s3) 0;font-weight:600;color:var(--muted);border-bottom:3px solid transparent;margin-bottom:-1px;cursor:pointer;white-space:nowrap}
+  nav button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--ink)}
+  .view{padding:var(--s5) 0 var(--s7)}
+  .view[hidden]{display:none}
+
+  /* Day strip */
+  .strip{margin:0 0 var(--s5)}
+  .strip-head{display:flex;justify-content:space-between;align-items:baseline;gap:var(--s3);flex-wrap:wrap;margin-bottom:var(--s2)}
+  .strip-head h2{font-size:18px;font-weight:800}
+  .track{position:relative;height:56px;background:var(--dusk);border:1px solid var(--rule-strong);border-radius:8px;overflow:hidden}
+  .band{position:absolute;top:0;bottom:0;background:var(--surface)}
+  .blk{position:absolute;top:10px;bottom:10px;min-width:3px;border-radius:3px}
+  .blk.r-doc{background:var(--doc)}
+  .blk.r-cler{background:var(--hl-cler);box-shadow:inset 0 0 0 1px var(--hl-edge)}
+  .blk.r-coord{background:var(--hl-coord);box-shadow:inset 0 0 0 1px #B86F14}
+  .blk.r-other{background:var(--hl-other);box-shadow:inset 0 0 0 1px var(--hl-edge)}
+  .blk.urgent{background-image:repeating-linear-gradient(135deg,rgba(255,255,255,.55) 0 3px,transparent 3px 7px)}
+  .blk.live{outline:2px solid var(--ink);outline-offset:1px}
+  .now{position:absolute;top:0;bottom:0;width:2px;background:var(--ink)}
+  .ticks{position:relative;height:20px;font-size:13px;color:var(--muted)}
+  .ticks span{position:absolute;transform:translateX(-50%);white-space:nowrap}
+  .ticks span.first{transform:none} .ticks span.last{transform:translateX(-100%)}
+  .legend{display:flex;flex-wrap:wrap;gap:var(--s2) var(--s4);font-size:14px;color:var(--muted);margin-top:var(--s1)}
+  .key{display:inline-block;width:14px;height:14px;border-radius:3px;vertical-align:-2px;margin-right:6px}
+  .key.r-doc{background:var(--doc)} .key.r-cler{background:var(--hl-cler);box-shadow:inset 0 0 0 1px var(--hl-edge)}
+  .key.r-coord{background:var(--hl-coord)} .key.r-other{background:var(--hl-other);box-shadow:inset 0 0 0 1px var(--hl-edge)}
+  .key.dusk{background:var(--dusk);box-shadow:inset 0 0 0 1px var(--rule-strong)}
+
+  /* Task tiles */
+  .clinic{margin-top:var(--s5)}
+  .clinic > h2{font-size:20px;font-weight:800;margin-bottom:var(--s1)}
+  .group{margin-top:var(--s3)}
+  .group h3{font-size:15px;font-weight:600;color:var(--muted);margin-bottom:var(--s2)}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:var(--s2)}
+  .tile{position:relative;display:flex;flex-direction:column;align-items:flex-start;gap:6px;text-align:left;min-height:84px;padding:14px 14px 12px;
+    background:var(--surface);border:1px solid var(--rule);border-radius:10px;cursor:pointer}
+  .tile:hover{border-color:var(--rule-strong)}
+  .tile.r-doc{border-left:5px solid var(--doc);padding-left:12px}
+  .tile.urgent{border-style:dashed;border-color:var(--rule-strong)}
+  .tile.urgent.r-doc{border-left:5px solid var(--doc)}
+  .t-label{font-size:17px;font-weight:600;line-height:1.3}
+  .t-meta{font-size:13px;color:var(--muted);line-height:1.35}
+  .tile.active{background:var(--ink);border-color:var(--ink);color:#fff}
+  .tile.active .t-meta{color:#C9D1DC}
+  .tile.active .mark{color:var(--ink)}
+  .t-live{font-size:15px;font-weight:800;color:#fff}
+  .dot{display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--hl-cler);margin-right:6px;animation:pulse 1.6s ease-in-out infinite}
+  @keyframes pulse{50%{opacity:.25}}
+  .howto{margin:var(--s5) 0 0;font-size:14px;color:var(--muted);max-width:68ch}
+
+  /* Running bar, pinned to the bottom so Stop is always in reach */
+  #running{position:fixed;left:0;right:0;bottom:0;z-index:10;background:var(--ink);color:#fff;
+    padding:var(--s3) 0 calc(var(--s3) + env(safe-area-inset-bottom));box-shadow:0 -1px 0 rgba(0,0,0,.2)}
+  #running[hidden]{display:none}
+  #running.long{background:#5B3B00}
+  .run{display:flex;flex-wrap:wrap;align-items:center;gap:var(--s2) var(--s4)}
+  .run-main{flex:1 1 260px;min-width:0}
+  .run-label{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .run-time{font-size:30px;font-weight:800;line-height:1.1}
+  .run-time small{font-size:14px;font-weight:400;color:#C9D1DC;margin-left:var(--s2)}
+  .run-extra{display:flex;flex-wrap:wrap;gap:var(--s2) var(--s4);align-items:center;font-size:14px}
+  .run-extra select{background:#2C394A;color:#fff;border:1px solid #4A5A70;border-radius:6px;padding:6px 8px}
+  #stop{background:var(--hl-cler);color:var(--ink);border:0;border-radius:10px;padding:14px 22px;font-weight:800;font-size:17px;cursor:pointer}
+  #rLong{flex-basis:100%;font-size:14px;color:#FFE7B0}
+  #rLong[hidden]{display:none}
+
+  /* Shared form controls */
+  input,select{padding:8px 10px;border:1px solid var(--rule-strong);border-radius:6px;background:var(--surface)}
+  input[type=checkbox]{width:18px;height:18px;padding:0;vertical-align:-3px;margin:0 6px 0 0;accent-color:var(--doc)}
+  .btn{background:var(--surface);border:1px solid var(--rule-strong);border-radius:8px;padding:8px 14px;font-weight:600;cursor:pointer}
+  .btn:hover{border-color:var(--ink)}
+  .btn.primary{background:var(--ink);border-color:var(--ink);color:#fff}
+  .btn.quiet{border-color:transparent;background:none;color:var(--doc);padding:6px 8px}
+  .btn.danger{color:#9B1C1C}
+  .row{display:flex;flex-wrap:wrap;gap:var(--s2) var(--s3);align-items:center}
+  label.field{display:flex;flex-direction:column;gap:4px;font-size:14px;color:var(--muted)}
+  label.field > input,label.field > select{color:var(--ink);font-size:16px}
+  label.check{display:inline-flex;align-items:center;font-size:15px}
+
+  /* Range control (Report and Entries) */
+  #rangeBox{padding-top:var(--s5)}
+  #rangeBox[hidden]{display:none}
+  .presets{display:flex;flex-wrap:wrap;gap:var(--s2)}
+  .presets button{background:var(--surface);border:1px solid var(--rule-strong);border-radius:999px;padding:6px 14px;cursor:pointer}
+  .presets button.on{background:var(--ink);border-color:var(--ink);color:#fff}
+  .dates{margin-top:var(--s3)}
+  #rangeLabel{margin:var(--s2) 0 0;font-size:14px}
+
+  /* Report */
+  #headline{font-size:clamp(26px,4.2vw,36px);font-weight:800;line-height:1.15;letter-spacing:-.015em;max-width:24ch;margin:0}
+  #fte{font-size:18px;margin:var(--s3) 0 0;max-width:60ch}
+  .split{display:flex;height:28px;border-radius:6px;overflow:hidden;margin:var(--s5) 0 var(--s2);background:var(--rule)}
+  .split span{display:block;height:100%}
+  .split .r-doc{background:var(--doc)} .split .r-cler{background:var(--hl-cler)} .split .r-coord{background:var(--hl-coord)} .split .r-other{background:var(--hl-other)}
+  .facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:var(--s4) var(--s5);margin:var(--s6) 0 0;padding:var(--s4) 0 0;border-top:1px solid var(--rule)}
+  .facts div{margin:0} .facts dt{font-size:14px;color:var(--muted)} .facts dd{margin:2px 0 0;font-size:22px;font-weight:800}
+  .facts dd small{font-size:14px;font-weight:400;color:var(--muted)}
+  .rep-sec{margin-top:var(--s6)}
+  .rep-sec h2{font-size:20px;font-weight:800;margin-bottom:var(--s1)}
+  .rep-sec > p{margin:0 0 var(--s3);max-width:68ch}
+  .cats{list-style:none;margin:0;padding:0}
+  .cats li{display:grid;grid-template-columns:minmax(120px,220px) 1fr auto;gap:var(--s3);align-items:center;padding:var(--s2) 0;border-bottom:1px solid var(--rule)}
+  .cats .bar{height:12px;border-radius:3px;background:var(--m);box-shadow:inset 0 0 0 1px var(--hl-edge);min-width:3px}
+  .cats .num{text-align:right;white-space:nowrap;font-weight:600}
+  .cats .num small{display:block;font-weight:400;font-size:13px;color:var(--muted)}
+  .cats .who{grid-column:1/-1;font-size:13px;color:var(--muted);margin-top:-6px}
+  #summaryText{margin:0;padding:var(--s4) var(--s5);background:var(--surface);border-left:4px solid var(--doc);border-radius:0 8px 8px 0;max-width:72ch;font-size:16px;line-height:1.6}
+  .actions{margin-top:var(--s3)}
+
+  /* Entries */
+  details.add{background:var(--surface);border:1px solid var(--rule);border-radius:10px;padding:var(--s3) var(--s4);margin-bottom:var(--s5)}
+  details.add summary{cursor:pointer;font-weight:600}
+  details.add[open] summary{margin-bottom:var(--s3)}
+  .form-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:var(--s3)}
+  .day{margin-top:var(--s5)}
+  .day-head{display:flex;justify-content:space-between;gap:var(--s3);flex-wrap:wrap;align-items:baseline;border-bottom:2px solid var(--ink);padding-bottom:var(--s1)}
+  .day-head h3{font-size:17px;font-weight:800}
+  .day-head span{font-size:14px;color:var(--muted)}
+  .entry{display:grid;grid-template-columns:72px 1fr auto;gap:var(--s3);align-items:baseline;padding:10px 0;border-bottom:1px solid var(--rule)}
+  .e-time{font-size:14px;color:var(--muted)}
+  .e-task{min-width:0}
+  .e-label{font-weight:600}
+  .e-meta{display:block;font-size:13px;color:var(--muted)}
+  .e-side{display:flex;flex-direction:column;align-items:flex-end;gap:2px}
+  .e-min{font-weight:600;white-space:nowrap}
+  .e-edit{padding:2px 0}
+  .editor{grid-column:1/-1;background:var(--surface);border:1px solid var(--rule);border-radius:10px;padding:var(--s4);margin-top:var(--s2)}
+  .empty{padding:var(--s5);background:var(--surface);border:1px dashed var(--rule-strong);border-radius:10px;color:var(--muted)}
+
+  /* Buttons view */
+  .warnbox{background:var(--warn-bg);border:1px solid #E6C87A;border-radius:10px;padding:var(--s3) var(--s4);margin-bottom:var(--s4)}
+  .warnbox[hidden]{display:none}
+  .blist{margin-top:var(--s4)}
+  .bitem{display:grid;grid-template-columns:minmax(160px,1.4fr) minmax(150px,1fr) minmax(150px,1fr) auto auto;gap:var(--s2) var(--s3);align-items:center;padding:var(--s2) 0;border-bottom:1px solid var(--rule)}
+
+  footer{border-top:1px solid var(--rule);padding:var(--s4) 0 var(--s6);font-size:14px;color:var(--muted)}
+
+  @media (max-width:640px){
+    .entry{grid-template-columns:56px 1fr auto;gap:var(--s2)}
+    .bitem{grid-template-columns:1fr 1fr}
+    .bitem > input{grid-column:1/-1}
+    .grid{grid-template-columns:1fr 1fr}
+    .run{display:grid;grid-template-columns:1fr auto;gap:var(--s2) var(--s3)}
+    .run-time{font-size:24px}
+    .run-time small{display:block;margin:2px 0 0}
+    #stop{grid-column:2;grid-row:1;padding:12px 16px;font-size:16px}
+    .fb-top{display:none}
+    .run-extra,#rLong{grid-column:1/-1}
+    .run-extra{font-size:14px;gap:var(--s3)}
+    body.timing{padding-bottom:140px}
+    .cats li{grid-template-columns:1fr auto}
+    .cats .bar{grid-column:1/-1;grid-row:2}
+  }
+  @media (prefers-reduced-motion:reduce){ .dot{animation:none} }
 </style>
 </head>
 <body>
-<header>
-  <h1>Complex Care Work Tracker</h1>
-  <p>One click starts. One click stops and saves. Tap a different button to switch — the old one saves automatically.</p>
-</header>
-<main>
-  <div class="warn"><strong>No PHI.</strong> Never type a patient name, MRN, or date of birth. Generic labels only.</div>
-
-  <p style="margin:14px 0"><a href="https://docs.google.com/forms/d/e/1FAIpQLScd_fsY-B3A2AiI4-EwMtFP4WyT56Yk1As_pT2pULxEW0xu0A/viewform" target="_blank" rel="noopener" style="display:inline-block;padding:12px 18px;border-radius:10px;background:#123c4a;color:#fff;text-decoration:none;font-weight:600">Feedback, suggestions &amp; bug reports</a> <span class="muted">Missing a task button? Something broken? Tell us there, it takes two minutes.</span></p>
-
-  <div id="running">Now timing: <b id="rLabel"></b><br><span class="elapsed" id="rElapsed">00:00</span> <span id="rSince" class="muted" style="color:#d1e7dd"></span>
-    <div id="rLong" style="display:none;font-size:14px;margin-top:6px">Still running? This timer has been on a long time. When you stop it you can correct the minutes or discard it.</div>
-    <div class="row extras">
-      <label>Source (optional) <select id="rSource"></select></label>
-      <label><input type="checkbox" id="rInterrupted"> Interrupted a visit</label>
-      <span id="rAfter"></span>
-    </div>
+<header class="wrap">
+  <div class="top">
+    <h1>Complex care work log</h1>
+    <a class="small fb-top" href="https://docs.google.com/forms/d/e/1FAIpQLScd_fsY-B3A2AiI4-EwMtFP4WyT56Yk1As_pT2pULxEW0xu0A/viewform" target="_blank" rel="noopener">Send feedback or report a bug</a>
   </div>
+  <p id="todayLine"></p>
+  <p class="phi"><b>No patient identifiers.</b> Never type a name, MRN, or date of birth. Generic labels only.</p>
+  <nav role="tablist" aria-label="Sections">
+    <button role="tab" id="tab-track" aria-controls="view-track" data-view="track">Track</button>
+    <button role="tab" id="tab-report" aria-controls="view-report" data-view="report">Report</button>
+    <button role="tab" id="tab-entries" aria-controls="view-entries" data-view="entries">Entries</button>
+    <button role="tab" id="tab-buttons" aria-controls="view-buttons" data-view="buttons">Buttons</button>
+  </nav>
+</header>
 
-  <h2>Complex Care</h2>
-  <div class="grid" id="gridComplex"></div>
-  <h2>Non-complex Healthy Urgents (assigned on top)</h2>
-  <div class="grid" id="gridUrgent"></div>
+<main class="wrap">
+  <!-- TRACK -->
+  <section class="view" id="view-track" role="tabpanel" aria-labelledby="tab-track">
+    <div class="strip">
+      <div class="strip-head"><h2>Today</h2><span id="stripNote" class="small muted"></span></div>
+      <div class="track" id="track" role="img"></div>
+      <div class="ticks" id="ticks" aria-hidden="true"></div>
+      <div class="legend" id="stripLegend" aria-hidden="true"></div>
+    </div>
 
-  <button id="stop">■ Stop and save</button>
-  <p class="muted">Forgot to click? Use Manual add below. Wrong button? Fix any field on the saved entry in the log. Nothing is locked.</p>
+    <div class="clinic" id="clinicComplex">
+      <h2>Complex care</h2>
+      <div class="group" id="grpDoc"><h3>Needs a physician</h3><div class="grid" id="gridDoc"></div></div>
+      <div class="group" id="grpSupport"><h3>Could be done by support staff</h3><div class="grid" id="gridSupport"></div></div>
+    </div>
+    <div class="clinic" id="clinicUrgent">
+      <h2>Healthy urgents, assigned on top</h2>
+      <div class="group"><div class="grid" id="gridUrgent"></div></div>
+    </div>
+    <p class="howto">Tap a task to start timing it. Tap it again, or Stop, to save. Tapping a different task saves the current one and starts the next. Forgot to tap? Add it under Entries.</p>
+  </section>
 
-  <section>
-    <h2>The case for support</h2>
-    <div class="row presets" id="presets">
+  <!-- RANGE (shared by Report and Entries) -->
+  <div id="rangeBox" hidden>
+    <div class="presets" id="presets" role="group" aria-label="Date range">
       <button data-range="today">Today</button><button data-range="week">This week</button><button data-range="7d">Last 7 days</button><button data-range="4w">Last 4 weeks</button><button data-range="all">All time</button>
     </div>
-    <div class="row" style="margin:8px 0">
-      <label>From <input type="date" id="from"></label>
-      <label>To <input type="date" id="to"></label>
+    <div class="row dates">
+      <label class="field">From <input type="date" id="from"></label>
+      <label class="field">To <input type="date" id="to"></label>
     </div>
-    <p id="rangeLabel" class="muted" style="margin:4px 0 10px"></p>
-    <div id="summary" class="row"></div>
-    <p id="fte" style="font-weight:600"></p>
-    <p class="muted">Framing: this is volume + misallocation, not speed. Hours that did not require a physician, but were necessary for a complex clinic, are support work currently done by a physician.</p>
-    <div class="row">
-      <button id="exportCsv">Export CSV (this range)</button>
-      <button id="copySummary">Copy summary text</button>
+    <p id="rangeLabel" class="muted"></p>
+  </div>
+
+  <!-- REPORT -->
+  <section class="view" id="view-report" role="tabpanel" aria-labelledby="tab-report" hidden>
+    <h2 id="headline"></h2>
+    <p id="fte"></p>
+    <div class="split" id="splitBar" role="img"></div>
+    <div class="legend" id="splitLegend"></div>
+    <dl class="facts" id="summary"></dl>
+
+    <div class="rep-sec">
+      <h2>Support work by task</h2>
+      <p class="muted">Work in this range that did not need a physician, largest first.</p>
+      <ol class="cats" id="topDelegable"></ol>
     </div>
-    <pre id="summaryText" style="white-space:pre-wrap;background:#f8fafc;padding:12px;border-radius:8px"></pre>
-    <h3>Top delegable categories</h3>
-    <p class="muted">Work in this range that did not require a physician, largest first.</p>
-    <div class="scroll"><table><thead><tr><th>Task</th><th>Hours</th><th>% of delegable</th><th>Per week</th><th>Who could do it</th></tr></thead><tbody id="topDelegable"></tbody></table></div>
+
+    <div class="rep-sec">
+      <h2>Summary for your supervisor</h2>
+      <p class="muted">Plain text you can paste into an email. Framing: this is volume and misallocation, not speed.</p>
+      <p id="summaryText"></p>
+      <div class="row actions">
+        <button class="btn primary" id="copySummary">Copy summary</button>
+        <button class="btn" id="exportCsv">Export CSV of this range</button>
+        <span id="copied" class="small muted" aria-live="polite"></span>
+      </div>
+    </div>
   </section>
 
-  <section>
-    <h2>Manual add (forgotten work)</h2>
-    <div class="row">
-      <input id="mLabel" list="labelList" placeholder="Label, e.g. Forms">
-      <datalist id="labelList"></datalist>
-      <input id="mMinutes" type="number" min="1" placeholder="Minutes" style="width:100px">
-      <label>Date <input id="mDate" type="date"></label>
-      <label>Start time (optional) <input id="mTime" type="time"></label>
-    </div>
-    <div class="row" style="margin-top:8px">
-      <select id="mClinic"></select>
-      <select id="mWho"></select>
-      <select id="mSource"></select>
-      <label><input type="checkbox" id="mFacing"> Patient-facing</label>
-      <label><input type="checkbox" id="mAfter"> After hours</label>
-      <label><input type="checkbox" id="mInterrupted"> Interrupted a visit</label>
-      <button id="mAdd">Add</button>
-    </div>
-    <p class="muted">Picking a label that matches a button fills in its presets. A start time outside clinic hours ticks After hours for you.</p>
+  <!-- ENTRIES -->
+  <section class="view" id="view-entries" role="tabpanel" aria-labelledby="tab-entries" hidden>
+    <details class="add" id="addBox">
+      <summary>Add work you forgot to time</summary>
+      <div class="form-grid">
+        <label class="field">Task <input id="mLabel" list="labelList" placeholder="e.g. Forms"></label>
+        <datalist id="labelList"></datalist>
+        <label class="field">Minutes <input id="mMinutes" type="number" min="1" inputmode="numeric"></label>
+        <label class="field">Date <input id="mDate" type="date"></label>
+        <label class="field">Start time (optional) <input id="mTime" type="time"></label>
+        <label class="field">Clinic <select id="mClinic"></select></label>
+        <label class="field">Who could do it <select id="mWho"></select></label>
+        <label class="field">Source <select id="mSource"></select></label>
+      </div>
+      <div class="row" style="margin-top:var(--s3)">
+        <label class="check"><input type="checkbox" id="mFacing">Patient-facing</label>
+        <label class="check"><input type="checkbox" id="mAfter">After hours</label>
+        <label class="check"><input type="checkbox" id="mInterrupted">Interrupted a visit</label>
+        <button class="btn primary" id="mAdd">Add entry</button>
+        <span id="mMsg" class="small muted" aria-live="polite"></span>
+      </div>
+      <p class="small muted" style="margin:var(--s2) 0 0">Typing a task that matches a button fills in its presets. A start time outside clinic hours ticks After hours.</p>
+    </details>
+    <div id="log"></div>
   </section>
 
-  <section>
-    <h2>Buttons — make them yours</h2>
-    <p class="muted">Add, rename, or delete buttons. Change a button's preset clinic, patient-facing flag, and who could do it instead. Only you know the ins and outs. Changes apply to new taps; saved entries keep what they had.</p>
-    <div class="row">
-      <input id="bLabel" placeholder="New button label">
-      <select id="bClinic"></select>
-      <select id="bWho"></select>
-      <label><input type="checkbox" id="bFacing"> Patient-facing</label>
-      <button id="bAdd">Add button</button>
+  <!-- BUTTONS -->
+  <section class="view" id="view-buttons" role="tabpanel" aria-labelledby="tab-buttons" hidden>
+    <p style="margin-top:0;max-width:68ch">Add, rename, or remove task buttons, and change what each one presets. Only you know the ins and outs of this work. Changes apply to new taps; saved entries keep what they had.</p>
+    <div id="bCustom" class="warnbox" hidden>This browser is using button changes made here, so the list at the top of <code>tracker.html</code> is not being used.
+      <div class="row" style="margin-top:var(--s2)"><button class="btn" id="bReset">Use the file's list instead</button><span class="small muted">Saved entries are kept. Changes made here are lost.</span></div></div>
+    <div class="form-grid">
+      <label class="field">New button <input id="bLabel" placeholder="Task name"></label>
+      <label class="field">Clinic <select id="bClinic"></select></label>
+      <label class="field">Who could do it <select id="bWho"></select></label>
     </div>
-    <div id="bCustom" class="warn" style="display:none;margin-top:10px">This browser is using button changes made on this page, so the list at the top of <code>tracker.html</code> is not being used. <button id="bReset">Use the file's list instead</button> <span class="muted">Saved entries are not affected. Changes made here are lost.</span></div>
-    <details style="margin-top:10px"><summary>Edit or remove existing buttons (<span id="bCount"></span>)</summary><div id="buttonList"></div></details>
-  </section>
-
-  <section>
-    <h2>Log</h2>
-    <p class="muted">Every field can be corrected here. After hours is set automatically from the start time and can be changed.</p>
-    <div class="scroll"><table id="logTable"><thead><tr><th>Date</th><th>Task</th><th>Clinic</th><th>Min</th><th>Patient-facing</th><th>Who could do it</th><th>Source</th><th>After hours</th><th>Interrupted a visit</th><th>Note (optional, no PHI)</th><th></th></tr></thead><tbody id="log"></tbody></table></div>
+    <div class="row" style="margin-top:var(--s3)">
+      <label class="check"><input type="checkbox" id="bFacing">Patient-facing</label>
+      <button class="btn primary" id="bAdd">Add button</button>
+    </div>
+    <h2 style="font-size:18px;margin-top:var(--s6)">Current buttons (<span id="bCount"></span>)</h2>
+    <div class="blist" id="buttonList"></div>
   </section>
 </main>
+
+<footer class="wrap">
+  Entries are saved only in this browser on this device. Export a CSV from Report to back them up.
+  <a href="https://docs.google.com/forms/d/e/1FAIpQLScd_fsY-B3A2AiI4-EwMtFP4WyT56Yk1As_pT2pULxEW0xu0A/viewform" target="_blank" rel="noopener">Send feedback, suggest a task button, or report a bug</a>.
+</footer>
+
+<div id="running" hidden aria-live="polite">
+  <div class="wrap run">
+    <div class="run-main">
+      <div class="run-label"><span class="dot" aria-hidden="true"></span>Timing <b id="rLabel"></b></div>
+      <div class="run-time"><span id="rElapsed">00:00</span><small id="rSince"></small></div>
+    </div>
+    <div class="run-extra">
+      <select id="rSource" aria-label="Source (optional)"></select>
+      <label class="check"><input type="checkbox" id="rInterrupted">Interrupted a visit</label>
+    </div>
+    <button id="stop">Stop and save</button>
+    <div id="rLong" hidden>Still running? This timer has been on a long time. When you stop it you can correct the minutes or discard it.</div>
+  </div>
+</div>
+
 <script>
 // === EDIT THIS LIST FREELY — it is also in config/taxonomy.json ===
 let TAXONOMY = [
@@ -161,8 +376,14 @@ const esc = v => String(v ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt
 const pad2 = n => String(n).padStart(2,"0");
 const localDay = d => { d = new Date(d); return d.getFullYear()+"-"+pad2(d.getMonth()+1)+"-"+pad2(d.getDate()); };
 const dayNum = ymd => { const [y,m,d] = ymd.split("-").map(Number); return Math.round(new Date(y,m-1,d).getTime()/86400000); };
+const ymdDate = ymd => { const [y,m,d] = ymd.split("-").map(Number); return new Date(y,m-1,d); };
 const fmtDur = m => m >= 60 ? Math.floor(m/60)+"h "+(m%60)+"m" : m+"m";
+const hm = m => { m=Math.round(m); const h=Math.floor(m/60), r=m%60; return h ? (r ? `${h} h ${r} min` : `${h} h`) : `${r} min`; };
+const clock = d => { d=new Date(d); const h=d.getHours(); return `${h%12||12}:${pad2(d.getMinutes())}${h<12?"am":"pm"}`; };
 const isAfterHours = t => { const d=new Date(t), hr=d.getHours()+d.getMinutes()/60, wd=d.getDay(); return wd===0||wd===6||hr<CLINIC_START_HOUR||hr>=CLINIC_END_HOUR; };
+// Colour role: physician ink, or which highlighter marks the support work.
+const isDoc = who => who==="Only a physician";
+const roleClass = who => isDoc(who) ? "r-doc" : who==="Clerical / admin" ? "r-cler" : who==="Care coordinator" ? "r-coord" : "r-other";
 // <option> list; keeps a custom current value that is not in the list.
 const opts = (list,cur) => (cur&&!list.includes(cur)?[...list,cur]:list).map(o=>`<option${o===cur?" selected":""}>${esc(o)}</option>`).join("");
 const sourceOpts = cur => `<option value="">Source: not set</option>`+opts(SOURCES,cur);
@@ -198,118 +419,212 @@ function stop(renderAfter=true){ if(!running) { if(renderAfter) render(); return
   entries.unshift({id:newId(),date:new Date(running.startedAt).toISOString(),label:running.label,clinic:running.clinic,facing:running.facing,who:running.who,minutes:mins,note:"",
     source:running.source||"",afterHours:isAfterHours(running.startedAt),interrupted:!!running.interrupted});
   running=null; save(); if(renderAfter) render(); }
-function tick(){ if(!running) return; const s=Math.floor((Date.now()-running.startedAt)/1000);
-  const h=Math.floor(s/3600), m=Math.floor(s/60)%60;
-  $("rElapsed").textContent=(h?h+":"+pad2(m):pad2(m))+":"+pad2(s%60);
-  const long=s/60>LONG_TIMER_MIN; $("running").classList.toggle("long",long); $("rLong").style.display=long?"block":"none"; }
+function elapsedText(){ const s=Math.floor((Date.now()-running.startedAt)/1000), h=Math.floor(s/3600), m=Math.floor(s/60)%60;
+  return (h?h+":"+pad2(m):pad2(m))+":"+pad2(s%60); }
+let tickCount=0;
+function tick(){ if(!running) return; const t=elapsedText();
+  $("rElapsed").textContent=t; document.querySelectorAll("[data-live]").forEach(el=>el.textContent=t);
+  const long=(Date.now()-running.startedAt)/60000>LONG_TIMER_MIN; $("running").classList.toggle("long",long); $("rLong").hidden=!long;
+  if(++tickCount%30===0) renderToday(); }
 setInterval(tick,1000);
 function inRange(e){ const f=$("from").value, t=$("to").value; const d=localDay(e.date); return (!f||d>=f)&&(!t||d<=t); }
 
-function render(){ renderButtons(); renderRunning(); renderSummary(); renderLog(); renderButtonList(); }
+function render(){ renderToday(); renderButtons(); renderRunning(); renderSummary(); renderLog(); renderButtonList(); }
 
+// ---------- Views ----------
+let view="track";
+function showView(v){ view=v;
+  document.querySelectorAll("nav button").forEach(b=>{ const on=b.dataset.view===v; b.setAttribute("aria-selected",on); b.tabIndex=on?0:-1; });
+  ["track","report","entries","buttons"].forEach(k=>$("view-"+k).hidden=k!==v);
+  $("rangeBox").hidden=!(v==="report"||v==="entries"); }
+document.querySelectorAll("nav button").forEach(b=>{
+  b.onclick=()=>showView(b.dataset.view);
+  b.onkeydown=e=>{ if(e.key!=="ArrowRight"&&e.key!=="ArrowLeft") return; const all=[...document.querySelectorAll("nav button")];
+    const n=all[(all.indexOf(b)+(e.key==="ArrowRight"?1:all.length-1))%all.length]; showView(n.dataset.view); n.focus(); }; });
+
+// ---------- Today: header line and day strip ----------
+function renderToday(){
+  const today=localDay(Date.now());
+  const items=entries.filter(e=>localDay(e.date)===today).map(e=>({start:new Date(e.date),min:e.minutes,who:e.who,label:e.label,urgent:e.clinic!=="Complex Care"}));
+  if(running&&localDay(running.startedAt)===today) items.push({start:new Date(running.startedAt),min:Math.max(1,(Date.now()-running.startedAt)/60000),who:running.who,label:running.label,urgent:running.clinic!=="Complex Care",live:true});
+  const tot=items.reduce((a,i)=>a+i.min,0), sup=items.filter(i=>!isDoc(i.who)).reduce((a,i)=>a+i.min,0);
+  $("todayLine").innerHTML = tot
+    ? `Today: <b>${hm(tot)}</b> logged, of which <span class="mark r-cler"><b>${hm(sup)}</b> could have been done by support staff</span>.`
+    : `Nothing logged today yet.`;
+  // Strip spans at least 7am to 7pm, wider if work started earlier or ran later.
+  const hr=d=>d.getHours()+d.getMinutes()/60;
+  const a=Math.max(0,Math.min(7,...items.map(i=>Math.floor(hr(i.start)))));
+  const b=Math.min(24,Math.max(19,...items.map(i=>Math.ceil(hr(i.start)+i.min/60))));
+  const pct=x=>((x-a)/(b-a)*100).toFixed(3)+"%";
+  const wd=new Date().getDay(), weekend=wd===0||wd===6;
+  let html=weekend?"":`<div class="band" style="left:${pct(CLINIC_START_HOUR)};width:calc(${pct(CLINIC_END_HOUR)} - ${pct(CLINIC_START_HOUR)})"></div>`;
+  html+=items.map(i=>{ const s=hr(i.start), w=Math.min(b,s+i.min/60);
+    return `<div class="blk ${roleClass(i.who)}${i.urgent?" urgent":""}${i.live?" live":""}" style="left:${pct(s)};width:calc(${pct(w)} - ${pct(s)})" title="${esc(i.label)}, ${clock(i.start)}, ${hm(i.min)}"></div>`; }).join("");
+  const nowH=hr(new Date()); if(nowH>=a&&nowH<=b) html+=`<div class="now" style="left:${pct(nowH)}"></div>`;
+  $("track").innerHTML=html;
+  $("track").setAttribute("aria-label", tot ? `Today's work by time of day: ${hm(tot)} logged, ${hm(sup)} could have been done by support staff.` : "Today's timeline. Nothing logged yet.");
+  let ticks=""; for(let h=Math.ceil(a/2)*2; h<=b; h+=2) ticks+=`<span class="${h===a?"first":h===b?"last":""}" style="left:${pct(h)}">${h%12||12}${h<12||h===24?"am":"pm"}</span>`;
+  $("ticks").innerHTML=ticks;
+  const LEG=[["r-doc","Needs a physician"],["r-cler","Clerical could do it"],["r-coord","Care coordinator could do it"],["r-other","Other support role"]];
+  const present=new Set(items.map(i=>roleClass(i.who)));
+  $("stripLegend").innerHTML=LEG.filter(([c])=>!items.length||present.has(c)).map(([c,l])=>`<span><i class="key ${c}"></i>${l}</span>`).join("")+`<span><i class="key dusk"></i>After hours</span>`;
+  $("stripNote").textContent = items.length ? `${items.length} ${items.length===1?"block":"blocks"} of work` : "Tap a task below to start. Today's work builds up here.";
+}
+
+// ---------- Task tiles ----------
 function renderButtons(){
   const isRunning=b=>running&&running.label===b.label&&running.clinic===b.clinic;
-  const mk=(b,urgent)=>{ const el=document.createElement("button"); el.className="task"+(urgent?" urgent":"")+(isRunning(b)?" active":"");
-    el.innerHTML=`<b>${esc(b.label)}</b><span>${b.facing?"Patient-facing":"Not patient-facing"}<br>${esc(b.who)}${b.who==="Only a physician"?"":" — does not require a doctor"}</span>`;
+  const mk=(b,urgent)=>{ const el=document.createElement("button"); const on=isRunning(b);
+    el.className=`tile ${roleClass(b.who)}${urgent?" urgent":""}${on?" active":""}`; el.setAttribute("aria-pressed",on);
+    const role=isDoc(b.who)?"":`${esc(b.who)} could do this`;
+    const meta=[role,b.facing?"With patient or family":""].filter(Boolean).join(". ");
+    el.innerHTML=`<span class="t-label"><span class="mark">${esc(b.label)}</span></span>${meta?`<span class="t-meta">${meta}</span>`:""}`+
+      (on?`<span class="t-live"><span class="dot" aria-hidden="true"></span><span data-live>${elapsedText()}</span></span>`:"");
     el.onclick=()=> isRunning(b) ? stop() : start(b); return el; };
-  const gc=$("gridComplex"), gu=$("gridUrgent"); gc.innerHTML=""; gu.innerHTML="";
-  buttons.forEach(b=> (b.clinic==="Complex Care"?gc:gu).appendChild(mk(b,b.clinic!=="Complex Care")));
+  const gd=$("gridDoc"), gs=$("gridSupport"), gu=$("gridUrgent"); gd.innerHTML=gs.innerHTML=gu.innerHTML="";
+  buttons.forEach(b=>{ if(b.clinic!=="Complex Care") gu.appendChild(mk(b,true)); else (isDoc(b.who)?gd:gs).appendChild(mk(b,false)); });
+  $("grpDoc").hidden=!gd.children.length; $("grpSupport").hidden=!gs.children.length; $("clinicUrgent").hidden=!gu.children.length;
   $("labelList").innerHTML=buttons.map(b=>`<option value="${esc(b.label)}">`).join("");
 }
 
 function renderRunning(){
-  $("running").style.display=running?"block":"none";
+  $("running").hidden=!running; document.body.classList.toggle("timing",!!running);
   if(!running) return;
-  $("rLabel").textContent=running.label; $("rSince").textContent="since "+new Date(running.startedAt).toLocaleTimeString();
+  $("rLabel").textContent=running.label; $("rSince").textContent="since "+clock(running.startedAt)+(isAfterHours(running.startedAt)?", after hours":"");
   $("rSource").innerHTML=sourceOpts(running.source); $("rInterrupted").checked=!!running.interrupted;
-  $("rAfter").textContent=isAfterHours(running.startedAt)?"After hours":"";
   tick();
 }
 
+// ---------- Report ----------
 function renderSummary(){
   const rs=entries.filter(inRange); const sum=a=>a.reduce((t,e)=>t+e.minutes,0);
-  const total=sum(rs), nonDocE=rs.filter(e=>e.who!=="Only a physician"), nonDoc=sum(nonDocE);
-  const cler=sum(rs.filter(e=>e.who==="Clerical / admin")), coord=sum(rs.filter(e=>e.who==="Care coordinator"));
+  const total=sum(rs), nonDocE=rs.filter(e=>!isDoc(e.who)), nonDoc=sum(nonDocE);
+  const docM=total-nonDoc, cler=sum(rs.filter(e=>e.who==="Clerical / admin")), coord=sum(rs.filter(e=>e.who==="Care coordinator")), otherM=nonDoc-cler-coord;
   const invis=sum(rs.filter(e=>!e.facing)), urgentM=sum(rs.filter(e=>e.clinic!=="Complex Care"));
   const afterE=rs.filter(e=>e.afterHours), afterM=sum(afterE), intN=rs.filter(e=>e.interrupted).length;
-  const h=m=>(m/60).toFixed(1)+"h";
+  const h=m=>(m/60).toFixed(1)+" h";
+  const pc=m=>total?Math.round(m/total*100)+"%":"0%";
   // Weeks covered: the chosen From/To, or the first to last logged day when left blank.
   const days=rs.map(e=>localDay(e.date)).sort();
   const fromV=$("from").value, toV=$("to").value;
   const spanStart=fromV||days[0], spanEnd=toV||days[days.length-1];
   const spanDays=(spanStart&&spanEnd)?Math.max(1,dayNum(spanEnd)-dayNum(spanStart)+1):0;
-  const weeks=spanDays/7, fullWeek=spanDays>=7, perWeek=weeks?nonDoc/weeks:0;
-  const nice=ymd=>{ const [y,m,d]=ymd.split("-").map(Number); return new Date(y,m-1,d).toLocaleDateString(undefined,{weekday:"short",day:"numeric",month:"short",year:"numeric"}); };
+  const weeks=spanDays/7, fullWeek=spanDays>=7, perWeek=weeks?nonDoc/weeks:0, fte=(perWeek/60/40).toFixed(2);
+  const nice=ymd=>ymdDate(ymd).toLocaleDateString(undefined,{weekday:"short",day:"numeric",month:"short",year:"numeric"});
   const name={today:"Today",week:"This week",["7d"]:"Last 7 days",["4w"]:"Last 4 weeks",all:"All time"}[rangeKey]||"Custom range";
+  const n=rs.length, nE=`${n} ${n===1?"entry":"entries"}`;
   $("rangeLabel").textContent = (fromV||toV)
-    ? `${name}: ${fromV?nice(fromV):"first entry"} to ${toV?nice(toV):"latest entry"}${spanDays?` (${spanDays} day${spanDays===1?"":"s"})`:""}, ${rs.length} ${rs.length===1?"entry":"entries"}. The log below shows the same range.`
-    : `All time: ${rs.length} ${rs.length===1?"entry":"entries"}${spanDays?` over ${spanDays} day${spanDays===1?"":"s"}`:""}. The log below shows the same range.`;
-  const pills=[["Total",h(total)]];
-  if(fullWeek) pills.push(["Per week",h(total/weeks)]);
-  pills.push(["Did not require a physician",h(nonDoc)+(total?` (${Math.round(nonDoc/total*100)}%)`:"")],["Clerical",h(cler)],["Care coordination",h(coord)],["Not patient-facing",h(invis)],["Healthy urgent (dumped)",h(urgentM)],
-    ["After hours",`${h(afterM)} (${afterE.length} ${afterE.length===1?"entry":"entries"})`],["Interrupted a visit",`${intN} ${intN===1?"time":"times"}`]);
-  $("summary").innerHTML=pills.map(([k,v])=>`<span class="pill"><b>${k}:</b> ${v}</span>`).join("");
-  let fteLine="";
-  if(nonDoc&&fullWeek) fteLine=`Delegable work: ${h(nonDoc)} over ${spanDays} days (${weeks.toFixed(1)} weeks) = ${h(perWeek)} per week ≈ ${(perWeek/60/40).toFixed(2)} of a 40h support FTE.`;
-  else if(nonDoc) fteLine=`Delegable work: ${h(nonDoc)} over ${spanDays} day${spanDays===1?"":"s"}. `+((fromV&&toV)?"Choose a range of 7 days or more (e.g. Last 4 weeks) for a per-week support FTE estimate.":"Log at least a full week for a per-week support FTE estimate.");
-  $("fte").textContent=fteLine;
-  // Top delegable categories, grouped by task label.
-  const groups={}; nonDocE.forEach(e=>{ const g=groups[e.label]||(groups[e.label]={label:e.label,min:0,who:new Set()}); g.min+=e.minutes; g.who.add(e.who); });
-  const top=Object.values(groups).sort((a,b)=>b.min-a.min);
-  $("topDelegable").innerHTML=top.length?top.map(g=>`<tr><td>${esc(g.label)}</td><td>${h(g.min)}</td><td>${Math.round(g.min/nonDoc*100)}%</td><td>${fullWeek?h(g.min/weeks):"–"}</td><td>${esc([...g.who].join(", "))}</td></tr>`).join(""):`<tr><td colspan="5" class="muted">No delegable work logged in this range yet.</td></tr>`;
+    ? `${name}: ${fromV?nice(fromV):"first entry"} to ${toV?nice(toV):"latest entry"}${spanDays?` (${spanDays} day${spanDays===1?"":"s"})`:""}, ${nE}.`
+    : `All time: ${nE}${spanDays?` over ${spanDays} day${spanDays===1?"":"s"}`:""}.`;
+
+  $("headline").textContent = total
+    ? `${h(nonDoc)} of ${h(total)} logged (${pc(nonDoc)}) did not need a physician.`
+    : "Nothing logged in this range yet.";
+  $("fte").textContent = !total ? "Time tasks on the Track tab, or add forgotten work under Entries. Pick a longer range above to include older work."
+    : !nonDoc ? "All work in this range needed a physician."
+    : fullWeek ? `That is ${h(perWeek)} a week of support work, about ${fte} of a full-time support role (40 hours a week), currently done by a physician.`
+    : (fromV&&toV) ? `Choose a range of 7 days or more (for example Last 4 weeks) to see this as hours a week and a share of a support role.`
+    : `Log at least a full week to see this as hours a week and a share of a support role.`;
+  const segs=[["r-doc","Needs a physician",docM],["r-cler","Clerical / admin",cler],["r-coord","Care coordinator",coord],["r-other","Other support roles",otherM]].filter(s=>s[2]>0);
+  $("splitBar").innerHTML=segs.map(([c,l,m])=>`<span class="${c}" style="width:${m/total*100}%" title="${l}: ${h(m)}"></span>`).join("");
+  $("splitBar").setAttribute("aria-label",segs.map(([,l,m])=>`${l} ${h(m)}`).join(", ")||"No data");
+  $("splitBar").hidden=!total; $("summary").hidden=!total;
+  $("splitLegend").innerHTML=segs.map(([c,l,m])=>`<span><i class="key ${c}"></i>${l}: ${h(m)} (${pc(m)})</span>`).join("");
+
+  const facts=[[fullWeek?"Logged per week":"Total logged", fullWeek?h(total/weeks):h(total), fullWeek?`${h(total)} in total`:""],
+    ["Not patient-facing",h(invis),pc(invis)],
+    ["Healthy urgents assigned on top",h(urgentM),pc(urgentM)],
+    ["After hours",h(afterM),`${afterE.length} ${afterE.length===1?"entry":"entries"}`],
+    ["Interrupted a visit",`${intN}`,intN===1?"time":"times"]];
+  $("summary").innerHTML=facts.map(([k,v,s])=>`<div><dt>${k}</dt><dd>${v}${s?` <small>${s}</small>`:""}</dd></div>`).join("");
+
+  // Support work by task, grouped by task label.
+  const groups={}; nonDocE.forEach(e=>{ const g=groups[e.label]||(groups[e.label]={label:e.label,min:0,who:{}}); g.min+=e.minutes; g.who[e.who]=(g.who[e.who]||0)+e.minutes; });
+  const top=Object.values(groups).sort((a,b)=>b.min-a.min); const max=top[0]?.min||1;
+  $("topDelegable").innerHTML=top.length?top.map(g=>{ const mainWho=Object.entries(g.who).sort((a,b)=>b[1]-a[1])[0][0];
+    return `<li class="${roleClass(mainWho)}"><span>${esc(g.label)}</span><span class="bar" style="width:${g.min/max*100}%"></span>
+      <span class="num">${h(g.min)}<small>${Math.round(g.min/nonDoc*100)}% of support work${fullWeek?`, ${h(g.min/weeks)} a week`:""}</small></span>
+      <span class="who">${esc(Object.keys(g.who).join(", "))} could do this</span></li>`; }).join("")
+    : `<li class="empty" style="display:block">No support work logged in this range yet.</li>`;
+
   const topText=top.slice(0,3).map(g=>`${g.label} (${h(g.min)})`).join(", ");
   $("summaryText").textContent=
     `In this period${spanDays?` (${spanDays} day${spanDays===1?"":"s"})`:""} I logged ${h(total)} of work${fullWeek?`, about ${h(total/weeks)} a week`:""}. `+
-    `${h(nonDoc)} (${total?Math.round(nonDoc/total*100):0}%) did not require a physician: ${h(cler)} clerical and ${h(coord)} care coordination. `+
+    `${h(nonDoc)} (${pc(nonDoc)}) did not require a physician: ${h(cler)} clerical and ${h(coord)} care coordination. `+
     `${topText?`The largest delegable categories were ${topText}. `:""}`+
     `${h(invis)} was not patient-facing. ${h(urgentM)} was non-complex healthy urgent work assigned on top of complex care. `+
     `${afterM?`${h(afterM)} was done after hours. `:""}`+
     `${intN?`This work interrupted a visit ${intN} ${intN===1?"time":"times"}. `:""}`+
-    `${nonDoc&&fullWeek?`That is about ${h(perWeek)} a week of delegable work, roughly ${(perWeek/60/40).toFixed(2)} of a 40-hour support FTE. `:""}`+
-    `This is necessary complex-clinic work, not inefficiency — it needs clerical and care-coordination support.`;
+    `${nonDoc&&fullWeek?`That is about ${h(perWeek)} a week of delegable work, roughly ${fte} of a 40-hour support FTE. `:""}`+
+    `This is necessary complex-clinic work, not inefficiency. It needs clerical and care-coordination support.`;
 }
 
+// ---------- Entries ----------
+let openEdit=null;
 function renderLog(){
   const rs=entries.filter(inRange).sort((a,b)=>b.date.localeCompare(a.date));
-  $("log").innerHTML=rs.map(e=>{ const id=e.id, on=(f,val)=>`onchange="editEntry(${id},'${f}',${val})"`;
-    return `<tr>
-    <td><input type="date" value="${localDay(e.date)}" ${on("day","this.value")}></td>
-    <td><input value="${esc(e.label)}" ${on("label","this.value")}></td>
-    <td><select ${on("clinic","this.value")}>${opts(CLINICS,e.clinic)}</select></td>
-    <td><input type="number" min="1" value="${e.minutes}" ${on("minutes","this.value")}></td>
-    <td><input type="checkbox" ${e.facing?"checked":""} ${on("facing","this.checked")} aria-label="Patient-facing"></td>
-    <td><select ${on("who","this.value")}>${opts(WHO_OPTIONS,e.who)}</select></td>
-    <td><select ${on("source","this.value")}>${sourceOpts(e.source)}</select></td>
-    <td><input type="checkbox" ${e.afterHours?"checked":""} ${on("afterHours","this.checked")} aria-label="After hours"></td>
-    <td><input type="checkbox" ${e.interrupted?"checked":""} ${on("interrupted","this.checked")} aria-label="Interrupted a visit"></td>
-    <td><input value="${esc(e.note)}" ${on("note","this.value")} placeholder="optional"></td>
-    <td><button onclick="delEntry(${id})">Delete</button></td></tr>`; }).join("");
+  if(!rs.length){ $("log").innerHTML=`<p class="empty">No entries in this range. Pick another range above, or add work you forgot to time.</p>`; return; }
+  const byDay=new Map(); rs.forEach(e=>{ const d=localDay(e.date); if(!byDay.has(d)) byDay.set(d,[]); byDay.get(d).push(e); });
+  let html="";
+  byDay.forEach((list,d)=>{
+    const tot=list.reduce((a,e)=>a+e.minutes,0), sup=list.filter(e=>!isDoc(e.who)).reduce((a,e)=>a+e.minutes,0);
+    html+=`<div class="day"><div class="day-head"><h3>${ymdDate(d).toLocaleDateString(undefined,{weekday:"long",day:"numeric",month:"long"})}</h3>
+      <span>${hm(tot)} logged, ${hm(sup)} support work</span></div>`;
+    list.forEach(e=>{ const id=e.id, open=openEdit===id;
+      const meta=[isDoc(e.who)?"Needs a physician":`${esc(e.who)} could do this`, e.clinic!=="Complex Care"?"Healthy urgent":"", e.facing?"Patient-facing":"",
+        e.source?`From ${esc(e.source)}`:"", e.afterHours?"After hours":"", e.interrupted?"Interrupted a visit":"", e.note?`“${esc(e.note)}”`:""].filter(Boolean).join(", ");
+      html+=`<div class="entry"><span class="e-time">${clock(e.date)}</span>
+        <span class="e-task"><span class="e-label ${roleClass(e.who)}"><span class="mark">${esc(e.label)}</span></span><span class="e-meta">${meta}</span></span>
+        <span class="e-side"><span class="e-min">${hm(e.minutes)}</span>
+        <button class="btn quiet e-edit" aria-expanded="${open}" aria-label="${open?"Close":"Edit"} ${esc(e.label)} at ${clock(e.date)}" onclick="toggleEdit(${id})">${open?"Close":"Edit"}</button></span>
+        ${open?editorHtml(e):""}</div>`; });
+    html+=`</div>`; });
+  $("log").innerHTML=html;
 }
+function editorHtml(e){ const id=e.id, on=(f,val)=>`onchange="editEntry(${id},'${f}',${val})"`;
+  return `<div class="editor"><div class="form-grid">
+    <label class="field">Task <input value="${esc(e.label)}" ${on("label","this.value")}></label>
+    <label class="field">Minutes <input type="number" min="1" value="${e.minutes}" ${on("minutes","this.value")}></label>
+    <label class="field">Date <input type="date" value="${localDay(e.date)}" ${on("day","this.value")}></label>
+    <label class="field">Clinic <select ${on("clinic","this.value")}>${opts(CLINICS,e.clinic)}</select></label>
+    <label class="field">Who could do it <select ${on("who","this.value")}>${opts(WHO_OPTIONS,e.who)}</select></label>
+    <label class="field">Source <select ${on("source","this.value")}>${sourceOpts(e.source)}</select></label>
+    <label class="field" style="grid-column:1/-1">Note (optional, no patient identifiers) <input value="${esc(e.note)}" ${on("note","this.value")} placeholder="e.g. School form batch"></label>
+  </div>
+  <div class="row" style="margin-top:var(--s3)">
+    <label class="check"><input type="checkbox" ${e.facing?"checked":""} ${on("facing","this.checked")}>Patient-facing</label>
+    <label class="check"><input type="checkbox" ${e.afterHours?"checked":""} ${on("afterHours","this.checked")}>After hours</label>
+    <label class="check"><input type="checkbox" ${e.interrupted?"checked":""} ${on("interrupted","this.checked")}>Interrupted a visit</label>
+  </div>
+  <div class="row" style="margin-top:var(--s3)"><button class="btn primary" onclick="toggleEdit(${id})">Done</button><button class="btn danger" onclick="delEntry(${id})">Delete entry</button>
+    <span class="small muted">Changes save as you make them.</span></div></div>`; }
+window.toggleEdit=id=>{ openEdit=openEdit===id?null:id; renderLog(); };
 
+// ---------- Buttons ----------
 function renderButtonList(){
-  $("bCount").textContent=buttons.length; $("bCustom").style.display=buttonsCustom?"block":"none";
+  $("bCount").textContent=buttons.length; $("bCustom").hidden=!buttonsCustom;
   $("buttonList").innerHTML=buttons.map((b,i)=>{ const on=(f,val)=>`onchange="editButton(${i},'${f}',${val})"`;
-    return `<div class="row">
-    <input value="${esc(b.label)}" ${on("label","this.value")} aria-label="Button label">
-    <select ${on("clinic","this.value")}>${opts(CLINICS,b.clinic)}</select>
-    <select ${on("who","this.value")}>${opts(WHO_OPTIONS,b.who)}</select>
-    <label><input type="checkbox" ${b.facing?"checked":""} ${on("facing","this.checked")}> Patient-facing</label>
-    <button onclick="delButton(${i})">Remove button</button></div>`; }).join("");
+    return `<div class="bitem">
+    <input value="${esc(b.label)}" ${on("label","this.value")} aria-label="Button name">
+    <select ${on("clinic","this.value")} aria-label="Clinic">${opts(CLINICS,b.clinic)}</select>
+    <select ${on("who","this.value")} aria-label="Who could do it">${opts(WHO_OPTIONS,b.who)}</select>
+    <label class="check"><input type="checkbox" ${b.facing?"checked":""} ${on("facing","this.checked")}>Patient-facing</label>
+    <button class="btn quiet danger" onclick="delButton(${i})">Remove</button></div>`; }).join("");
 }
 
-window.delEntry=id=>{entries=entries.filter(e=>e.id!==id);save();render();};
+window.delEntry=id=>{ if(!confirm("Delete this entry?")) return; entries=entries.filter(e=>e.id!==id); openEdit=null; save(); render(); };
 window.editEntry=(id,field,v)=>{ const e=entries.find(x=>x.id===id); if(!e) return;
   if(field==="day"){ if(!v) return render(); const [y,m,d]=v.split("-").map(Number); const t=new Date(e.date); t.setFullYear(y,m-1,d); e.date=t.toISOString(); }
   else if(field==="minutes"){ const n=parseInt(v,10); if(!(n>0)) return render(); e.minutes=n; }
   else if(field==="label"){ v=v.trim(); if(!v) return render(); e.label=v; }
   else e[field]=v;
-  save(); field==="day" ? render() : renderSummary(); };
+  save(); field==="day" ? render() : (renderSummary(), renderToday()); };
 window.editButton=(i,field,v)=>{ const b=buttons[i]; if(!b) return;
   if(field==="label"){ v=v.trim(); if(!v) return renderButtonList(); }
   // Keep a running timer attached to the button it was started from.
   if(running&&running.label===b.label&&running.clinic===b.clinic){ running[field]=v; if(field==="label") $("rLabel").textContent=v; }
-  b[field]=v; buttonsChanged(); renderButtons(); $("bCustom").style.display=buttonsCustom?"block":"none"; };
-window.delButton=i=>{buttons.splice(i,1);buttonsChanged();render();};
+  b[field]=v; buttonsChanged(); renderButtons(); $("bCustom").hidden=!buttonsCustom; };
+window.delButton=i=>{ if(!confirm(`Remove the "${buttons[i].label}" button? Saved entries are kept.`)) return; buttons.splice(i,1); buttonsChanged(); render(); };
 $("bReset").onclick=()=>{ if(!confirm("Replace the buttons in this browser with the list in tracker.html? Saved entries are kept.")) return;
   buttons=TAXONOMY.map(b=>({...b})); buttonsChanged(); render(); };
 
@@ -324,7 +639,7 @@ const RANGES={ today:()=>[shiftDay(0),shiftDay(0)], week:()=>[shiftDay(-((new Da
 let rangeKey="week"; try{ const k=localStorage.getItem(LS_RANGE); if(RANGES[k]) rangeKey=k; }catch(e){}
 function setRange(key){ rangeKey=key;
   if(RANGES[key]){ [$("from").value,$("to").value]=RANGES[key](); try{ localStorage.setItem(LS_RANGE,key); }catch(e){} }
-  document.querySelectorAll("#presets button").forEach(b=>b.classList.toggle("on",b.dataset.range===key)); render(); }
+  document.querySelectorAll("#presets button").forEach(b=>{ const on=b.dataset.range===key; b.classList.toggle("on",on); b.setAttribute("aria-pressed",on); }); render(); }
 document.querySelectorAll("#presets button").forEach(b=>b.onclick=()=>setRange(b.dataset.range));
 $("from").onchange=$("to").onchange=()=>setRange("custom");
 
@@ -339,13 +654,16 @@ $("mLabel").onchange=()=>{ const b=buttons.find(x=>x.label===$("mLabel").value.t
   $("mClinic").innerHTML=opts(CLINICS,b.clinic); $("mWho").innerHTML=opts(WHO_OPTIONS,b.who); $("mFacing").checked=!!b.facing; };
 const autoAfter=()=>{ if($("mTime").value) $("mAfter").checked=isAfterHours(manualStart()); };
 $("mTime").onchange=autoAfter; $("mDate").onchange=autoAfter;
-$("mAdd").onclick=()=>{ const label=$("mLabel").value.trim(); const mins=parseInt($("mMinutes").value,10); if(!label||!(mins>0)) return alert("Label and minutes needed");
-  entries.unshift({id:newId(),date:manualStart().toISOString(),label,clinic:$("mClinic").value,facing:$("mFacing").checked,who:$("mWho").value,minutes:mins,note:"",
+$("mAdd").onclick=()=>{ const label=$("mLabel").value.trim(); const mins=parseInt($("mMinutes").value,10);
+  if(!label||!(mins>0)){ $("mMsg").textContent="Enter a task and the minutes it took."; return; }
+  const when=manualStart();
+  entries.unshift({id:newId(),date:when.toISOString(),label,clinic:$("mClinic").value,facing:$("mFacing").checked,who:$("mWho").value,minutes:mins,note:"",
     source:$("mSource").value,afterHours:$("mAfter").checked,interrupted:$("mInterrupted").checked});
   save(); render();
+  $("mMsg").textContent=`Added ${label}, ${hm(mins)}, on ${when.toLocaleDateString(undefined,{weekday:"short",day:"numeric",month:"short"})}.`+(inRange({date:when.toISOString()})?"":" It is outside the range shown.");
   ["mLabel","mMinutes","mTime"].forEach(id=>$(id).value=""); ["mAfter","mInterrupted"].forEach(id=>$(id).checked=false); };
 
-$("bAdd").onclick=()=>{const label=$("bLabel").value.trim(); if(!label) return; buttons.push({label,clinic:$("bClinic").value,who:$("bWho").value,facing:$("bFacing").checked}); $("bLabel").value=""; buttonsChanged(); render();};
+$("bAdd").onclick=()=>{const label=$("bLabel").value.trim(); if(!label) return $("bLabel").focus(); buttons.push({label,clinic:$("bClinic").value,who:$("bWho").value,facing:$("bFacing").checked}); $("bLabel").value=""; buttonsChanged(); render();};
 // CSV of the selected range, oldest first, with local dates and times.
 // Text starting with = + - @ is prefixed with ' so spreadsheets do not run it as a formula.
 const csvCell=x=>{ let v=String(x??""); if(/^[=+\-@\t\r]/.test(v)) v="'"+v; return `"${v.replace(/"/g,'""')}"`; };
@@ -359,7 +677,10 @@ $("exportCsv").onclick=()=>{ const rs=entries.filter(inRange).sort((a,b)=>a.date
   const first=localDay(rs[0].date), last=localDay(rs[rs.length-1].date);
   const a=document.createElement("a"); a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv"}));
   a.download=`complex-care-work_${$("from").value||first}_to_${$("to").value||last}.csv`; a.click(); };
-$("copySummary").onclick=()=>navigator.clipboard.writeText($("summaryText").textContent);
+$("copySummary").onclick=()=>navigator.clipboard.writeText($("summaryText").textContent)
+  .then(()=>$("copied").textContent="Copied. Paste it into an email or document.")
+  .catch(()=>$("copied").textContent="Could not copy. Select the text above and copy it instead.");
+showView("track");
 setRange(rangeKey);
 </script>
 </body>

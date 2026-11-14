@@ -25,7 +25,14 @@ It records feedback, suggestions, missing task buttons, and bug reports. The sam
 Open the **Complex Care Work Tracker** artifact in Muse. Log entries there, edit the categories in Settings, and use the Dashboard / Report view to summarise a week or a month.
 
 ### 2. The standalone file (no account, fully yours)
-Open `tracker.html` in any browser. It saves entries only in that browser (localStorage), exports CSV for the selected date range (local dates and start times), and can be edited directly — it is one self-contained file with no server and no dependencies.
+Open `tracker.html` in any browser. It saves entries only in that browser (localStorage), exports CSV for the selected date range (local dates and start times), and can be edited directly — it is one self-contained file with no server. When online it loads one web font (Atkinson Hyperlegible, from Google Fonts); offline or if that is blocked it uses the system font and works the same.
+
+The page has four tabs:
+
+- **Track:** today's timeline (blue for work that needs a physician, highlighter yellow and orange for work support staff could do, shaded after hours) and the task buttons, grouped into "Needs a physician" and "Could be done by support staff". While a timer runs, a bar pinned to the bottom of the screen shows it with Stop and save.
+- **Report:** the date range, the headline share of work that did not need a physician, the support-FTE estimate, support work by task, and a summary to copy for a supervisor.
+- **Entries:** the log grouped by day, with Edit on each entry, and "Add work you forgot to time".
+- **Buttons:** add, rename, re-preset, or remove task buttons.
 
 Both use the same taxonomy in `config/taxonomy.json`.
 
