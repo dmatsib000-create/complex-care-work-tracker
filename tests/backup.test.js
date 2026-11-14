@@ -88,3 +88,33 @@ test("reminder: shown when the last backup is a week old, not for a brand-new us
   const fresh = await openTracker(browser);
   assert.ok(!(await fresh.isVisible("#nudge")));
 });
+
+test("restore keeps whichever copy of an entry was edited more recently", async () => {
+  const original = entry("2026-11-10T10:00", { label: "Forms", minutes: 30 });
+  // This device edited the entry; the backup holds an older edit of the same entry.
+  const p = await openTracker(browser, { storage: { entries: [{ ...original, minutes: 45, updatedAt: Date.parse("2026-11-11T09:00:00-08:00") }] } });
+  await p.click("#tab-entries");
+  const older = writeFile("older.json", { entries: [{ ...original, minutes: 35, updatedAt: Date.parse("2026-11-10T12:00:00-08:00") }] });
+  assert.equal(await restore(p, older), "Added 0 entries. 1 was already here.");
+  assert.equal((await savedEntries(p))[0].minutes, 45, "the newer local edit is kept");
+
+  const newer = writeFile("newer.json", { entries: [{ ...original, minutes: 60, note: "Batch", updatedAt: Date.parse("2026-11-11T09:30:00-08:00") }] });
+  assert.equal(await restore(p, newer), "Added 0 entries. Updated 1 that was edited more recently in the backup.");
+  const [e] = await savedEntries(p);
+  assert.deepEqual([e.minutes, e.note], [60, "Batch"]);
+
+  const unedited = writeFile("unedited.json", { entries: [original] });
+  assert.match(await restore(p, unedited), /1 was already here/, "a never-edited copy does not replace an edited one");
+  assert.equal((await savedEntries(p))[0].minutes, 60);
+});
+
+test("editing an entry records when it was edited", async () => {
+  const p = await openTracker(browser, { storage: { entries: [entry("2026-11-10T10:00")] } });
+  await p.click("#tab-entries");
+  await p.click(".e-edit");
+  const min = p.locator(".editor input[type=number]");
+  await min.fill("40"); await min.dispatchEvent("change");
+  const [e] = await savedEntries(p);
+  const t0 = Date.parse("2026-11-11T10:00:00-08:00"); // the test clock starts here and keeps ticking
+  assert.ok(e.updatedAt >= t0 && e.updatedAt < t0 + 60e3, `updatedAt ${e.updatedAt} is the time of the edit`);
+});

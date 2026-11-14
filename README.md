@@ -53,7 +53,7 @@ Only the clinician doing this work knows its ins and outs, so nothing here is lo
 - `TAXONOMY`: the starter task buttons.
 - `CLINICS`, `WHO_OPTIONS`, `SOURCES`: the dropdown options. Roles other than the three named below (RN, MA, Social work, ...) can be added, renamed or removed freely.
 - `CLINIC_START_HOUR`, `CLINIC_END_HOUR`: clinic hours, used to mark after-hours work.
-- `LONG_TIMER_MIN`: how long a timer can run before she is asked whether it was left on.
+- `LONG_TIMER_MIN`: how long a timer can run before she is asked whether it was left on. A panel then lets her save the real time (minutes like `45`, or `1:30`), discard it, or keep timing.
 - `PHYSICIAN`, `CLERICAL`, `COORDINATOR`, `COMPLEX`, `URGENT`: the names the report depends on. `PHYSICIAN` decides what counts as needing a physician (everything else is support work), `CLERICAL` and `COORDINATOR` are the two support totals, and anything not in `COMPLEX` counts as work assigned on top.
 
 **Renaming one of those five names:** change it in its line (for example `const CLERICAL = "Front desk";`), then add the old name to `RENAMES` so entries saved under it follow:
@@ -145,7 +145,7 @@ They also run automatically on GitHub for every pull request and after each merg
 - No PHI, ever, in either version.
 - The standalone file stores data only in your browser on your device. Nothing is sent anywhere.
 - **Back it up:** Entries tab, Save backup file. It downloads one small `.json` file with every entry (and your button changes). Keep it in your email or a cloud drive. The page reminds you if you have not saved one for a week.
-- **Move to another device or browser:** open the tracker there, Entries tab, Restore from backup file. Entries are added; any already there are skipped, so restoring the same file twice is harmless.
+- **Move to another device or browser:** open the tracker there, Entries tab, Restore from backup file. New entries are added. An entry that is already there is replaced only if the backup's copy was edited more recently, so restoring the same file twice is harmless. Deleting an entry on one device does not delete it from another.
 - **iPhone / Safari:** Safari can clear a website's saved data if the site is not opened for about a week. Save backups regularly, or add the page to your Home Screen.
 - This repo is private by default in spirit: do not publish logs containing clinic-identifying operational details without checking your employer's policies.
 
