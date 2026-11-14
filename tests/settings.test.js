@@ -41,8 +41,8 @@ test("renaming a role with a RENAMES line carries old entries, buttons and a run
     running: { label: "Forms", clinic: "Complex Care", facing: false, who: "Clerical / admin", startedAt: Date.parse("2026-11-11T09:55:00-08:00") },
   } });
   assert.ok(!(await p.isVisible("#setupWarn")), "no warning after a proper rename");
-  assert.equal(await p.textContent(".tile.active .t-meta"), "Front desk");
   await p.click("#stop");
+  assert.equal(await p.locator(".tile", { hasText: "Forms" }).locator(".t-meta").textContent(), "Front desk");
   const who = (await savedEntries(p)).map((e) => e.who);
   assert.ok(!who.includes("Clerical / admin"));
   assert.equal(who.filter((w) => w === "Front desk").length, 2, "the old entry and the timed one");

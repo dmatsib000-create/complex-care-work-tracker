@@ -699,8 +699,8 @@ function renderToday(){
   let ticks=""; for(let h=Math.ceil(a/step)*step; h<=b; h+=step) ticks+=`<span class="${h===a?"first":h===b?"last":""}" style="left:${pct(h)}">${h%12||12}${h<12||h===24?"am":"pm"}</span>`;
   $("ticks").innerHTML=ticks;
   const LEG=[["r-doc","Needs a physician or PA"],["r-rn",`${esc(NURSE)} could do it`],["r-coord",`${esc(COORDINATOR)} could do it`],["r-cler",`${esc(CLERICAL)} could do it`],["r-other","Other support role"]];
-  const present=new Set(items.map(i=>roleClass(i.who)));
-  $("stripLegend").innerHTML=LEG.filter(([c])=>!items.length||present.has(c)).map(([c,l])=>`<span><i class="key ${c}"></i>${l}</span>`).join("")+`<span><i class="key dusk"></i>After hours</span>`;
+  // Every key, always: a legend that changes as she works would resize the strip and move the buttons below it.
+  $("stripLegend").innerHTML=LEG.map(([c,l])=>`<span><i class="key ${c}"></i>${l}</span>`).join("")+`<span><i class="key dusk"></i>After hours</span>`;
   $("stripNote").textContent = !items.length ? "Tap a task to start. Today's work builds up here."
     : `${plural(drawn.length,"block","blocks")} of work`+(untimedN?`, plus ${untimedN} added without a time`:"");
 }
