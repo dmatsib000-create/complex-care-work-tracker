@@ -182,6 +182,13 @@
   .bitem select,.bitem input:not([type=checkbox]),.form-grid select,.form-grid input{width:100%;max-width:100%}
   .bitem{display:grid;grid-template-columns:minmax(160px,1.4fr) minmax(150px,1fr) minmax(150px,1fr) auto auto;gap:var(--s2) var(--s3);align-items:center;padding:var(--s2) 0;border-bottom:1px solid var(--rule)}
 
+  /* Long-timer check: shown instead of saving a timer that may have been left running */
+  #longPanel{border:0;border-radius:12px;padding:var(--s5);max-width:420px;width:calc(100% - 32px);color:var(--ink);background:var(--surface)}
+  #longPanel::backdrop{background:rgba(30,40,54,.55)}
+  #longPanel h2{font-size:20px;font-weight:800;margin:0 0 var(--s2)}
+  #longPanel p{margin:0 0 var(--s3)}
+  #longPanel .actions{display:flex;flex-wrap:wrap;gap:var(--s2);margin-top:var(--s4)}
+  #longError{color:#9B1C1C;font-size:14px;min-height:1.2em;margin:var(--s1) 0 0}
   footer{border-top:1px solid var(--rule);padding:var(--s4) 0 var(--s6);font-size:14px;color:var(--muted)}
 
   @media (max-width:640px){
@@ -351,9 +358,22 @@
       <label class="check"><input type="checkbox" id="rInterrupted">Interrupted a visit</label>
     </div>
     <button id="stop">Stop and save</button>
-    <div id="rLong" hidden>Still running? This timer has been on a long time. When you stop it you can correct the minutes or discard it.</div>
+    <div id="rLong" hidden>Still running? This timer has been on a long time. When you stop it you can correct the time or discard it.</div>
   </div>
 </div>
+
+<dialog id="longPanel" aria-labelledby="longTitle">
+  <h2 id="longTitle">Was this timer left running?</h2>
+  <p id="longText"></p>
+  <label class="field">How long did it actually take? <input id="longMinutes" inputmode="text" autocomplete="off" aria-describedby="longHint longError"></label>
+  <p id="longHint" class="small muted" style="margin:var(--s1) 0 0">Minutes (45) or hours and minutes (1:30). Leave it as it is to keep the full time.</p>
+  <p id="longError" aria-live="polite"></p>
+  <div class="actions">
+    <button class="btn primary" id="longSave">Save this time</button>
+    <button class="btn danger" id="longDiscard">Discard it</button>
+    <button class="btn quiet" id="longKeep">Keep timing</button>
+  </div>
+</dialog>
 
 <script>
 // ======================= SETTINGS START =======================
@@ -439,7 +459,9 @@ const validButton = b => b && typeof b==="object" && typeof b.label==="string" &
 const cleanEntry = e => ({ id:e.id, date:new Date(e.date).toISOString(), label:String(e.label), clinic:renamed(String(e.clinic||COMPLEX)), facing:!!e.facing,
   who:renamed(String(e.who||PHYSICIAN)), minutes:Math.round(Number(e.minutes)), note:String(e.note||""), source:String(e.source||""),
   // Entries saved before after-hours tracking existed: work it out from their start time.
-  afterHours:e.afterHours===undefined?isAfterHours(e.date):!!e.afterHours, interrupted:!!e.interrupted, timeUnknown:!!e.timeUnknown });
+  afterHours:e.afterHours===undefined?isAfterHours(e.date):!!e.afterHours, interrupted:!!e.interrupted, timeUnknown:!!e.timeUnknown,
+  // When the entry was last edited (ms), so a restore can keep the newer copy. Absent if never edited.
+  ...(Number.isSafeInteger(e.updatedAt)&&e.updatedAt>0?{updatedAt:e.updatedAt}:{}) });
 const cleanButton = b => ({label:String(b.label).trim(),clinic:renamed(String(b.clinic||COMPLEX)),facing:!!b.facing,who:renamed(String(b.who||PHYSICIAN))});
 // Read one saved value. A damaged value is copied aside (so nothing is lost) instead of stopping the page.
 function readKey(key,fallback){
@@ -487,23 +509,49 @@ const save=()=>{ try{
 const buttonsChanged = () => { buttonsCustom = buttonKey(buttons)!==buttonKey(TAXONOMY); save(); };
 if(loadState()) save();
 
-function start(btn){ stop(false); running={label:btn.label,clinic:btn.clinic,facing:btn.facing,who:btn.who,startedAt:Date.now(),source:"",interrupted:false}; save(); render(); }
-function stop(renderAfter=true){ if(!running) { if(renderAfter) render(); return; }
-  let mins=Math.max(1,Math.round((Date.now()-running.startedAt)/60000));
-  if(mins>LONG_TIMER_MIN){
-    const started=new Date(running.startedAt), sameDay=localDay(started)===localDay(Date.now());
-    let msg=`"${running.label}" ran for ${fmtDur(mins)} (started ${sameDay?"today":started.toLocaleDateString()} at ${started.toLocaleTimeString([], {hour:"numeric",minute:"2-digit"})}). Was it left running?\n\nType the real time in minutes (45) or hours:minutes (1:30), then OK. Leave the number as it is to keep the full time.\nCancel discards this entry.`;
-    for(;;){
-      const ans=prompt(msg, mins);
-      if(ans===null){ running=null; save(); if(renderAfter) render(); return; }
-      const v=parseDuration(ans);
-      if(v>0){ mins=v; break; }
-      msg=`"${ans}" is not a time this tracker can read.\n\nType minutes (45) or hours:minutes (1:30).\nCancel discards this entry.`;
-    }
-  }
-  entries.unshift({id:newId(),date:new Date(running.startedAt).toISOString(),label:running.label,clinic:running.clinic,facing:running.facing,who:running.who,minutes:mins,note:"",
-    source:running.source||"",afterHours:isAfterHours(running.startedAt),interrupted:!!running.interrupted});
+// Minutes the running timer has been on (at least 1).
+const runningMinutes=()=>Math.max(1,Math.round((Date.now()-running.startedAt)/60000));
+// Tapping a task: if a timer that may have been left on is running, check it first; the new task starts once answered.
+function start(btn){
+  if(running && runningMinutes()>LONG_TIMER_MIN){ openLongPanel(btn); return; }
+  stop(false); begin(btn); }
+function begin(btn){
+  running={label:btn.label,clinic:btn.clinic,facing:btn.facing,who:btn.who,startedAt:Date.now(),source:"",interrupted:false};
+  save(); render(); }
+// Stop and save. A timer longer than LONG_TIMER_MIN is not saved straight away: the long-timer panel asks first.
+function stop(renderAfter=true){
+  if(!running){ if(renderAfter) render(); return; }
+  if(runningMinutes()>LONG_TIMER_MIN){ openLongPanel(null); return; }
+  saveRunning(runningMinutes(), renderAfter); }
+function saveRunning(mins, renderAfter=true){
+  entries.unshift({id:newId(),date:new Date(running.startedAt).toISOString(),label:running.label,clinic:running.clinic,
+    facing:running.facing,who:running.who,minutes:mins,note:"",source:running.source||"",
+    afterHours:isAfterHours(running.startedAt),interrupted:!!running.interrupted});
   running=null; save(); if(renderAfter) render(); }
+
+// ---------- Long-timer panel ----------
+let nextAfterLong=null; // the task tapped while the panel was opened, started once it is answered
+function openLongPanel(nextBtn){
+  nextAfterLong=nextBtn;
+  const mins=runningMinutes(), started=new Date(running.startedAt), sameDay=localDay(started)===localDay(Date.now());
+  const since=(sameDay?"":started.toLocaleDateString(undefined,{weekday:"short",day:"numeric",month:"short"})+" at ")+clock(started);
+  $("longText").textContent=`"${running.label}" has been timing for ${fmtDur(mins)}, since ${since}.`;
+  $("longMinutes").value=String(mins); $("longError").textContent="";
+  $("longKeep").hidden=!!nextBtn; // switching tasks means this timer ends either way
+  if(!$("longPanel").open) $("longPanel").showModal();
+  $("longMinutes").select(); }
+function closeLongPanel(){ if($("longPanel").open) $("longPanel").close(); }
+function afterLong(){ const next=nextAfterLong; nextAfterLong=null; if(next) begin(next); else render(); }
+$("longSave").onclick=()=>{
+  if(!running){ closeLongPanel(); return render(); } // stopped in another tab meanwhile
+  const v=parseDuration($("longMinutes").value);
+  if(!(v>0)){ $("longError").textContent=`"${$("longMinutes").value}" is not a time this tracker can read.`; $("longMinutes").focus(); return; }
+  closeLongPanel(); saveRunning(v,false); afterLong(); };
+$("longDiscard").onclick=()=>{ closeLongPanel(); running=null; save(); afterLong(); };
+$("longKeep").onclick=()=>{ nextAfterLong=null; closeLongPanel(); };
+$("longMinutes").onkeydown=e=>{ if(e.key==="Enter"){ e.preventDefault(); $("longSave").click(); } };
+// Escape closes the panel without changing anything; a task tapped meanwhile is not started.
+$("longPanel").addEventListener("cancel",()=>{ nextAfterLong=null; });
 // "45" -> 45 min, "1:30" -> 90, "1.5h" / "2 hours" -> hours, "45m" / "45 min" -> minutes. Anything else is unreadable.
 function parseDuration(text){ const t=String(text).trim().toLowerCase(); let m;
   if(/^\d+$/.test(t)) return +t;
@@ -538,7 +586,9 @@ document.querySelectorAll("nav button").forEach(b=>{
 function renderToday(){
   const today=localDay(Date.now());
   const items=entries.filter(e=>localDay(e.date)===today).map(e=>({start:new Date(e.date),min:e.minutes,who:e.who,label:e.label,urgent:e.clinic!==COMPLEX,untimed:e.timeUnknown}));
-  if(running&&localDay(running.startedAt)===today) items.push({start:new Date(running.startedAt),min:Math.max(1,(Date.now()-running.startedAt)/60000),who:running.who,label:running.label,urgent:running.clinic!==COMPLEX,live:true});
+  if(running&&localDay(running.startedAt)===today) items.push({start:new Date(running.startedAt),
+    min:Math.max(1,(Date.now()-running.startedAt)/60000), who:running.who, label:running.label,
+    urgent:running.clinic!==COMPLEX, live:true});
   const tot=items.reduce((a,i)=>a+i.min,0), sup=items.filter(i=>!isDoc(i.who)).reduce((a,i)=>a+i.min,0);
   $("todayLine").innerHTML = tot
     ? `Today: <b>${hm(tot)}</b> logged, of which <span class="mark r-cler"><b>${hm(sup)}</b> could have been done by support staff</span>.`
@@ -562,7 +612,8 @@ function renderToday(){
   const LEG=[["r-doc","Needs a physician"],["r-cler",`${esc(CLERICAL)} could do it`],["r-coord",`${esc(COORDINATOR)} could do it`],["r-other","Other support role"]];
   const present=new Set(items.map(i=>roleClass(i.who)));
   $("stripLegend").innerHTML=LEG.filter(([c])=>!items.length||present.has(c)).map(([c,l])=>`<span><i class="key ${c}"></i>${l}</span>`).join("")+`<span><i class="key dusk"></i>After hours</span>`;
-  $("stripNote").textContent = items.length ? `${drawn.length} ${drawn.length===1?"block":"blocks"} of work`+(untimedN?`, plus ${untimedN} added without a time`:"") : "Tap a task below to start. Today's work builds up here.";
+  $("stripNote").textContent = !items.length ? "Tap a task below to start. Today's work builds up here."
+    : `${plural(drawn.length,"block","blocks")} of work`+(untimedN?`, plus ${untimedN} added without a time`:"");
 }
 
 // ---------- Task tiles ----------
@@ -590,74 +641,114 @@ function renderRunning(){
 }
 
 // ---------- Report ----------
-function renderSummary(){
-  const rs=entries.filter(inRange); const sum=a=>a.reduce((t,e)=>t+e.minutes,0);
-  const total=sum(rs), nonDocE=rs.filter(e=>!isDoc(e.who)), nonDoc=sum(nonDocE);
-  const docM=total-nonDoc, cler=sum(rs.filter(e=>e.who===CLERICAL)), coord=sum(rs.filter(e=>e.who===COORDINATOR)), otherM=nonDoc-cler-coord;
-  const invis=sum(rs.filter(e=>!e.facing)), urgentM=sum(rs.filter(e=>e.clinic!==COMPLEX));
-  const afterE=rs.filter(e=>e.afterHours), afterM=sum(afterE), intN=rs.filter(e=>e.interrupted).length;
-  const h=m=>(m/60).toFixed(1)+" h";
-  const pc=m=>total?Math.round(m/total*100)+"%":"0%";
-  // Weeks covered: the chosen From/To, or the first to last logged day when left blank.
+// The numbers behind the Report tab. computeReport and summaryText only read the entries they are given
+// (no page access), so the figures the case rests on can be tested directly. Minutes throughout.
+//   list:  entries in the chosen range        all:   every entry (to find the first day anything was logged)
+//   from, to: the range as "YYYY-MM-DD", or "" for open-ended       today: "YYYY-MM-DD"
+function computeReport(list, all, from, to, today){
+  const sum=a=>a.reduce((t,e)=>t+e.minutes,0);
+  const supportEntries=list.filter(e=>!isDoc(e.who));
+  const r={ count:list.length, total:sum(list), support:sum(supportEntries),
+    clerical:sum(list.filter(e=>e.who===CLERICAL)), coordination:sum(list.filter(e=>e.who===COORDINATOR)),
+    notFacing:sum(list.filter(e=>!e.facing)), urgent:sum(list.filter(e=>e.clinic!==COMPLEX)),
+    afterHours:sum(list.filter(e=>e.afterHours)), afterHoursCount:list.filter(e=>e.afterHours).length,
+    interruptions:list.filter(e=>e.interrupted).length };
+  r.physician=r.total-r.support;
+  r.otherSupport=r.support-r.clerical-r.coordination;
+
+  // Days covered: the chosen From/To, or the first to last logged day when left open.
   // Days before her very first entry, or after today, are not counted: no work was being tracked then.
-  const days=rs.map(e=>localDay(e.date)).sort();
-  const fromV=$("from").value, toV=$("to").value, todayD=localDay(Date.now());
-  const firstEver=entries.reduce((m,e)=>{ const d=localDay(e.date); return !m||d<m?d:m; },"");
-  let spanStart=fromV||days[0], spanEnd=toV||days[days.length-1];
-  const startClamped=!!(fromV&&firstEver&&firstEver>fromV&&rs.length); if(startClamped) spanStart=firstEver;
-  if(toV&&toV>todayD&&rs.length) spanEnd=days[days.length-1]>todayD?days[days.length-1]:todayD;
-  const spanDays=(spanStart&&spanEnd)?Math.max(1,dayNum(spanEnd)-dayNum(spanStart)+1):0;
-  const weeks=spanDays/7, fullWeek=spanDays>=7, perWeek=weeks?nonDoc/weeks:0, fte=(perWeek/60/40).toFixed(2);
+  const days=list.map(e=>localDay(e.date)).sort();
+  r.firstEver=all.reduce((m,e)=>{ const d=localDay(e.date); return !m||d<m?d:m; },"");
+  let start=from||days[0], end=to||days[days.length-1];
+  r.startClamped=!!(from&&r.firstEver&&r.firstEver>from&&list.length);
+  if(r.startClamped) start=r.firstEver;
+  if(to&&to>today&&list.length) end=days[days.length-1]>today?days[days.length-1]:today;
+  r.spanDays=(start&&end)?Math.max(1,dayNum(end)-dayNum(start)+1):0;
+  r.weeks=r.spanDays/7;
+  r.fullWeek=r.spanDays>=7;
+  r.totalPerWeek=r.weeks?r.total/r.weeks:0;
+  r.supportPerWeek=r.weeks?r.support/r.weeks:0;
+  r.fte=r.supportPerWeek/60/40; // share of one 40-hour-a-week support role
+
+  // Support work by task, largest first. mainRole is the role with the most minutes for that task.
+  const groups=new Map();
+  supportEntries.forEach(e=>{
+    let g=groups.get(e.label);
+    if(!g){ g={label:e.label,minutes:0,roles:new Map()}; groups.set(e.label,g); }
+    g.minutes+=e.minutes; g.roles.set(e.who,(g.roles.get(e.who)||0)+e.minutes); });
+  r.byTask=[...groups.values()].sort((a,b)=>b.minutes-a.minutes).map(g=>({label:g.label, minutes:g.minutes,
+    roles:[...g.roles.keys()], mainRole:[...g.roles.entries()].sort((a,b)=>b[1]-a[1])[0][0]}));
+  return r;
+}
+const hrs=m=>(m/60).toFixed(1)+" h";
+const pctOf=(m,total)=>total?Math.round(m/total*100)+"%":"0%";
+const plural=(n,one,many)=>`${n} ${n===1?one:many}`;
+
+// The plain-text summary for a supervisor, built from a computeReport result.
+function summaryText(r){
+  const top=r.byTask.slice(0,3).map(g=>`${g.label} (${hrs(g.minutes)})`).join(", ");
+  return [
+    `In this period${r.spanDays?` (${plural(r.spanDays,"day","days")})`:""} I logged ${hrs(r.total)} of work${r.fullWeek?`, about ${hrs(r.totalPerWeek)} a week`:""}.`,
+    `${hrs(r.support)} (${pctOf(r.support,r.total)}) did not require a physician: ${hrs(r.clerical)} clerical and ${hrs(r.coordination)} care coordination.`,
+    top?`The largest delegable categories were ${top}.`:"",
+    `${hrs(r.notFacing)} was not patient-facing. ${hrs(r.urgent)} was non-complex healthy urgent work assigned on top of complex care.`,
+    r.afterHours?`${hrs(r.afterHours)} was done after hours.`:"",
+    r.interruptions?`This work interrupted a visit ${plural(r.interruptions,"time","times")}.`:"",
+    r.support&&r.fullWeek?`That is about ${hrs(r.supportPerWeek)} a week of delegable work, roughly ${r.fte.toFixed(2)} of a 40-hour support FTE.`:"",
+    `This is necessary complex-clinic work, not inefficiency. It needs clerical and care-coordination support.`,
+  ].filter(Boolean).join(" ");
+}
+
+// Show the report for the chosen range.
+function renderSummary(){
+  const fromV=$("from").value, toV=$("to").value;
+  const r=computeReport(entries.filter(inRange), entries, fromV, toV, localDay(Date.now()));
+  const pc=m=>pctOf(m,r.total);
   const nice=ymd=>ymdDate(ymd).toLocaleDateString(undefined,{weekday:"short",day:"numeric",month:"short",year:"numeric"});
   const name={today:"Today",week:"This week",["7d"]:"Last 7 days",["4w"]:"Last 4 weeks",all:"All time"}[rangeKey]||"Custom range";
-  const n=rs.length, nE=`${n} ${n===1?"entry":"entries"}`;
-  $("rangeLabel").textContent = (fromV||toV)
-    ? `${name}: ${fromV?nice(fromV):"first entry"} to ${toV?nice(toV):"latest entry"}${spanDays&&!startClamped?` (${spanDays} day${spanDays===1?"":"s"})`:""}, ${nE}.`+
-      (startClamped?` Weekly figures count ${spanDays} day${spanDays===1?"":"s"}, from your first entry on ${nice(firstEver)}.`:"")
-    : `All time: ${nE}${spanDays?` over ${spanDays} day${spanDays===1?"":"s"}`:""}.`;
+  const days=n=>plural(n,"day","days"), nE=plural(r.count,"entry","entries");
 
-  $("headline").textContent = total
-    ? `${h(nonDoc)} of ${h(total)} logged (${pc(nonDoc)}) did not need a physician.`
+  $("rangeLabel").textContent = (fromV||toV)
+    ? `${name}: ${fromV?nice(fromV):"first entry"} to ${toV?nice(toV):"latest entry"}`+
+      `${r.spanDays&&!r.startClamped?` (${days(r.spanDays)})`:""}, ${nE}.`+
+      (r.startClamped?` Weekly figures count ${days(r.spanDays)}, from your first entry on ${nice(r.firstEver)}.`:"")
+    : `All time: ${nE}${r.spanDays?` over ${days(r.spanDays)}`:""}.`;
+
+  $("headline").textContent = r.total
+    ? `${hrs(r.support)} of ${hrs(r.total)} logged (${pc(r.support)}) did not need a physician.`
     : "Nothing logged in this range yet.";
-  $("fte").textContent = !total ? "Time tasks on the Track tab, or add forgotten work under Entries. Pick a longer range above to include older work."
-    : !nonDoc ? "All work in this range needed a physician."
-    : fullWeek ? `That is ${h(perWeek)} a week of support work, about ${fte} of a full-time support role (40 hours a week), currently done by a physician.`
-    : startClamped ? `You started logging on ${nice(firstEver)}. Once a full week has been logged, this shows hours a week and a share of a support role.`
+  $("fte").textContent =
+      !r.total ? "Time tasks on the Track tab, or add forgotten work under Entries. Pick a longer range above to include older work."
+    : !r.support ? "All work in this range needed a physician."
+    : r.fullWeek ? `That is ${hrs(r.supportPerWeek)} a week of support work, about ${r.fte.toFixed(2)} of a full-time support role (40 hours a week), currently done by a physician.`
+    : r.startClamped ? `You started logging on ${nice(r.firstEver)}. Once a full week has been logged, this shows hours a week and a share of a support role.`
     : (fromV&&toV) ? `Choose a range of 7 days or more (for example Last 4 weeks) to see this as hours a week and a share of a support role.`
     : `Log at least a full week to see this as hours a week and a share of a support role.`;
-  const segs=[["r-doc","Needs a physician",docM],["r-cler",CLERICAL,cler],["r-coord",COORDINATOR,coord],["r-other","Other support roles",otherM]].filter(s=>s[2]>0);
-  $("splitBar").innerHTML=segs.map(([c,l,m])=>`<span class="${c}" style="width:${m/total*100}%" title="${esc(l)}: ${h(m)}"></span>`).join("");
-  $("splitBar").setAttribute("aria-label",segs.map(([,l,m])=>`${l} ${h(m)}`).join(", ")||"No data");
-  $("splitBar").hidden=!total; $("summary").hidden=!total;
-  $("splitLegend").innerHTML=segs.map(([c,l,m])=>`<span><i class="key ${c}"></i>${esc(l)}: ${h(m)} (${pc(m)})</span>`).join("");
 
-  const facts=[[fullWeek?"Logged per week":"Total logged", fullWeek?h(total/weeks):h(total), fullWeek?`${h(total)} in total`:""],
-    ["Not patient-facing",h(invis),pc(invis)],
-    ["Healthy urgents assigned on top",h(urgentM),pc(urgentM)],
-    ["After hours",h(afterM),`${afterE.length} ${afterE.length===1?"entry":"entries"}`],
-    ["Interrupted a visit",`${intN}`,intN===1?"time":"times"]];
+  const segs=[["r-doc","Needs a physician",r.physician],["r-cler",CLERICAL,r.clerical],
+    ["r-coord",COORDINATOR,r.coordination],["r-other","Other support roles",r.otherSupport]].filter(s=>s[2]>0);
+  $("splitBar").innerHTML=segs.map(([c,l,m])=>`<span class="${c}" style="width:${m/r.total*100}%" title="${esc(l)}: ${hrs(m)}"></span>`).join("");
+  $("splitBar").setAttribute("aria-label",segs.map(([,l,m])=>`${l} ${hrs(m)}`).join(", ")||"No data");
+  $("splitBar").hidden=!r.total; $("summary").hidden=!r.total;
+  $("splitLegend").innerHTML=segs.map(([c,l,m])=>`<span><i class="key ${c}"></i>${esc(l)}: ${hrs(m)} (${pc(m)})</span>`).join("");
+
+  const facts=[
+    [r.fullWeek?"Logged per week":"Total logged", r.fullWeek?hrs(r.totalPerWeek):hrs(r.total), r.fullWeek?`${hrs(r.total)} in total`:""],
+    ["Not patient-facing", hrs(r.notFacing), pc(r.notFacing)],
+    ["Healthy urgents assigned on top", hrs(r.urgent), pc(r.urgent)],
+    ["After hours", hrs(r.afterHours), plural(r.afterHoursCount,"entry","entries")],
+    ["Interrupted a visit", `${r.interruptions}`, r.interruptions===1?"time":"times"]];
   $("summary").innerHTML=facts.map(([k,v,s])=>`<div><dt>${k}</dt><dd>${v}${s?` <small>${s}</small>`:""}</dd></div>`).join("");
 
-  // Support work by task, grouped by task label.
-  const groups=new Map(); nonDocE.forEach(e=>{ let g=groups.get(e.label); if(!g){ g={label:e.label,min:0,who:new Map()}; groups.set(e.label,g); }
-    g.min+=e.minutes; g.who.set(e.who,(g.who.get(e.who)||0)+e.minutes); });
-  const top=[...groups.values()].sort((a,b)=>b.min-a.min); const max=top[0]?.min||1;
-  $("topDelegable").innerHTML=top.length?top.map(g=>{ const mainWho=[...g.who.entries()].sort((a,b)=>b[1]-a[1])[0][0];
-    return `<li class="${roleClass(mainWho)}"><span>${esc(g.label)}</span><span class="bar" style="width:${g.min/max*100}%"></span>
-      <span class="num">${h(g.min)}<small>${Math.round(g.min/nonDoc*100)}% of support work${fullWeek?`, ${h(g.min/weeks)} a week`:""}</small></span>
-      <span class="who">${esc([...g.who.keys()].join(", "))} could do this</span></li>`; }).join("")
+  const max=r.byTask[0]?.minutes||1;
+  $("topDelegable").innerHTML = r.byTask.length
+    ? r.byTask.map(g=>`<li class="${roleClass(g.mainRole)}"><span>${esc(g.label)}</span><span class="bar" style="width:${g.minutes/max*100}%"></span>
+      <span class="num">${hrs(g.minutes)}<small>${Math.round(g.minutes/r.support*100)}% of support work${r.fullWeek?`, ${hrs(g.minutes/r.weeks)} a week`:""}</small></span>
+      <span class="who">${esc(g.roles.join(", "))} could do this</span></li>`).join("")
     : `<li class="empty" style="display:block">No support work logged in this range yet.</li>`;
 
-  const topText=top.slice(0,3).map(g=>`${g.label} (${h(g.min)})`).join(", ");
-  $("summaryText").textContent=
-    `In this period${spanDays?` (${spanDays} day${spanDays===1?"":"s"})`:""} I logged ${h(total)} of work${fullWeek?`, about ${h(total/weeks)} a week`:""}. `+
-    `${h(nonDoc)} (${pc(nonDoc)}) did not require a physician: ${h(cler)} clerical and ${h(coord)} care coordination. `+
-    `${topText?`The largest delegable categories were ${topText}. `:""}`+
-    `${h(invis)} was not patient-facing. ${h(urgentM)} was non-complex healthy urgent work assigned on top of complex care. `+
-    `${afterM?`${h(afterM)} was done after hours. `:""}`+
-    `${intN?`This work interrupted a visit ${intN} ${intN===1?"time":"times"}. `:""}`+
-    `${nonDoc&&fullWeek?`That is about ${h(perWeek)} a week of delegable work, roughly ${fte} of a 40-hour support FTE. `:""}`+
-    `This is necessary complex-clinic work, not inefficiency. It needs clerical and care-coordination support.`;
+  $("summaryText").textContent=summaryText(r);
 }
 
 // ---------- Entries ----------
@@ -719,6 +810,7 @@ window.editEntry=(id,field,v)=>{ const e=entries.find(x=>x.id===id); if(!e) retu
   else if(field==="minutes"){ const n=parseInt(v,10); if(!(n>0)) return render(); e.minutes=n; }
   else if(field==="label"){ v=v.trim(); if(!v) return render(); e.label=v; }
   else e[field]=v;
+  e.updatedAt=Date.now();
   save(); field==="day" ? render() : (renderSummary(), renderToday()); };
 window.editButton=(i,field,v)=>{ const b=buttons[i]; if(!b) return;
   if(field==="label"){ v=v.trim(); if(!v) return renderButtonList(); }
@@ -765,10 +857,14 @@ $("mAdd").onclick=()=>{ const label=$("mLabel").value.trim(); const mins=parseIn
   entries.unshift({id:newId(),date:when.toISOString(),label,clinic:$("mClinic").value,facing:$("mFacing").checked,who:$("mWho").value,minutes:mins,note:"",
     source:$("mSource").value,afterHours:$("mAfter").checked,interrupted:$("mInterrupted").checked,timeUnknown:!$("mTime").value});
   save(); render();
-  $("mMsg").textContent=`Added ${label}, ${hm(mins)}, on ${when.toLocaleDateString(undefined,{weekday:"short",day:"numeric",month:"short"})}.`+(inRange({date:when.toISOString()})?"":" It is outside the range shown.");
+  const day=when.toLocaleDateString(undefined,{weekday:"short",day:"numeric",month:"short"});
+  $("mMsg").textContent=`Added ${label}, ${hm(mins)}, on ${day}.`+(inRange({date:when.toISOString()})?"":" It is outside the range shown.");
   ["mLabel","mMinutes","mTime"].forEach(id=>$(id).value=""); $("mInterrupted").checked=false; autoAfter(); };
 
-$("bAdd").onclick=()=>{const label=$("bLabel").value.trim(); if(!label) return $("bLabel").focus(); buttons.push({label,clinic:$("bClinic").value,who:$("bWho").value,facing:$("bFacing").checked}); $("bLabel").value=""; buttonsChanged(); render();};
+$("bAdd").onclick=()=>{
+  const label=$("bLabel").value.trim(); if(!label) return $("bLabel").focus();
+  buttons.push({label,clinic:$("bClinic").value,who:$("bWho").value,facing:$("bFacing").checked});
+  $("bLabel").value=""; buttonsChanged(); render(); };
 // CSV of the selected range, oldest first, with local dates and times.
 // Text starting with = + - @ is prefixed with ' so spreadsheets do not run it as a formula.
 const csvCell=x=>{ let v=String(x??""); if(/^[=+\-@\t\r]/.test(v)) v="'"+v; return `"${v.replace(/"/g,'""')}"`; };
@@ -817,19 +913,28 @@ async function restoreBackup(file){
     const list=Array.isArray(data)?data:(data&&typeof data==="object"?data.entries:null);
     if(!Array.isArray(list)) return say("That file has no entries in it. Choose a file saved with Save backup file.");
     // Work out everything before changing anything, so a bad file cannot leave a half-finished restore.
-    const have=new Set(entries.map(e=>e.id)), incoming=[]; let skipped=0, bad=0;
+    // An entry already here is replaced only if the backup's copy was edited more recently.
+    const byId=new Map(entries.map(e=>[e.id,e])), seen=new Set(), incoming=[], newer=new Map(); let skipped=0, bad=0;
     list.forEach(raw=>{ if(!validEntry(raw)){ bad++; return; }
-      if(safeId(raw.id)&&have.has(raw.id)){ skipped++; return; }
+      if(safeId(raw.id)&&(byId.has(raw.id)||seen.has(raw.id))){
+        const mine=byId.get(raw.id), theirs=cleanEntry(raw);
+        if(mine&&!seen.has(raw.id)&&(theirs.updatedAt||0)>(mine.updatedAt||0)) newer.set(raw.id,theirs); else skipped++;
+        seen.add(raw.id); return; }
       const e=cleanEntry(raw); if(!safeId(e.id)) e.id=newId(); else lastId=Math.max(lastId,e.id);
-      have.add(e.id); incoming.push(e); });
+      seen.add(e.id); incoming.push(e); });
     const nb=Array.isArray(data.buttons)?data.buttons.filter(validButton).map(cleanButton):[];
     const useButtons=nb.length>0&&buttonKey(nb)!==buttonKey(buttons)
       &&confirm("This backup also has its own task buttons. Use those buttons in this browser? Entries are added either way.");
-    entries=entries.concat(incoming).sort((a,b)=>b.date.localeCompare(a.date));
+    entries=entries.map(e=>newer.get(e.id)||e).concat(incoming).sort((a,b)=>b.date.localeCompare(a.date));
     if(useButtons){ buttons=nb; buttonsCustom=buttonKey(buttons)!==buttonKey(TAXONOMY); }
     save(); render();
     const n=incoming.length;
-    say(`Added ${n} ${n===1?"entry":"entries"}.`+(skipped?` ${skipped} ${skipped===1?"was":"were"} already here.`:"")+(bad?` ${bad} could not be read and ${bad===1?"was":"were"} skipped.`:"")+(useButtons?" Buttons updated from the backup.":""));
+    const was=k=>k===1?"was":"were";
+    say([`Added ${plural(n,"entry","entries")}.`,
+      newer.size?`Updated ${newer.size} that ${was(newer.size)} edited more recently in the backup.`:"",
+      skipped?`${skipped} ${was(skipped)} already here.`:"",
+      bad?`${bad} could not be read and ${was(bad)} skipped.`:"",
+      useButtons?"Buttons updated from the backup.":""].filter(Boolean).join(" "));
   }catch(err){ say("Could not restore from that file. Nothing was changed. Choose a file saved with Save backup file."); }
 }
 $("backupSave").onclick=saveBackup;
@@ -859,12 +964,15 @@ function settingsProblems(){
     const field=k in KEY_CLINICS?"clinic":"who", former=(keyNames[k]||[]).filter(n=>n!==current);
     for(const [kind,x] of items) if(former.includes(x[field])){ const key=`${k}|${x[field]}`;
       const o=old.get(key)||{k,name:x[field],current,entry:0,button:0,timer:0}; o[kind]++; old.set(key,o); } }
-  old.forEach(o=>{ const what=[o.entry&&`${o.entry} saved ${o.entry===1?"entry":"entries"}`, o.button&&`${o.button} ${o.button===1?"button":"buttons"} changed on the page`, o.timer&&"the running timer"].filter(Boolean).join(", ");
+  old.forEach(o=>{
+    const what=[o.entry&&`${plural(o.entry,"saved entry","saved entries")}`,
+      o.button&&`${plural(o.button,"button","buttons")} changed on the page`, o.timer&&"the running timer"].filter(Boolean).join(", ");
     p.push(`${what} still ${o.entry+o.button+o.timer===1?"uses":"use"} "${o.name}", the old name of ${o.k} (now "${o.current}"). Add this line to RENAMES: "${o.name}": "${o.current}"`); });
   return p;
 }
 function renderSetupWarn(){ const p=settingsProblems(); $("setupWarn").hidden=!p.length;
-  $("setupWarn").innerHTML=p.length?`<b>Check the settings at the top of tracker.html.</b> The report may be wrong until this is fixed:<ul style="margin:var(--s2) 0 0">${p.map(x=>`<li>${esc(x)}</li>`).join("")}</ul>`:""; }
+  $("setupWarn").innerHTML=!p.length?"":`<b>Check the settings at the top of tracker.html.</b> The report may be wrong until this is fixed:`+
+    `<ul style="margin:var(--s2) 0 0">${p.map(x=>`<li>${esc(x)}</li>`).join("")}</ul>`; }
 
 // ---------- Staying current ----------
 // Another tab or window saved a change: reload from storage so this tab does not overwrite it.

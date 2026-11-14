@@ -1,7 +1,7 @@
 // Timing work: tapping tiles, the running bar, the long-timer check, the Today strip, and safe text.
 const { test, before, after } = require("node:test");
 const assert = require("node:assert/strict");
-const { chromium, entry, openTracker, savedEntries, answerDialogs } = require("./helpers");
+const { chromium, entry, openTracker, savedEntries } = require("./helpers");
 
 let browser;
 before(async () => { browser = await chromium.launch(); });
@@ -56,33 +56,70 @@ test("an evening entry belongs to its local day, not the UTC day", async () => {
   assert.equal(await p.locator(".entry").count(), 0);
 });
 
-test("a timer left running is checked on stop: h:mm, re-asking, and discarding", async () => {
+// Start a timer that began 5 hours ago, as if left running.
+async function forgottenTimer(p, label = "Forms") {
+  await p.evaluate((l) => localStorage.setItem("ccwt_running_v1", JSON.stringify(
+    { label: l, clinic: "Complex Care", facing: false, who: "Clerical / admin", startedAt: Date.now() - 5 * 3600e3 })), label);
+  await p.reload();
+}
+
+test("a timer left running is checked in a panel on stop: corrected time, re-asking, discarding", async () => {
   const p = await openTracker(browser);
-  const forgotten = async () => {
-    await p.evaluate(() => localStorage.setItem("ccwt_running_v1", JSON.stringify(
-      { label: "Forms", clinic: "Complex Care", facing: false, who: "Clerical / admin", startedAt: Date.now() - 5 * 3600e3 })));
-    await p.reload();
-  };
-  await forgotten();
+  await forgottenTimer(p);
   assert.ok(await p.isVisible("#rLong"), "a long-running warning shows in the bar");
-  answerDialogs(p, ["1:30"]); await p.click("#stop");
+  await p.click("#stop");
+  assert.ok(await p.isVisible("#longPanel"));
+  assert.match(await p.textContent("#longText"), /"Forms" has been timing for 5h 0m, since 5:00am\./);
+  assert.equal(await p.inputValue("#longMinutes"), "300", "prefilled with the full time");
+  assert.equal((await savedEntries(p)).length, 0, "nothing is saved until she answers");
+
+  await p.fill("#longMinutes", "1:30"); await p.click("#longSave");
+  assert.ok(!(await p.isVisible("#longPanel")));
   assert.equal((await savedEntries(p))[0].minutes, 90);
 
-  await forgotten();
-  let seen = answerDialogs(p, ["", "45"]); await p.click("#stop");
-  assert.equal(seen.length, 2, "an empty answer asks again");
-  assert.equal((await savedEntries(p))[0].minutes, 45);
+  await forgottenTimer(p); await p.click("#stop");
+  for (const bad of ["", "1.5", "abc"]) {
+    await p.fill("#longMinutes", bad); await p.click("#longSave");
+    assert.ok(await p.isVisible("#longPanel"), `"${bad}" is not accepted`);
+    assert.match(await p.textContent("#longError"), /is not a time this tracker can read/);
+  }
+  await p.fill("#longMinutes", "1.5h"); await p.press("#longMinutes", "Enter");
+  assert.equal((await savedEntries(p))[0].minutes, 90, "Enter saves; 1.5h is read as hours");
 
-  await forgotten();
-  seen = answerDialogs(p, ["1.5", "1.5h"]); await p.click("#stop");
-  assert.equal(seen.length, 2, "a bare 1.5 is ambiguous and asks again");
-  assert.equal((await savedEntries(p))[0].minutes, 90);
-
-  await forgotten();
+  await forgottenTimer(p); await p.click("#stop");
   const before = (await savedEntries(p)).length;
-  answerDialogs(p, ["abc", null]); await p.click("#stop");
-  assert.equal((await savedEntries(p)).length, before, "Cancel discards the entry");
+  await p.click("#longDiscard");
+  assert.equal((await savedEntries(p)).length, before, "Discard throws the entry away");
   assert.ok(!(await p.isVisible("#running")));
+  assert.deepEqual(p.errors, []);
+});
+
+test("Keep timing (or Escape) closes the panel and leaves the timer running", async () => {
+  const p = await openTracker(browser);
+  await forgottenTimer(p);
+  await p.click("#stop"); await p.click("#longKeep");
+  assert.ok(!(await p.isVisible("#longPanel")));
+  assert.ok(await p.isVisible("#running"));
+  await p.click("#stop"); await p.keyboard.press("Escape");
+  assert.ok(!(await p.isVisible("#longPanel")));
+  assert.ok(await p.isVisible("#running"));
+  assert.equal((await savedEntries(p)).length, 0);
+});
+
+test("tapping another task while a long timer runs checks it first, then starts the new task", async () => {
+  const p = await openTracker(browser);
+  await forgottenTimer(p);
+  await p.click(".tile >> text=Prior auth");
+  assert.ok(await p.isVisible("#longPanel"));
+  assert.ok(!(await p.isVisible("#longKeep")), "switching tasks ends this timer either way");
+  await p.fill("#longMinutes", "20"); await p.click("#longSave");
+  const [e] = await savedEntries(p);
+  assert.deepEqual([e.label, e.minutes], ["Forms", 20]);
+  assert.equal(await p.textContent("#rLabel"), "Prior auth");
+
+  await forgottenTimer(p, "Scheduling");
+  await p.click(".tile >> text=Forms"); await p.click("#longDiscard");
+  assert.equal(await p.textContent("#rLabel"), "Forms", "Discard also starts the tapped task");
 });
 
 test("text from labels and notes is shown as text, never run as code", async () => {

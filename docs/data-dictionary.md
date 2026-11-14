@@ -16,6 +16,7 @@ All fields are preset on each button so logging is a single click. Fields can be
 | After hours | Work started before clinic hours, after them, or on a weekend | Automatic from the start time (default clinic hours 8am to 5pm, weekdays). Can be changed on the entry |
 | Interrupted a visit | This task pulled her out of, or broke into, a patient visit | Yes / No. Tick it while the timer runs or later in the log |
 | Note | Optional one line, generic only | Never PHI |
+| Last edited | When the entry was last changed in the log | Automatic. When a backup is restored, the more recently edited copy of an entry is kept |
 
 ## Definitions that keep the argument clean
 
