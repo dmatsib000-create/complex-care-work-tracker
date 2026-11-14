@@ -32,12 +32,13 @@ Open https://dmatsib000-create.github.io/complex-care-work-tracker/tracker.html,
 
 The page saves entries only in the browser it is opened in (localStorage), exports CSV for the selected date range (local dates and start times), and can be edited directly: it is one self-contained file with no server. It makes no network requests: no fonts or scripts are downloaded. It uses the Atkinson Hyperlegible font if it is installed on the computer, and the system font otherwise.
 
-The page has four tabs:
+The page has five tabs:
 
 - **Track:** today's timeline (blue for work that needs a physician or PA, highlighter yellow and orange for work support staff could do, shaded after hours) and the task buttons, grouped into "Needs a physician or PA" and "Could be done by support staff". While a timer runs, a bar pinned to the bottom of the screen shows it with Stop and save.
 - **Report:** the date range, the headline share of work that did not need a physician or PA, the support-FTE estimate, support work by task, and a summary to copy for a supervisor.
 - **Entries:** the log grouped by day, with Edit on each entry, and "Add work you forgot to time".
 - **Buttons:** add, rename, re-preset, or remove task buttons.
+- **Team:** a team report built from several people's backup files (see "Tracking as a team" below).
 
 The starter task list is in `config/taxonomy.json` and in the `TAXONOMY` list at the top of `tracker.html`. Keep the two the same; `npm test` checks that they match.
 
@@ -118,6 +119,24 @@ Framing for a supervisor conversation: see `docs/making-the-case.md`. The claim 
 
 > "This is not about speed. In [period] I logged X hours beyond visits. Y hours (Z%) did not need a physician or PA. They were necessary for a complex care clinic (forms, coordination, authorisations, triage, follow-up), but they were nursing, coordination and clerical work. That is Y hours a week of support work currently done by the one person who cannot be replaced in clinic. I need dedicated nursing, care-coordination and clerical support so those hours return to complex patients."
 
+## Tracking as a team
+
+One person's numbers can be heard as one person's complaint. The same figures from the whole team, over the same weeks, make it a question of how the clinic is staffed. So the strongest version of this is everyone on the team (physicians and PAs) tracking the same 2 to 4 ordinary weeks.
+
+1. **Agree on the weeks.** Pick 2 to 4 ordinary weeks that everyone will track.
+2. **Each person tracks on their own phone or computer,** exactly as above. Nothing is shared while they track.
+3. **At the end, each person uses Save backup file** and sends the file to whoever builds the report (for example the program's clinical director). Each file holds only that person's own entries, with no patient identifiers.
+4. **Whoever builds the report opens the Team tab** and uses Add backup files (several can be chosen at once). Tick "Include the entries in this browser" to add their own tracking as one of the people. Pick the same date range the team tracked.
+
+What the Team tab does:
+
+- **The files are only read for the report.** They are never added to that browser's own entries (unlike Restore, which adds them), never saved, and they are forgotten when the page is closed or reloaded. To look again later, add the files again.
+- **Labels, not names.** Each person is shown as Clinician A, Clinician B, and so on. The labels can be changed; a letter or a role is enough.
+- **The same figures as the Report tab,** for the team as a whole and for each person: hours logged, the share that did not need a physician or PA, RN, care coordination and clerical hours, patient-facing and healthy urgent work, after hours and interruptions, support work by task, and the support-FTE estimate.
+- **Weeks are counted per person.** Each person's weeks start on their own first entry and stop on the day their backup file was saved, so a file saved early does not spread its hours over weeks it does not cover. The team's hours a week and support FTE add up each person's own. Someone with less than a full week logged in the range is left out of the weekly figures (but counted in the totals), and the page says who.
+- **Copy team summary** gives a plain-text summary for a supervisor with the team figures and the spread across people (for example "it ranged from 3 to 8 h a week per clinician"), not a line for each person. The per-person figures stay on the page.
+- **Checks:** a file that is not a backup, or has no readable entries, is refused with the reason. The same person's backup is not counted twice (a newer backup of the same person replaces the older one). Entries that appear in two people's files are pointed out. Roles or clinics the page does not list (for example from a copy whose settings were changed) are named and counted as other support or as work assigned on top; if one is an old name for a role the report counts, add it to `RENAMES`. Backups from older versions of the tracker can be read; without a saved date, their weeks run to today.
+
 ## Research behind the defaults
 
 Cited research reports set the starter buttons and roles. They are kept in the repository only in encrypted form (see `research/README.md`). In short:
@@ -146,7 +165,7 @@ Each split is labeled in the reports as a law or payer rule, published evidence,
 
 ## Testing
 
-The tests open `tracker.html` in a headless browser and check timing, the report figures, editing, backups, two open tabs, phone layout, and that the task list matches `config/taxonomy.json`. They use a fixed clock (a Wednesday morning, Pacific time), so results do not depend on the day they run.
+The tests open `tracker.html` in a headless browser and check timing, the report figures, the team report, editing, backups, two open tabs, phone layout, and that the task list matches `config/taxonomy.json`. They use a fixed clock (a Wednesday morning, Pacific time), so results do not depend on the day they run.
 
 ```
 npm install
@@ -164,6 +183,7 @@ They also run automatically on GitHub for every pull request and after each merg
 - **Move to another device or browser:** open the tracker there, then Restore from a backup file (on a new browser it is offered right under the title). New entries are added. An entry that is already there is replaced only if the backup's copy was edited more recently, so restoring the same file twice is harmless. Deleting an entry on one device does not delete it from another.
 - **Work computers:** some hospital computers erase browser data when you sign out. On those, save a backup file at the end of each session.
 - **iPhone / Safari:** Safari can clear a website's saved data if the site is not opened for about a week. Save backups regularly. Adding the page to the Home Screen avoids this, but the Home Screen icon keeps its own entries, separate from Safari: save a backup in Safari and restore it in the Home Screen version to switch.
+- **Team report:** other people's backup files loaded on the Team tab are read in memory only and never stored in that browser. Send backup files the way your employer expects for internal work documents.
 - This repo is private by default in spirit: do not publish logs containing clinic-identifying operational details without checking your employer's policies.
 
 ## Licence / ownership

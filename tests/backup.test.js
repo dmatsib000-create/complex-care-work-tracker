@@ -12,6 +12,8 @@ after(async () => { await browser.close(); });
 
 const writeFile = (name, data) => { const f = path.join(dir, name); fs.writeFileSync(f, typeof data === "string" ? data : JSON.stringify(data)); return f; };
 const restore = async (p, file, waitFor = /Added|not a backup|no entries|Could not/) => {
+  // Clear the last message first, so the wait below cannot pick up the previous restore's result.
+  await p.evaluate(() => { document.getElementById("backupMsg").textContent = ""; });
   await p.setInputFiles("#backupFile", file);
   await p.waitForFunction((re) => new RegExp(re).test(document.getElementById("backupMsg").textContent), waitFor.source);
   return p.textContent("#backupMsg");

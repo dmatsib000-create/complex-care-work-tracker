@@ -13,6 +13,12 @@ The defaults in this tracker are based on cited research reports. They are kept 
 
 Two to four ordinary weeks is usually enough. Do not pick your worst week: an ordinary week is more persuasive and harder to dismiss.
 
+## Track as a team if you can
+
+The same weeks tracked by everyone on the team is much harder to set aside than one person's log. It turns "I am overloaded" into "this is how the clinic is staffed". Each person tracks in their own browser and, at the end, sends a backup file to whoever builds the report (for example the clinical director). The Team tab combines the files without merging them into anyone's own entries, shows the figures for the team and for each person, and gives a team summary to copy. See "Tracking as a team" in the README.
+
+Agree the weeks in advance, so no one picks a bad week. Use labels (Clinician A, B, ...) rather than names: the point is the team's pattern, not comparing people. The team summary gives the range across people, not a line each.
+
 ## What the published evidence already says
 
 Use these as context around your own numbers. Your data is the part no study has: there is no published time study of US pediatric complex care physicians or PAs.
@@ -35,6 +41,10 @@ Use these as context around your own numbers. Your data is the part no study has
 > I tracked all of my work for [period], patient-facing and not, with a one-click timer. I logged [X] hours in total. [Y] hours, [Z]%, did not need a physician or PA. They were necessary for a complex care clinic: [top 2 or 3 delegable categories]. [A] hours could have been done by an RN, [B] hours were care coordination and [C] hours were clerical. [D] hours were non-complex healthy urgent work on top of complex care.
 >
 > That is roughly [Y / weeks] hours a week of support work currently done by a physician, about [fraction] of a support FTE, at physician cost. Published complex care programs give this work to a nurse care coordinator. I am asking for (1) protocol-backed RN time assigned to this clinic, (2) a dedicated RN care coordinator, and (3) clerical support for authorizations and renewals, so those hours go back to complex patients.
+
+For a team, the Team tab's summary gives the same sentences in the plural. The script becomes:
+
+> [N] of us tracked all of our work for the same [period]. Together we logged [X] hours, and [Y] hours, [Z]%, did not need a physician or PA. Across the team that is about [Y / weeks] hours a week of support work, roughly [fraction] of a support FTE, and it was [low] to [high] hours a week for each of us. This is not one person's workload; it is how the clinic is staffed.
 
 The order of the asks is an inference, not a tested finding. Let your own data decide: if calls, triage and results dominate the support hours, the RN asks come first; if forms, authorizations and renewals dominate, clerical support may return more physician time per dollar.
 
