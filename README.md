@@ -62,7 +62,14 @@ Only the clinician doing this work knows its ins and outs, so nothing here is lo
 const RENAMES = { "Clerical / admin": "Front desk" };
 ```
 
-If a settings edit would make the report wrong, for example a renamed role with no `RENAMES` line, or a button whose role is not in `WHO_OPTIONS`, the page shows a yellow "Check the settings" notice listing what to fix.
+If a settings edit would make the report wrong, the page shows a yellow "Check the settings" notice listing what to fix, including the exact line to add to `RENAMES`. It catches:
+
+- a renamed key name (any of the five above) whose old name is still on saved entries, on buttons changed on the page, or on a running timer;
+- a key name missing from `WHO_OPTIONS` or `CLINICS`;
+- a `RENAMES` line that leads to a name not in the lists;
+- a starter button using a role or clinic that is not in the lists.
+
+Renamed values are saved as soon as the page opens, so the `RENAMES` line can be removed afterwards on that device; keep it if the tracker is used on other devices or old backups may be restored. Other roles (RN, MA, ...) can be removed from `WHO_OPTIONS` without a notice: entries that used them still count as other support work.
 
 Keep `config/taxonomy.json` the same as the settings block; `npm test` checks that they match.
 

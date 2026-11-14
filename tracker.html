@@ -401,7 +401,10 @@ const CLINIC_START_HOUR = 8, CLINIC_END_HOUR = 17;
 const LONG_TIMER_MIN = 120;
 // ======================== SETTINGS END ========================
 
-const renamed = v => Object.prototype.hasOwnProperty.call(RENAMES, v) ? RENAMES[v] : v;
+// Follow RENAMES to the end (A -> B -> C gives C). A loop stops at the last name before it repeats.
+const renamed = v => { const seen=new Set([v]);
+  while(Object.prototype.hasOwnProperty.call(RENAMES, v) && !seen.has(RENAMES[v])){ v=RENAMES[v]; seen.add(v); }
+  return v; };
 // Escape text before putting it into HTML, so labels/notes with < & " cannot break the page.
 const esc = v => String(v ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 // Calendar day (YYYY-MM-DD) in the user's own time zone, not UTC.
@@ -445,19 +448,37 @@ function readKey(key,fallback){
   try{ return JSON.parse(raw); }catch(e){ try{ localStorage.setItem(key+"_unreadable_"+Date.now(),raw); }catch(_){} return fallback; }
 }
 let buttons, buttonsCustom, entries, running;
+// Every name each key setting has had in this browser, starting from the names it shipped with.
+// The settings check uses this to spot data still under an old key name (a rename with no RENAMES line).
+const LS_NAMES="ccwt_key_names_v1";
+const KEY_ROLES={PHYSICIAN,CLERICAL,COORDINATOR}, KEY_CLINICS={COMPLEX};
+const SHIPPED_NAMES={PHYSICIAN:"Only a physician",CLERICAL:"Clerical / admin",COORDINATOR:"Care coordinator",COMPLEX:"Complex Care"};
+let keyNames={};
+function rememberKeyNames(){
+  const stored=readKey(LS_NAMES,{}), now={...KEY_ROLES,...KEY_CLINICS}; keyNames={};
+  for(const k in now){ const had=Array.isArray(stored&&stored[k])?stored[k].map(String):[SHIPPED_NAMES[k]];
+    keyNames[k]=had.includes(now[k])?had:had.concat(now[k]); }
+  try{ localStorage.setItem(LS_NAMES,JSON.stringify(keyNames)); }catch(e){}
+}
 function loadState(){
+  // True when RENAMES changes any saved value, so the new names are written back (see the end of this function).
+  const stale=x=>x&&typeof x==="object"&&(renamed(String(x.who||PHYSICIAN))!==String(x.who||PHYSICIAN)||renamed(String(x.clinic||COMPLEX))!==String(x.clinic||COMPLEX));
   let saved=readKey(LS_B,null);
+  let renamedAny = Array.isArray(saved) && saved.some(stale);
   saved = Array.isArray(saved) ? saved.filter(validButton).map(cleanButton) : null;
   if(saved && (!saved.length || buttonKey(saved)===buttonKey(TAXONOMY))){ try{ localStorage.removeItem(LS_B); }catch(e){} saved=null; }
   buttons = saved || TAXONOMY.map(b=>({...b})); buttonsCustom = !!saved;
   const list = readKey(LS_E,[]);
+  if(Array.isArray(list) && list.some(stale)) renamedAny=true;
   entries = (Array.isArray(list)?list:[]).filter(validEntry).map(cleanEntry);
   lastId = entries.reduce((a,e)=>safeId(e.id)?Math.max(a,e.id):a,0);
   const seen=new Set(); let repaired=false;
   entries.forEach(e=>{ if(!safeId(e.id)||seen.has(e.id)){ e.id=newId(); repaired=true; } seen.add(e.id); });
   const r = readKey(LS_R,null);
+  if(stale(r)) renamedAny=true;
   running = (r && typeof r==="object" && typeof r.label==="string" && Number.isFinite(r.startedAt)) ? {...r, who:renamed(String(r.who||PHYSICIAN)), clinic:renamed(String(r.clinic||COMPLEX))} : null;
-  return repaired;
+  rememberKeyNames();
+  return repaired||renamedAny;
 }
 const save=()=>{ try{
   if(buttonsCustom) localStorage.setItem(LS_B,JSON.stringify(buttons)); else localStorage.removeItem(LS_B);
@@ -538,7 +559,7 @@ function renderToday(){
   const pxPerHour=($("track").clientWidth||600)/(b-a), step=pxPerHour>=26?2:pxPerHour>=18?3:4;
   let ticks=""; for(let h=Math.ceil(a/step)*step; h<=b; h+=step) ticks+=`<span class="${h===a?"first":h===b?"last":""}" style="left:${pct(h)}">${h%12||12}${h<12||h===24?"am":"pm"}</span>`;
   $("ticks").innerHTML=ticks;
-  const LEG=[["r-doc","Needs a physician"],["r-cler",`${CLERICAL} could do it`],["r-coord",`${COORDINATOR} could do it`],["r-other","Other support role"]];
+  const LEG=[["r-doc","Needs a physician"],["r-cler",`${esc(CLERICAL)} could do it`],["r-coord",`${esc(COORDINATOR)} could do it`],["r-other","Other support role"]];
   const present=new Set(items.map(i=>roleClass(i.who)));
   $("stripLegend").innerHTML=LEG.filter(([c])=>!items.length||present.has(c)).map(([c,l])=>`<span><i class="key ${c}"></i>${l}</span>`).join("")+`<span><i class="key dusk"></i>After hours</span>`;
   $("stripNote").textContent = items.length ? `${drawn.length} ${drawn.length===1?"block":"blocks"} of work`+(untimedN?`, plus ${untimedN} added without a time`:"") : "Tap a task below to start. Today's work builds up here.";
@@ -605,10 +626,10 @@ function renderSummary(){
     : (fromV&&toV) ? `Choose a range of 7 days or more (for example Last 4 weeks) to see this as hours a week and a share of a support role.`
     : `Log at least a full week to see this as hours a week and a share of a support role.`;
   const segs=[["r-doc","Needs a physician",docM],["r-cler",CLERICAL,cler],["r-coord",COORDINATOR,coord],["r-other","Other support roles",otherM]].filter(s=>s[2]>0);
-  $("splitBar").innerHTML=segs.map(([c,l,m])=>`<span class="${c}" style="width:${m/total*100}%" title="${l}: ${h(m)}"></span>`).join("");
+  $("splitBar").innerHTML=segs.map(([c,l,m])=>`<span class="${c}" style="width:${m/total*100}%" title="${esc(l)}: ${h(m)}"></span>`).join("");
   $("splitBar").setAttribute("aria-label",segs.map(([,l,m])=>`${l} ${h(m)}`).join(", ")||"No data");
   $("splitBar").hidden=!total; $("summary").hidden=!total;
-  $("splitLegend").innerHTML=segs.map(([c,l,m])=>`<span><i class="key ${c}"></i>${l}: ${h(m)} (${pc(m)})</span>`).join("");
+  $("splitLegend").innerHTML=segs.map(([c,l,m])=>`<span><i class="key ${c}"></i>${esc(l)}: ${h(m)} (${pc(m)})</span>`).join("");
 
   const facts=[[fullWeek?"Logged per week":"Total logged", fullWeek?h(total/weeks):h(total), fullWeek?`${h(total)} in total`:""],
     ["Not patient-facing",h(invis),pc(invis)],
@@ -820,13 +841,26 @@ $("backupFile").onchange=e=>{ const f=e.target.files[0]; if(f) restoreBackup(f);
 // Catches edits to the settings block that would quietly skew the report, and says how to fix them.
 function settingsProblems(){
   const p=[], whoSet=new Set(WHO_OPTIONS), clinicSet=new Set(CLINICS);
-  if(!whoSet.has(PHYSICIAN)) p.push(`WHO_OPTIONS does not include PHYSICIAN ("${PHYSICIAN}").`);
+  // The names the report depends on must be in the option lists.
+  for(const [k,v] of Object.entries(KEY_ROLES)) if(!whoSet.has(v)) p.push(`WHO_OPTIONS does not include ${k} ("${v}").`);
   if(!clinicSet.has(COMPLEX)) p.push(`CLINICS does not include COMPLEX ("${COMPLEX}").`);
+  // RENAMES must lead to a name that is in the lists.
+  for(const from of Object.keys(RENAMES)){ const to=renamed(from);
+    if(!whoSet.has(to)&&!clinicSet.has(to)) p.push(`RENAMES changes "${from}" to "${to}", which is not in WHO_OPTIONS or CLINICS.`); }
+  // Starter buttons in the file must use names from the lists.
   TAXONOMY.forEach(b=>{ if(!clinicSet.has(b.clinic)) p.push(`The "${b.label}" button uses a clinic that is not in CLINICS: "${b.clinic}".`);
     if(!whoSet.has(b.who)) p.push(`The "${b.label}" button uses a role that is not in WHO_OPTIONS: "${b.who}".`); });
-  // Saved entries whose role is no longer in the list, usually after a rename without a RENAMES line.
-  const unknown=new Map(); entries.forEach(e=>{ if(!whoSet.has(e.who)) unknown.set(e.who,(unknown.get(e.who)||0)+1); });
-  unknown.forEach((n,who)=>p.push(`${n} saved ${n===1?"entry uses":"entries use"} the role "${who}", which is not in WHO_OPTIONS. If it was renamed, add it to RENAMES; otherwise add it back to WHO_OPTIONS.`));
+  // Data still under a former name of a key setting: a rename with no RENAMES line. Checked on saved entries,
+  // buttons changed on the page, and a running timer. Other roles (RN, MA, ...) can be removed freely: entries
+  // that used them still count as other support work, so they are not flagged.
+  const old=new Map(), all={...KEY_ROLES,...KEY_CLINICS};
+  const items=[...entries.map(e=>["entry",e]), ...(buttonsCustom?buttons.map(b=>["button",b]):[]), ...(running?[["timer",running]]:[])];
+  for(const [k,current] of Object.entries(all)){
+    const field=k in KEY_CLINICS?"clinic":"who", former=(keyNames[k]||[]).filter(n=>n!==current);
+    for(const [kind,x] of items) if(former.includes(x[field])){ const key=`${k}|${x[field]}`;
+      const o=old.get(key)||{k,name:x[field],current,entry:0,button:0,timer:0}; o[kind]++; old.set(key,o); } }
+  old.forEach(o=>{ const what=[o.entry&&`${o.entry} saved ${o.entry===1?"entry":"entries"}`, o.button&&`${o.button} ${o.button===1?"button":"buttons"} changed on the page`, o.timer&&"the running timer"].filter(Boolean).join(", ");
+    p.push(`${what} still ${o.entry+o.button+o.timer===1?"uses":"use"} "${o.name}", the old name of ${o.k} (now "${o.current}"). Add this line to RENAMES: "${o.name}": "${o.current}"`); });
   return p;
 }
 function renderSetupWarn(){ const p=settingsProblems(); $("setupWarn").hidden=!p.length;
