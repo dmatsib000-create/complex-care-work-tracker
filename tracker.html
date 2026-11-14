@@ -4,16 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Complex Care Work Log</title>
-<!-- Optional web font. Without a connection the page falls back to the system font and works the same. -->
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Next:wght@400;600;800&display=swap" rel="stylesheet">
 <style>
   /* Tokens. Blue ink = physician work. Highlighter = work support staff could do. */
   :root{
     --paper:#F1F3EE; --surface:#FFFFFF; --ink:#1E2836; --muted:#566170; --rule:#D3D9CE; --rule-strong:#A9B2A5;
     --doc:#2B4C8C; --hl-cler:#FFE45C; --hl-coord:#FFC27A; --hl-other:#FBEFAE; --hl-edge:#A88900;
     --dusk:#E4E1EE; --warn:#8A5A00; --warn-bg:#FFF4D6; --focus:#2B4C8C;
+    /* No fonts are downloaded. Atkinson Hyperlegible is used only if it is installed on this computer. */
     --font:"Atkinson Hyperlegible Next","Atkinson Hyperlegible",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
     --s1:4px; --s2:8px; --s3:12px; --s4:16px; --s5:24px; --s6:32px; --s7:48px;
   }
@@ -463,7 +460,9 @@ function renderToday(){
   const nowH=hr(new Date()); if(nowH>=a&&nowH<=b) html+=`<div class="now" style="left:${pct(nowH)}"></div>`;
   $("track").innerHTML=html;
   $("track").setAttribute("aria-label", tot ? `Today's work by time of day: ${hm(tot)} logged, ${hm(sup)} could have been done by support staff.` : "Today's timeline. Nothing logged yet.");
-  let ticks=""; for(let h=Math.ceil(a/2)*2; h<=b; h+=2) ticks+=`<span class="${h===a?"first":h===b?"last":""}" style="left:${pct(h)}">${h%12||12}${h<12||h===24?"am":"pm"}</span>`;
+  // Label every 2 hours, or every 3 or 4 when the strip is narrow for the span shown.
+  const pxPerHour=($("track").clientWidth||600)/(b-a), step=pxPerHour>=26?2:pxPerHour>=18?3:4;
+  let ticks=""; for(let h=Math.ceil(a/step)*step; h<=b; h+=step) ticks+=`<span class="${h===a?"first":h===b?"last":""}" style="left:${pct(h)}">${h%12||12}${h<12||h===24?"am":"pm"}</span>`;
   $("ticks").innerHTML=ticks;
   const LEG=[["r-doc","Needs a physician"],["r-cler","Clerical could do it"],["r-coord","Care coordinator could do it"],["r-other","Other support role"]];
   const present=new Set(items.map(i=>roleClass(i.who)));
