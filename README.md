@@ -42,14 +42,31 @@ The starter task list is in `config/taxonomy.json` and in the `TAXONOMY` list at
 ### Earlier Muse artifact (separate, not kept up to date)
 An earlier version was built as a Muse artifact. It is separate from this repository and does not have the fixes and features here (local dates, per-week figures, backups, and so on). Use the tracker page above instead.
 
-## Make it yours — modifiability
+## Make it yours: modifiability
 
-Only the clinician doing this work knows its ins and outs, so nothing here is locked:
+Only the clinician doing this work knows its ins and outs, so nothing here is locked.
 
-- **In the artifact:** Settings lets you add, rename, or remove task categories, sources, clinic types, and who-could-do-this options. Changes apply to new entries immediately.
-- **In the standalone file:** The Buttons section lets you add, rename, re-preset, or remove buttons. Clinic hours (used to mark after-hours work) are `CLINIC_START_HOUR` and `CLINIC_END_HOUR` near the top of the script.
-- **In this repo:** Edit `config/taxonomy.json` to change the starter lists for the standalone tracker and for future imports. Edit the lists at the top of `tracker.html` (`const TAXONOMY = ...`) to change the standalone file itself. If buttons were also changed on the page in that browser, the page keeps those and shows a "Use the file's list instead" button to switch to the file's list.
-- Add categories freely. If a task does not fit, create the category on the spot and log it — a growing "Other / doesn't fit" pile is itself evidence that the taxonomy of the job is bigger than the job description.
+**On the page (no editing files):** the Buttons tab adds, renames, re-presets, or removes task buttons. These changes are saved in that browser and travel in backup files. If the page's buttons differ from the file's list, a "Use the file's list instead" button switches back.
+
+**In `tracker.html`:** everything meant to be edited is in one block at the top of the script, between `SETTINGS START` and `SETTINGS END`:
+
+- `TAXONOMY`: the starter task buttons.
+- `CLINICS`, `WHO_OPTIONS`, `SOURCES`: the dropdown options. Roles other than the three named below (RN, MA, Social work, ...) can be added, renamed or removed freely.
+- `CLINIC_START_HOUR`, `CLINIC_END_HOUR`: clinic hours, used to mark after-hours work.
+- `LONG_TIMER_MIN`: how long a timer can run before she is asked whether it was left on.
+- `PHYSICIAN`, `CLERICAL`, `COORDINATOR`, `COMPLEX`, `URGENT`: the names the report depends on. `PHYSICIAN` decides what counts as needing a physician (everything else is support work), `CLERICAL` and `COORDINATOR` are the two support totals, and anything not in `COMPLEX` counts as work assigned on top.
+
+**Renaming one of those five names:** change it in its line (for example `const CLERICAL = "Front desk";`), then add the old name to `RENAMES` so entries saved under it follow:
+
+```
+const RENAMES = { "Clerical / admin": "Front desk" };
+```
+
+If a settings edit would make the report wrong, for example a renamed role with no `RENAMES` line, or a button whose role is not in `WHO_OPTIONS`, the page shows a yellow "Check the settings" notice listing what to fix.
+
+Keep `config/taxonomy.json` the same as the settings block; `npm test` checks that they match.
+
+Add categories freely. If a task does not fit, create the category on the spot and log it: a growing "Other / doesn't fit" pile is itself evidence that the job is bigger than the job description.
 
 ## How it works — single click
 
@@ -97,7 +114,8 @@ Framing for a supervisor conversation — see `docs/making-the-case.md`. The cla
 - `tracker.html`: the tracker. One file, works offline, nothing to install
 - `config/taxonomy.json`: the starter task list and dropdown options (must match `TAXONOMY` in `tracker.html`)
 - `tests/`: automated browser tests (see Testing)
-- `package.json`: only used to run the tests
+- `package.json`, `package-lock.json`: only used to run the tests
+- `.github/workflows/test.yml`: runs the tests on GitHub
 - `docs/data-dictionary.md` — what every field means
 - `docs/making-the-case.md` — how to turn a week of logs into a short, non-defensive ask
 - `docs/sample-report.md` — fill-in template for a 1-page summary to a supervisor
@@ -113,7 +131,7 @@ npx playwright install chromium
 npm test
 ```
 
-Run them before merging changes to `main`, since `main` is what GitHub Pages publishes.
+They also run automatically on GitHub for every pull request and after each merge to `main` (`.github/workflows/test.yml`). `main` is what GitHub Pages publishes, so do not merge a pull request whose Tests check is red.
 
 ## Privacy and safety
 

@@ -221,6 +221,7 @@
 </header>
 
 <main class="wrap">
+  <div id="setupWarn" class="warnbox" hidden role="alert" style="margin-top:var(--s4)"></div>
   <!-- TRACK -->
   <section class="view" id="view-track" role="tabpanel" aria-labelledby="tab-track">
     <div class="strip">
@@ -355,33 +356,52 @@
 </div>
 
 <script>
-// === EDIT THIS LIST FREELY — it is also in config/taxonomy.json ===
+// ======================= SETTINGS START =======================
+// Everything between SETTINGS START and SETTINGS END is meant to be edited.
+// Keep the task list and the three option lists the same as config/taxonomy.json (npm test checks this).
+
+// Names the page's logic depends on. The report, colours and button groups use these, so to
+// rename one, change it HERE (everything below follows) and add the old name to RENAMES.
+const PHYSICIAN   = "Only a physician";           // work that needs a physician; everything else counts as support work
+const CLERICAL    = "Clerical / admin";           // highlighted yellow, counted as clerical
+const COORDINATOR = "Care coordinator";           // highlighted orange, counted as care coordination
+const COMPLEX     = "Complex Care";               // her own clinic
+const URGENT      = "Non-complex Healthy Urgent"; // any clinic other than COMPLEX is shown as work assigned on top
+
+// Old name -> new name, applied to saved entries and buttons when the page opens. Example after renaming CLERICAL:
+//   const RENAMES = { "Clerical / admin": "Front desk" };
+const RENAMES = {};
+
+// Starter task buttons. Each one presets its clinic, patient-facing flag, and who could do it instead.
 let TAXONOMY = [
- {label:"Complex visit",clinic:"Complex Care",facing:true,who:"Only a physician"},
- {label:"Complex inbox",clinic:"Complex Care",facing:false,who:"Only a physician"},
- {label:"Notes / documentation",clinic:"Complex Care",facing:false,who:"Only a physician"},
- {label:"Phone with family",clinic:"Complex Care",facing:true,who:"Care coordinator"},
- {label:"Forms",clinic:"Complex Care",facing:false,who:"Clerical / admin"},
- {label:"Prior auth",clinic:"Complex Care",facing:false,who:"Clerical / admin"},
- {label:"Referral coordination",clinic:"Complex Care",facing:false,who:"Care coordinator"},
- {label:"DME / supplies",clinic:"Complex Care",facing:false,who:"Care coordinator"},
- {label:"Scheduling",clinic:"Complex Care",facing:false,who:"Clerical / admin"},
- {label:"Results follow-up",clinic:"Complex Care",facing:false,who:"Care coordinator"},
- {label:"Prescription coordination",clinic:"Complex Care",facing:false,who:"Clerical / admin"},
- {label:"Care plan coordination",clinic:"Complex Care",facing:false,who:"Care coordinator"},
- {label:"School / specialist / insurer call",clinic:"Complex Care",facing:false,who:"Care coordinator"},
- {label:"Records chasing",clinic:"Complex Care",facing:false,who:"Clerical / admin"},
- {label:"Healthy urgent visit",clinic:"Non-complex Healthy Urgent",facing:true,who:"Only a physician"},
- {label:"Healthy urgent inbox / follow-up",clinic:"Non-complex Healthy Urgent",facing:false,who:"Clerical / admin"}
+ {label:"Complex visit",clinic:COMPLEX,facing:true,who:PHYSICIAN},
+ {label:"Complex inbox",clinic:COMPLEX,facing:false,who:PHYSICIAN},
+ {label:"Notes / documentation",clinic:COMPLEX,facing:false,who:PHYSICIAN},
+ {label:"Phone with family",clinic:COMPLEX,facing:true,who:COORDINATOR},
+ {label:"Forms",clinic:COMPLEX,facing:false,who:CLERICAL},
+ {label:"Prior auth",clinic:COMPLEX,facing:false,who:CLERICAL},
+ {label:"Referral coordination",clinic:COMPLEX,facing:false,who:COORDINATOR},
+ {label:"DME / supplies",clinic:COMPLEX,facing:false,who:COORDINATOR},
+ {label:"Scheduling",clinic:COMPLEX,facing:false,who:CLERICAL},
+ {label:"Results follow-up",clinic:COMPLEX,facing:false,who:COORDINATOR},
+ {label:"Prescription coordination",clinic:COMPLEX,facing:false,who:CLERICAL},
+ {label:"Care plan coordination",clinic:COMPLEX,facing:false,who:COORDINATOR},
+ {label:"School / specialist / insurer call",clinic:COMPLEX,facing:false,who:COORDINATOR},
+ {label:"Records chasing",clinic:COMPLEX,facing:false,who:CLERICAL},
+ {label:"Healthy urgent visit",clinic:URGENT,facing:true,who:PHYSICIAN},
+ {label:"Healthy urgent inbox / follow-up",clinic:URGENT,facing:false,who:CLERICAL}
 ];
-// Option lists for the dropdowns (same as config/taxonomy.json). Edit freely.
-const CLINICS = ["Complex Care","Non-complex Healthy Urgent"];
-const WHO_OPTIONS = ["Only a physician","Clerical / admin","Care coordinator","RN","MA","Social work","Pharmacist","System / automation fix"];
+// Dropdown options. Other roles (RN, MA, ...) can be added, renamed or removed freely.
+const CLINICS = [COMPLEX, URGENT];
+const WHO_OPTIONS = [PHYSICIAN, CLERICAL, COORDINATOR, "RN", "MA", "Social work", "Pharmacist", "System / automation fix"];
 const SOURCES = ["Family","School","Pharmacy","Insurer","Specialist","Inbox","Phone","Internal","Walk-in"];
 // Clinic hours. Work that starts before CLINIC_START_HOUR, at or after CLINIC_END_HOUR, or on a weekend is marked after hours.
 const CLINIC_START_HOUR = 8, CLINIC_END_HOUR = 17;
-// Timers longer than this are checked on stop, in case one was left running.
+// Timers longer than this (minutes) are checked on stop, in case one was left running.
 const LONG_TIMER_MIN = 120;
+// ======================== SETTINGS END ========================
+
+const renamed = v => Object.prototype.hasOwnProperty.call(RENAMES, v) ? RENAMES[v] : v;
 // Escape text before putting it into HTML, so labels/notes with < & " cannot break the page.
 const esc = v => String(v ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 // Calendar day (YYYY-MM-DD) in the user's own time zone, not UTC.
@@ -394,8 +414,8 @@ const hm = m => { m=Math.round(m); const h=Math.floor(m/60), r=m%60; return h ? 
 const clock = d => { d=new Date(d); const h=d.getHours(); return `${h%12||12}:${pad2(d.getMinutes())}${h<12?"am":"pm"}`; };
 const isAfterHours = t => { const d=new Date(t), hr=d.getHours()+d.getMinutes()/60, wd=d.getDay(); return wd===0||wd===6||hr<CLINIC_START_HOUR||hr>=CLINIC_END_HOUR; };
 // Colour role: physician ink, or which highlighter marks the support work.
-const isDoc = who => who==="Only a physician";
-const roleClass = who => isDoc(who) ? "r-doc" : who==="Clerical / admin" ? "r-cler" : who==="Care coordinator" ? "r-coord" : "r-other";
+const isDoc = who => who===PHYSICIAN;
+const roleClass = who => isDoc(who) ? "r-doc" : who===CLERICAL ? "r-cler" : who===COORDINATOR ? "r-coord" : "r-other";
 // <option> list; keeps a custom current value that is not in the list.
 const opts = (list,cur) => (cur&&!list.includes(cur)?[...list,cur]:list).map(o=>`<option${o===cur?" selected":""}>${esc(o)}</option>`).join("");
 const sourceOpts = cur => `<option value="">Source: not set</option>`+opts(SOURCES,cur);
@@ -413,11 +433,11 @@ const newId = () => (lastId = Math.max(Date.now(), lastId+1));
 const validEntry = e => e && typeof e==="object" && typeof e.label==="string" && e.label.trim() && !isNaN(new Date(e.date)) && Number(e.minutes)>0;
 const validButton = b => b && typeof b==="object" && typeof b.label==="string" && b.label.trim();
 // One clean shape for every entry, whether it came from this browser, an older version, or a backup file.
-const cleanEntry = e => ({ id:e.id, date:new Date(e.date).toISOString(), label:String(e.label), clinic:String(e.clinic||"Complex Care"), facing:!!e.facing,
-  who:String(e.who||"Only a physician"), minutes:Math.round(Number(e.minutes)), note:String(e.note||""), source:String(e.source||""),
+const cleanEntry = e => ({ id:e.id, date:new Date(e.date).toISOString(), label:String(e.label), clinic:renamed(String(e.clinic||COMPLEX)), facing:!!e.facing,
+  who:renamed(String(e.who||PHYSICIAN)), minutes:Math.round(Number(e.minutes)), note:String(e.note||""), source:String(e.source||""),
   // Entries saved before after-hours tracking existed: work it out from their start time.
   afterHours:e.afterHours===undefined?isAfterHours(e.date):!!e.afterHours, interrupted:!!e.interrupted, timeUnknown:!!e.timeUnknown });
-const cleanButton = b => ({label:String(b.label).trim(),clinic:String(b.clinic||"Complex Care"),facing:!!b.facing,who:String(b.who||"Only a physician")});
+const cleanButton = b => ({label:String(b.label).trim(),clinic:renamed(String(b.clinic||COMPLEX)),facing:!!b.facing,who:renamed(String(b.who||PHYSICIAN))});
 // Read one saved value. A damaged value is copied aside (so nothing is lost) instead of stopping the page.
 function readKey(key,fallback){
   let raw=null; try{ raw=localStorage.getItem(key); }catch(e){ return fallback; }
@@ -436,7 +456,7 @@ function loadState(){
   const seen=new Set(); let repaired=false;
   entries.forEach(e=>{ if(!safeId(e.id)||seen.has(e.id)){ e.id=newId(); repaired=true; } seen.add(e.id); });
   const r = readKey(LS_R,null);
-  running = (r && typeof r==="object" && typeof r.label==="string" && Number.isFinite(r.startedAt)) ? r : null;
+  running = (r && typeof r==="object" && typeof r.label==="string" && Number.isFinite(r.startedAt)) ? {...r, who:renamed(String(r.who||PHYSICIAN)), clinic:renamed(String(r.clinic||COMPLEX))} : null;
   return repaired;
 }
 const save=()=>{ try{
@@ -480,7 +500,7 @@ function tick(){ if(!running) return; const t=elapsedText();
 setInterval(tick,1000);
 function inRange(e){ const f=$("from").value, t=$("to").value; const d=localDay(e.date); return (!f||d>=f)&&(!t||d<=t); }
 
-function render(){ renderToday(); renderButtons(); renderRunning(); renderSummary(); renderLog(); renderButtonList(); renderBackup(); }
+function render(){ renderSetupWarn(); renderToday(); renderButtons(); renderRunning(); renderSummary(); renderLog(); renderButtonList(); renderBackup(); }
 
 // ---------- Views ----------
 let view="track";
@@ -496,8 +516,8 @@ document.querySelectorAll("nav button").forEach(b=>{
 // ---------- Today: header line and day strip ----------
 function renderToday(){
   const today=localDay(Date.now());
-  const items=entries.filter(e=>localDay(e.date)===today).map(e=>({start:new Date(e.date),min:e.minutes,who:e.who,label:e.label,urgent:e.clinic!=="Complex Care",untimed:e.timeUnknown}));
-  if(running&&localDay(running.startedAt)===today) items.push({start:new Date(running.startedAt),min:Math.max(1,(Date.now()-running.startedAt)/60000),who:running.who,label:running.label,urgent:running.clinic!=="Complex Care",live:true});
+  const items=entries.filter(e=>localDay(e.date)===today).map(e=>({start:new Date(e.date),min:e.minutes,who:e.who,label:e.label,urgent:e.clinic!==COMPLEX,untimed:e.timeUnknown}));
+  if(running&&localDay(running.startedAt)===today) items.push({start:new Date(running.startedAt),min:Math.max(1,(Date.now()-running.startedAt)/60000),who:running.who,label:running.label,urgent:running.clinic!==COMPLEX,live:true});
   const tot=items.reduce((a,i)=>a+i.min,0), sup=items.filter(i=>!isDoc(i.who)).reduce((a,i)=>a+i.min,0);
   $("todayLine").innerHTML = tot
     ? `Today: <b>${hm(tot)}</b> logged, of which <span class="mark r-cler"><b>${hm(sup)}</b> could have been done by support staff</span>.`
@@ -518,7 +538,7 @@ function renderToday(){
   const pxPerHour=($("track").clientWidth||600)/(b-a), step=pxPerHour>=26?2:pxPerHour>=18?3:4;
   let ticks=""; for(let h=Math.ceil(a/step)*step; h<=b; h+=step) ticks+=`<span class="${h===a?"first":h===b?"last":""}" style="left:${pct(h)}">${h%12||12}${h<12||h===24?"am":"pm"}</span>`;
   $("ticks").innerHTML=ticks;
-  const LEG=[["r-doc","Needs a physician"],["r-cler","Clerical could do it"],["r-coord","Care coordinator could do it"],["r-other","Other support role"]];
+  const LEG=[["r-doc","Needs a physician"],["r-cler",`${CLERICAL} could do it`],["r-coord",`${COORDINATOR} could do it`],["r-other","Other support role"]];
   const present=new Set(items.map(i=>roleClass(i.who)));
   $("stripLegend").innerHTML=LEG.filter(([c])=>!items.length||present.has(c)).map(([c,l])=>`<span><i class="key ${c}"></i>${l}</span>`).join("")+`<span><i class="key dusk"></i>After hours</span>`;
   $("stripNote").textContent = items.length ? `${drawn.length} ${drawn.length===1?"block":"blocks"} of work`+(untimedN?`, plus ${untimedN} added without a time`:"") : "Tap a task below to start. Today's work builds up here.";
@@ -535,7 +555,7 @@ function renderButtons(){
       (on?`<span class="t-live"><span class="dot" aria-hidden="true"></span><span data-live>${elapsedText()}</span></span>`:"");
     el.onclick=()=> isRunning(b) ? stop() : start(b); return el; };
   const gd=$("gridDoc"), gs=$("gridSupport"), gu=$("gridUrgent"); gd.innerHTML=gs.innerHTML=gu.innerHTML="";
-  buttons.forEach(b=>{ if(b.clinic!=="Complex Care") gu.appendChild(mk(b,true)); else (isDoc(b.who)?gd:gs).appendChild(mk(b,false)); });
+  buttons.forEach(b=>{ if(b.clinic!==COMPLEX) gu.appendChild(mk(b,true)); else (isDoc(b.who)?gd:gs).appendChild(mk(b,false)); });
   $("grpDoc").hidden=!gd.children.length; $("grpSupport").hidden=!gs.children.length; $("clinicUrgent").hidden=!gu.children.length;
   $("labelList").innerHTML=buttons.map(b=>`<option value="${esc(b.label)}">`).join("");
 }
@@ -552,8 +572,8 @@ function renderRunning(){
 function renderSummary(){
   const rs=entries.filter(inRange); const sum=a=>a.reduce((t,e)=>t+e.minutes,0);
   const total=sum(rs), nonDocE=rs.filter(e=>!isDoc(e.who)), nonDoc=sum(nonDocE);
-  const docM=total-nonDoc, cler=sum(rs.filter(e=>e.who==="Clerical / admin")), coord=sum(rs.filter(e=>e.who==="Care coordinator")), otherM=nonDoc-cler-coord;
-  const invis=sum(rs.filter(e=>!e.facing)), urgentM=sum(rs.filter(e=>e.clinic!=="Complex Care"));
+  const docM=total-nonDoc, cler=sum(rs.filter(e=>e.who===CLERICAL)), coord=sum(rs.filter(e=>e.who===COORDINATOR)), otherM=nonDoc-cler-coord;
+  const invis=sum(rs.filter(e=>!e.facing)), urgentM=sum(rs.filter(e=>e.clinic!==COMPLEX));
   const afterE=rs.filter(e=>e.afterHours), afterM=sum(afterE), intN=rs.filter(e=>e.interrupted).length;
   const h=m=>(m/60).toFixed(1)+" h";
   const pc=m=>total?Math.round(m/total*100)+"%":"0%";
@@ -584,7 +604,7 @@ function renderSummary(){
     : startClamped ? `You started logging on ${nice(firstEver)}. Once a full week has been logged, this shows hours a week and a share of a support role.`
     : (fromV&&toV) ? `Choose a range of 7 days or more (for example Last 4 weeks) to see this as hours a week and a share of a support role.`
     : `Log at least a full week to see this as hours a week and a share of a support role.`;
-  const segs=[["r-doc","Needs a physician",docM],["r-cler","Clerical / admin",cler],["r-coord","Care coordinator",coord],["r-other","Other support roles",otherM]].filter(s=>s[2]>0);
+  const segs=[["r-doc","Needs a physician",docM],["r-cler",CLERICAL,cler],["r-coord",COORDINATOR,coord],["r-other","Other support roles",otherM]].filter(s=>s[2]>0);
   $("splitBar").innerHTML=segs.map(([c,l,m])=>`<span class="${c}" style="width:${m/total*100}%" title="${l}: ${h(m)}"></span>`).join("");
   $("splitBar").setAttribute("aria-label",segs.map(([,l,m])=>`${l} ${h(m)}`).join(", ")||"No data");
   $("splitBar").hidden=!total; $("summary").hidden=!total;
@@ -631,7 +651,7 @@ function renderLog(){
     html+=`<div class="day"><div class="day-head"><h3>${ymdDate(d).toLocaleDateString(undefined,{weekday:"long",day:"numeric",month:"long"})}</h3>
       <span>${hm(tot)} logged, ${hm(sup)} support work</span></div>`;
     list.forEach(e=>{ const id=e.id, open=openEdit===id;
-      const meta=[isDoc(e.who)?"Needs a physician":`${esc(e.who)} could do this`, e.clinic!=="Complex Care"?"Healthy urgent":"", e.facing?"Patient-facing":"",
+      const meta=[isDoc(e.who)?"Needs a physician":`${esc(e.who)} could do this`, e.clinic!==COMPLEX?"Healthy urgent":"", e.facing?"Patient-facing":"",
         e.source?`From ${esc(e.source)}`:"", e.afterHours?"After hours":"", e.interrupted?"Interrupted a visit":"", e.note?`“${esc(e.note)}”`:""].filter(Boolean).join(", ");
       html+=`<div class="entry"><span class="e-time">${e.timeUnknown?"No time":clock(e.date)}</span>
         <span class="e-task"><span class="e-label ${roleClass(e.who)}"><span class="mark">${esc(e.label)}</span></span><span class="e-meta">${meta}</span></span>
@@ -706,7 +726,7 @@ $("from").onchange=$("to").onchange=()=>setRange("custom");
 
 // Manual add
 $("mClinic").innerHTML=opts(CLINICS); $("bClinic").innerHTML=opts(CLINICS);
-$("mWho").innerHTML=opts(WHO_OPTIONS,"Clerical / admin"); $("bWho").innerHTML=opts(WHO_OPTIONS,"Clerical / admin");
+$("mWho").innerHTML=opts(WHO_OPTIONS,CLERICAL); $("bWho").innerHTML=opts(WHO_OPTIONS,CLERICAL);
 $("mSource").innerHTML=sourceOpts("");
 $("mDate").value=localDay(Date.now());
 let mDateTouched=false; // true once she picks a date herself; until then the date follows today
@@ -795,6 +815,22 @@ $("backupSave").onclick=saveBackup;
 $("nudgeSave").onclick=()=>{ saveBackup(); showView("entries"); };
 $("backupLoad").onclick=()=>$("backupFile").click();
 $("backupFile").onchange=e=>{ const f=e.target.files[0]; if(f) restoreBackup(f); e.target.value=""; };
+
+// ---------- Settings check ----------
+// Catches edits to the settings block that would quietly skew the report, and says how to fix them.
+function settingsProblems(){
+  const p=[], whoSet=new Set(WHO_OPTIONS), clinicSet=new Set(CLINICS);
+  if(!whoSet.has(PHYSICIAN)) p.push(`WHO_OPTIONS does not include PHYSICIAN ("${PHYSICIAN}").`);
+  if(!clinicSet.has(COMPLEX)) p.push(`CLINICS does not include COMPLEX ("${COMPLEX}").`);
+  TAXONOMY.forEach(b=>{ if(!clinicSet.has(b.clinic)) p.push(`The "${b.label}" button uses a clinic that is not in CLINICS: "${b.clinic}".`);
+    if(!whoSet.has(b.who)) p.push(`The "${b.label}" button uses a role that is not in WHO_OPTIONS: "${b.who}".`); });
+  // Saved entries whose role is no longer in the list, usually after a rename without a RENAMES line.
+  const unknown=new Map(); entries.forEach(e=>{ if(!whoSet.has(e.who)) unknown.set(e.who,(unknown.get(e.who)||0)+1); });
+  unknown.forEach((n,who)=>p.push(`${n} saved ${n===1?"entry uses":"entries use"} the role "${who}", which is not in WHO_OPTIONS. If it was renamed, add it to RENAMES; otherwise add it back to WHO_OPTIONS.`));
+  return p;
+}
+function renderSetupWarn(){ const p=settingsProblems(); $("setupWarn").hidden=!p.length;
+  $("setupWarn").innerHTML=p.length?`<b>Check the settings at the top of tracker.html.</b> The report may be wrong until this is fixed:<ul style="margin:var(--s2) 0 0">${p.map(x=>`<li>${esc(x)}</li>`).join("")}</ul>`:""; }
 
 // ---------- Staying current ----------
 // Another tab or window saved a change: reload from storage so this tab does not overwrite it.
