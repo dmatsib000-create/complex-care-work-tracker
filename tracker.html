@@ -236,8 +236,8 @@
     h1{font-size:20px}
     #todayLine{font-size:15px;min-height:3em} /* room for two lines, so the first tap of the day does not push the buttons down */
     .phi-more{display:none}
-    nav{margin-top:var(--s2);gap:var(--s4)}
-    nav button{padding:var(--s2) 0}
+    nav{margin-top:var(--s2);gap:var(--s3)}
+    nav button{padding:var(--s2) 0;font-size:15px}
     #view-track{display:flex;flex-direction:column;padding-top:var(--s2)}
     #view-track .strip{order:1;margin:var(--s5) 0 0}
     #view-track .howto{order:2}
@@ -259,6 +259,11 @@
     body.timing{padding-bottom:140px}
     .cats li{grid-template-columns:1fr auto}
     .cats .bar{grid-column:1/-1;grid-row:2}
+  }
+  @media (max-width:360px){
+    /* Small phones: all five tabs still fit in one row, so none is hidden off the edge. */
+    nav{gap:var(--s2)}
+    nav button{font-size:14px}
   }
   @media (prefers-reduced-motion:reduce){ .dot{animation:none} }
 </style>
@@ -1008,7 +1013,12 @@ async function addTeamFiles(files){
       const person={label:"", file:name, entries:good, skipped, savedAt, today:savedAt?localDay(savedAt):null};
       const same=team.findIndex(p=>samePerson(personEntries(p),good));
       if(same>=0){ const p=team[same];
-        if(!p.mine&&savedAt&&(!p.savedAt||savedAt>p.savedAt)){ team[same]={...person,label:p.label}; notes.push(`${name} is a newer backup of ${p.label}, so it replaces the older one.`); }
+        // A newer backup only adds entries made after the older file was saved (ids are creation times). Extra entries
+        // made before then are someone else's, for example after restoring a colleague's backup into this person's browser.
+        const had=new Set(p.entries?p.entries.map(e=>e.id):[]), since=p.savedAt||Math.max(0,...[...had].filter(safeId));
+        const foreign=good.filter(e=>!had.has(e.id)&&(!safeId(e.id)||e.id<=since)).length;
+        if(!p.mine&&savedAt&&(!p.savedAt||savedAt>p.savedAt)&&foreign){ notes.push(`${name} has ${p.label}'s entries plus ${plural(foreign,"older entry","older entries")} that ${foreign===1?"is":"are"} not in ${p.label}'s file, so it may also hold someone else's work (for example after restoring a colleague's backup). It was not added. Ask for a backup from a browser that only one person tracks in.`); }
+        else if(!p.mine&&savedAt&&(!p.savedAt||savedAt>p.savedAt)){ team[same]={...person,label:p.label}; notes.push(`${name} is a newer backup of ${p.label}, so it replaces the older one.`); }
         else notes.push(`${name} has the same entries as ${p.mine?`this browser (${p.label})`:p.label}, so it looks like the same person. It was not added again.`);
         continue; }
       person.label=nextLabel(); team.push(person);
@@ -1051,8 +1061,8 @@ function renderTeam(){
       x.unknownRoles.length?`Roles this page does not list, counted as other support: ${esc(x.unknownRoles.map(o=>`${o.name} (${hrs(o.minutes)})`).join(", "))}.`:"",
       x.unknownClinics.length?`Clinics this page does not list, counted as work assigned on top: ${esc(x.unknownClinics.map(o=>`${o.name} (${hrs(o.minutes)})`).join(", "))}.`:"",
       ...x.shared.map(s=>`${plural(s.n,"entry is","entries are")} also in ${nameOf(s)}'s data, so ${s.n===1?"it":"they"} may be counted twice.`)].filter(Boolean);
-    return `<li class="person"><div class="p-head"><input value="${esc(p.label)}" aria-label="Label" onchange="teamLabel(${i},this)">
-      <button class="btn quiet danger" onclick="teamRemove(${i})" aria-label="Remove this person">Remove</button></div>
+    return `<li class="person"><div class="p-head"><input value="${esc(p.label)}" aria-label="Label for person ${i+1}" onchange="teamLabel(${i},this)">
+      <button class="btn quiet danger" data-remove="${i}" onclick="teamRemove(${i})" aria-label="Remove ${esc(p.label)}">Remove</button></div>
       <p class="p-src">${src} · ${n}</p>${body}${warn.map(w=>`<p class="p-warn">${w}</p>`).join("")}</li>`; }).join("");
   if(typing){ const el=$("teamPeople").querySelectorAll("input")[typing.i]; if(el){ el.value=typing.v; el.focus(); el.setSelectionRange(typing.at,typing.at); } }
   $("teamOdd").hidden=!t.each.some(x=>x.unknownRoles.length||x.unknownClinics.length);
@@ -1073,15 +1083,18 @@ function renderTeamTotals(t){
     : `Choose a range of 7 days or more (for example Last 4 weeks) to see hours a week and a share of a support role. Each person needs a full week logged in the range to be counted.`;
   renderSplit("teamSplit","teamLegend",t); $("teamFacts").hidden=!t.total;
   $("teamFacts").innerHTML=factsHtml([
-    [w?"Logged per week, together":"Total logged", w?hrs(w.total):hrs(t.total), w?`${hrs(t.total)} in total`:""],
+    [w?"Logged per week, together":"Total logged", w?hrs(w.total):hrs(t.total),
+      w?(w.people<t.people?`${w.people} of ${t.people} people; ${hrs(t.total)} in total`:`${hrs(t.total)} in total`):""],
     ...commonFacts(t)]);
   $("teamTasks").innerHTML=tasksHtml(t,0);
   $("teamSummary").textContent=teamSummaryText(t);
 }
 // Editing a label changes only the text that shows it, so the field keeps its place while she moves on.
 window.teamLabel=(i,input)=>{ const p=team[i]; if(!p) return; const v=input.value.trim();
-  if(!v||team.some((q,j)=>j!==i&&q.label===v)){ input.value=p.label; return; }
+  if(!v||team.some((q,j)=>j!==i&&q.label===v)){ input.value=p.label;
+    return teamSay([v?`"${v}" is already the label of another person. Each person needs a different label, so it was changed back to ${p.label}.`:`A label cannot be empty, so it was changed back to ${p.label}.`]); }
   p.label=v; document.querySelectorAll(`#teamPeople [data-person="${i}"]`).forEach(el=>el.textContent=v);
+  const rm=document.querySelector(`#teamPeople [data-remove="${i}"]`); if(rm) rm.setAttribute("aria-label",`Remove ${v}`);
   renderTeamTotals(computeTeam(teamInput(), $("from").value, $("to").value, localDay(Date.now()))); };
 window.teamRemove=i=>{ team.splice(i,1); teamSay([]); renderTeam(); };
 

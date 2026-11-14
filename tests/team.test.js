@@ -101,7 +101,7 @@ test("team totals, each person's figures, labels, and the copyable summary", asy
   assert.match(await p.textContent("#teamHeadline"), /^Across 3 people, 13\.0 h of 13\.0 h logged \(100%\) did not need a physician or PA\.$/);
   assert.equal(await p.textContent("#teamFte"),
     "Together that is 5.5 h a week of support work, about 0.14 of a full-time support role (40 hours a week), currently done by physicians and PAs. Not in the weekly figures: Clinician C (less than a full week logged).");
-  assert.match(await p.textContent("#teamFacts"), /Logged per week, together5\.5 h 13\.0 h in total/);
+  assert.match(await p.textContent("#teamFacts"), /Logged per week, together5\.5 h 2 of 3 people; 13\.0 h in total/);
   assert.match(await p.textContent("#teamLegend"), /RN: 4\.0 h \(31%\).*Care coordinator: 3\.0 h \(23%\).*Clerical \/ admin: 6\.0 h \(46%\)/);
   assert.match(await card(p, 0), /6\.0 h logged, 1\.5 h a week\. 6\.0 h \(100%\) did not need a physician or PA\..*About 0\.04 of a full-time support role/s);
   assert.match(await card(p, 1), /b\.json, saved .*Nov.* · 2 entries.*4\.0 h logged, 4\.0 h a week/s);
@@ -114,10 +114,13 @@ test("team totals, each person's figures, labels, and the copyable summary", asy
   await c.fill("Newer clinician"); await c.press("Tab");
   assert.match(await p.textContent("#teamFte"), /Not in the weekly figures: Newer clinician \(less than a full week logged\)\./);
   assert.equal(await p.locator("#teamPeople .person").count(), 3);
+  assert.equal(await p.getAttribute("#teamPeople [data-remove='2']", "aria-label"), "Remove Newer clinician");
   await c.fill(""); await c.press("Tab");
   assert.equal(await c.inputValue(), "Newer clinician");
+  assert.equal(await p.textContent("#teamMsg"), "A label cannot be empty, so it was changed back to Newer clinician.");
   await c.fill("Clinician A"); await c.press("Tab");
   assert.equal(await c.inputValue(), "Newer clinician");
+  assert.match(await p.textContent("#teamMsg"), /"Clinician A" is already the label of another person/);
 
   await p.click("#copyTeam");
   await p.waitForFunction(() => document.getElementById("teamCopied").textContent !== "");
@@ -166,13 +169,19 @@ test("the same person is not counted twice; a newer backup replaces the older on
   assert.deepEqual(await add(p, [backup("my-backup.json", mine)]),
     ["my-backup.json has the same entries as this browser (Clinician A), so it looks like the same person. It was not added again."]);
 
-  const b = peopleB();
+  // Ids are creation times, as in the tracker: each entry saved when its timer stopped.
+  const b = peopleB().map((e) => ({ ...e, id: Date.parse(e.date) + e.minutes * 60000 }));
   await add(p, [backup("b-old.json", b.slice(0, 1), "2026-11-01T09:00")]);
   assert.deepEqual(await add(p, [backup("b-old.json", b.slice(0, 1), "2026-11-01T09:00")]),
     ["b-old.json has the same entries as Clinician B, so it looks like the same person. It was not added again."]);
   assert.deepEqual(await add(p, [backup("b-new.json", b, "2026-11-04T17:00")]), ["b-new.json is a newer backup of Clinician B, so it replaces the older one."]);
   assert.deepEqual(await labels(p), ["Clinician A", "Clinician B"]);
   assert.match(await card(p, 1), /b-new\.json.*2 entries/s);
+  // A later file with B's entries plus older ones B never had (a colleague's backup restored into B's browser) is not B's newer backup.
+  const older = [entry("2026-10-20T10:00", { label: "DME / supplies", who: "Care coordinator", id: Date.parse("2026-10-20T10:30:00-08:00") })];
+  assert.deepEqual(await add(p, [backup("b-merged.json", [...b, ...older], "2026-11-10T17:00")]),
+    ["b-merged.json has Clinician B's entries plus 1 older entry that is not in Clinician B's file, so it may also hold someone else's work (for example after restoring a colleague's backup). It was not added. Ask for a backup from a browser that only one person tracks in."]);
+  assert.match(await card(p, 1), /b-new\.json/s, "Clinician B keeps the file it had");
 
   // Her own backup loaded first, then "Include the entries in this browser" is refused.
   await p.uncheck("#teamMine");
@@ -222,10 +231,16 @@ test("text inside a team backup file is shown as text", async () => {
   assert.equal(await p.locator("#teamPeople img, #teamTasks img").count(), 0);
 });
 
-test("phone layout: the Team tab fits, and the team report does not scroll sideways", async () => {
+test("phone layout: all five tabs fit, and the team report does not scroll sideways", async () => {
+  // Checked with the page's own fonts and with Verdana, a wide font, since phones and test machines differ.
+  for (const width of [375, 320]) for (const font of ["", "Verdana"]) {
+    const q = await openTracker(browser, { viewport: { width, height: 700 } });
+    if (font) await q.addStyleTag({ content: `body,button{font-family:${font}!important}` });
+    const [scroll, client] = await q.$eval("nav", (n) => [n.scrollWidth, n.clientWidth]);
+    assert.ok(scroll <= client, `the tab row does not scroll at ${width} px ${font}`);
+    await q.close();
+  }
   const p = await openTracker(browser, { viewport: { width: 375, height: 812 } });
-  const tab = await p.locator("#tab-team").boundingBox();
-  assert.ok(tab.x + tab.width <= 375 - 16, "all five tabs are in view without scrolling the tab row");
   await team(p, "4w");
   await add(p, [backup("a.json", peopleA()), backup("b.json", peopleB(), "2026-11-04T17:00"),
     backup("a-very-long-file-name-from-a-phone-share-sheet-2026-11-04.json", peopleC())]);
