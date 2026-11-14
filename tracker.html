@@ -794,7 +794,8 @@ function renderButtons(){
     // tiles, and today's time on that task on clinician tiles (their group heading already says they need a clinician).
     // Swapping one line for another keeps the tile the same height, so the buttons do not move under her finger.
     const m=todayMin.get(b.label+"|"+b.clinic)||0, meta=isDoc(b.who)?(m?`Today ${hm(m)}`:"Not yet today"):b.who;
-    el.innerHTML=`<span class="t-label"><span class="mark">${esc(b.label)}</span></span>`+
+    // Screen readers move from button to button without the group heading, so clinician tiles still say what they are.
+    el.innerHTML=`<span class="t-label"><span class="mark">${esc(b.label)}</span>${isDoc(b.who)?`<span class="sr-only">(needs a physician or PA)</span>`:""}</span>`+
       (on?`<span class="t-live"><span class="dot" aria-hidden="true"></span><span data-live>${elapsedText()}</span></span>`
          :`<span class="t-meta">${esc(meta)}</span>`);
     el.onclick=()=> isRunning(b) ? stop() : start(b); return el; };
@@ -1049,6 +1050,8 @@ async function addTeamFiles(files){
   teamSay(notes); renderTeam();
 }
 
+// [label, minutes] pairs with any time, as "RN 0.4 h", all in one unit.
+const unitLine=parts=>{ parts=parts.filter(([,m])=>m>0); const u=listUnit(parts.map(([,m])=>m)); return parts.map(([l,m])=>`${l} ${u(m)}`); };
 const oddList=list=>{ const u=listUnit(list.map(o=>o.minutes)); return list.map(o=>`${o.name} (${u(o.minutes)})`).join(", "); };
 function renderTeam(){
   const mine=team.some(p=>p.mine);
@@ -1073,8 +1076,8 @@ function renderTeam(){
     if(!r.count) body=`<p class="p-fig">Nothing logged in this range.${p.today&&fromV>p.today?` This backup was saved before the range starts.`:""}</p>`;
     else body=`<p class="p-fig"><b>${hrs(r.total)}</b> logged${x.weekly?`, ${hrs(r.totalPerWeek)} a week`:""}. <span class="mark r-cler">${hrs(r.support)} (${pc(r.support)})</span> did not need a physician or PA.</p>
       <div class="split" role="img" aria-label="${esc(splitLabel(r))}">${splitSpans(r)}</div>
-      <p class="p-more">${((parts,u)=>parts.map(([l,m])=>`${l} ${u(m)}`))(...(parts=>[parts,listUnit(parts.map(x=>x[1]))])([[NURSE,r.nurse],[COORDINATOR,r.coordination],[CLERICAL,r.clerical],
-        ["Other support",r.otherSupport],["Healthy urgents",r.urgent],["Not patient-facing",r.notFacing],["After hours",r.afterHours]].filter(([,m])=>m>0)))
+      <p class="p-more">${unitLine([[NURSE,r.nurse],[COORDINATOR,r.coordination],[CLERICAL,r.clerical],["Other support",r.otherSupport],
+        ["Healthy urgents",r.urgent],["Not patient-facing",r.notFacing],["After hours",r.afterHours]])
         .concat(r.interruptions?[`Interrupted a visit ${plural(r.interruptions,"time","times")}`]:[]).map(esc).join(" · ")}</p>
       <p class="p-more">${x.weekly?(r.support?`About ${r.fte.toFixed(2)} of a full-time support role (${hrs(r.supportPerWeek)} a week of support work).`:"")
         :`Less than a full week logged in this range (${plural(r.spanDays,"day","days")}${r.startClamped?` from the first entry on ${niceDay(r.firstEver)}`:""}), so not in the weekly figures.`}</p>`;
@@ -1082,7 +1085,7 @@ function renderTeam(){
       x.unknownRoles.length?`Roles this page does not list, counted as other support: ${esc(oddList(x.unknownRoles))}.`:"",
       x.unknownClinics.length?`Clinics this page does not list, counted as work assigned on top: ${esc(oddList(x.unknownClinics))}.`:"",
       ...x.shared.map(s=>`${plural(s.n,"entry is","entries are")} also in ${nameOf(s)}'s data, so ${s.n===1?"it":"they"} may be counted twice.`)].filter(Boolean);
-    return `<li class="person"><div class="p-head"><input value="${esc(p.label)}" aria-label="Label for person ${i+1}" onchange="teamLabel(${i},this)">
+    return `<li class="person"><div class="p-head"><input value="${esc(p.label)}" aria-label="Label for clinician ${i+1}" onchange="teamLabel(${i},this)">
       <button class="btn quiet" data-remove="${i}" onclick="teamRemove(${i})" aria-label="Remove ${esc(p.label)}">Remove</button></div>
       <p class="p-src">${src} · ${n}</p>${body}${warn.map(w=>`<p class="p-warn">${w}</p>`).join("")}</li>`; }).join("");
   if(typing){ const el=$("teamPeople").querySelectorAll("input")[typing.i]; if(el){ el.value=typing.v; el.focus(); el.setSelectionRange(typing.at,typing.at); } }
@@ -1113,7 +1116,7 @@ function renderTeamTotals(t){
 // Editing a label changes only the text that shows it, so the field keeps its place while she moves on.
 window.teamLabel=(i,input)=>{ const p=team[i]; if(!p) return; const v=input.value.trim();
   if(!v||team.some((q,j)=>j!==i&&q.label===v)){ input.value=p.label;
-    return teamSay([v?`"${v}" is already the label of another clinician. Each person needs a different label, so it was changed back to ${p.label}.`:`A label cannot be empty, so it was changed back to ${p.label}.`]); }
+    return teamSay([v?`"${v}" is already the label of another clinician. Each clinician needs a different label, so it was changed back to ${p.label}.`:`A label cannot be empty, so it was changed back to ${p.label}.`]); }
   p.label=v; document.querySelectorAll(`#teamPeople [data-person="${i}"]`).forEach(el=>el.textContent=v);
   const rm=document.querySelector(`#teamPeople [data-remove="${i}"]`); if(rm) rm.setAttribute("aria-label",`Remove ${v}`);
   renderTeamTotals(computeTeam(teamInput(), $("from").value, $("to").value, localDay(Date.now()))); };

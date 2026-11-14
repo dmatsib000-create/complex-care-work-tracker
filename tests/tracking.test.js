@@ -222,6 +222,9 @@ test("clinician tiles show today's time on that task; support tiles show who cou
   assert.equal(await meta("Complex inbox"), "Not yet today", "yesterday's work is not counted");
   assert.equal(await meta("Healthy urgent visit"), "Not yet today");
   assert.equal(await meta("Phone with family"), "RN");
+  // Screen readers still hear that a clinician tile needs a physician or PA, as the group heading is not read with each button.
+  assert.equal(await p.getByRole("button", { name: "Complex visit (needs a physician or PA) Today 1 h 50 min" }).count(), 1);
+  assert.equal(await p.getByRole("button", { name: "Phone with family RN" }).count(), 1);
   await p.click(".tile >> text=Complex inbox"); await p.clock.runFor(5 * 60000); await p.click("#stop");
   assert.equal(await meta("Complex inbox"), "Today 5 min");
   // A change made under Entries shows on the tile straight away.

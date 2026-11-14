@@ -34,7 +34,7 @@ The page saves entries only in the browser it is opened in (localStorage), expor
 
 The page has five tabs:
 
-- **Track:** today's timeline (blue for work that needs a physician or PA, highlighter yellow and orange for work support staff could do, shaded after hours) and the task buttons, grouped into "Needs a physician or PA" and "Could be done by support staff". Each clinician button shows today's time on that task; each support button shows who could do it instead. While a timer runs, a bar pinned to the bottom of the screen shows it with Stop and save.
+- **Track:** today's timeline (blue for work that needs a physician or PA, highlighter yellow and orange for work support staff could do, shaded after hours) and the task buttons, grouped into "Needs a physician or PA" and "Could be done by support staff". Each clinician button shows today's time on that task; each support button shows who could do it instead. (Renaming a button on the Buttons tab does not rename work already saved, so a renamed button's time counts from its next tap.) While a timer runs, a bar pinned to the bottom of the screen shows it with Stop and save.
 - **Report:** the date range, the headline share of work that did not need a physician or PA, the support-FTE estimate, support work by task, and a summary to copy for a supervisor.
 - **Entries:** the log grouped by day, with Edit on each entry, and "Add work you forgot to time".
 - **Buttons:** add, rename, re-preset, or remove task buttons.

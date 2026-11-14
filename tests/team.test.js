@@ -127,7 +127,8 @@ test("team totals, each person's figures, labels, and the copyable summary", asy
   assert.equal(await p.textContent("#teamMsg"), "A label cannot be empty, so it was changed back to Newer clinician.");
   await c.fill("Clinician A"); await c.press("Tab");
   assert.equal(await c.inputValue(), "Newer clinician");
-  assert.match(await p.textContent("#teamMsg"), /"Clinician A" is already the label of another clinician/);
+  assert.equal(await p.textContent("#teamMsg"), '"Clinician A" is already the label of another clinician. Each clinician needs a different label, so it was changed back to Newer clinician.');
+  assert.equal(await c.getAttribute("aria-label"), "Label for clinician 3");
 
   await p.click("#copyTeam");
   await p.waitForFunction(() => document.getElementById("teamCopied").textContent !== "");
