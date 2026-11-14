@@ -1,5 +1,9 @@
 # Plan: optional sync through her own Google Sheet (Option B prototype)
 
+> **Status: proposal only. Nothing in this plan has been built.** The tracker does not sync between devices; it saves entries only in the browser, and backup files are the only way to move or keep them. Do not start building until both checks below are done:
+> - her employer's IT policy allows work data (no PHI) in a personal Google account;
+> - the hospital network does not block `script.google.com`.
+
 ## Context
 
 Entries live only in one browser's localStorage. She logs on **her iPhone, a personal computer, and a hospital workstation**, so each device is an island and the workstation may wipe data at sign-out. Backup files help but depend on remembering. Option A (File System Access) does not cover iPhone; Option C leaves the gap. So: **Option B, sync through a Google Sheet + Apps Script web app in her own account.**
