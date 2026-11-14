@@ -1,8 +1,8 @@
 # One-page summary: [period]
 
-**Clinician / clinic:** [name, complex care clinic]
+**Clinician / clinic:** [name, complex care clinic] (for a team: [number] clinicians, shown as Clinician A, B, ...)
 **Period tracked:** [dates, number of weeks]
-**Method:** One-click timer for every task, patient-facing and not. No PHI logged.
+**Method:** One-click timer for every task, patient-facing and not. No PHI logged. For a team: each person tracked separately in their own browser over the same weeks; the backup files were combined on the Team tab, with each person's weeks counted from their own first entry.
 
 ## Totals
 
@@ -19,6 +19,8 @@
 - Other delegable (MA, social work, pharmacy): __ hours
 
 That is about __ hours/week, roughly __ of a 40-hour support FTE.
+
+For a team: that is about __ hours/week across the team, roughly __ of a 40-hour support FTE, ranging from __ to __ hours/week per clinician. ([labels], if any, had less than a full week logged and are not in the weekly figures.)
 
 ## Non-complex healthy urgent work assigned on top of complex care
 
