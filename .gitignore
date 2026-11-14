@@ -3,3 +3,7 @@ tracker.html export / Claude artifact exports
 !examples/*.csv
 .DS_Store
 node_modules/
+
+# Plaintext research: never commit. Only the encrypted archive in research/ is committed.
+private/
+*.key

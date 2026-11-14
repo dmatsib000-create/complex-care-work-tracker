@@ -1,4 +1,4 @@
-# One-page summary — [period]
+# One-page summary: [period]
 
 **Clinician / clinic:** [name, complex care clinic]
 **Period tracked:** [dates, number of weeks]
@@ -10,17 +10,23 @@
 - Patient-facing: __ hours (__%)
 - Not patient-facing (invisible work): __ hours (__%)
 
-## Work that did not require a physician: __ hours (__%)
+## Work that did not need a physician or PA: __ hours (__%)
 
-- Clerical / admin: __ hours — top categories: __
-- Care coordination: __ hours — top categories: __
-- Other delegable (RN/MA/social work/pharmacy): __ hours
+- RN (triage, protocol refills, results, home health / PDN / PPEC paperwork): __ hours. Top categories: __
+- Care coordination (referrals, DME, care plan, school and agency calls): __ hours. Top categories: __
+- Clerical / admin (forms, prior auth, renewal calendar, scheduling, records): __ hours. Top categories: __
+- Plan case manager (work the Medicaid plan is contracted to do, such as PDN staffing gaps): __ hours
+- Other delegable (MA, social work, pharmacy): __ hours
 
 That is about __ hours/week, roughly __ of a 40-hour support FTE.
 
 ## Non-complex healthy urgent work assigned on top of complex care
 
-- __ hours (__% of total) — visits: __ hours, inbox/follow-up: __ hours
+- __ hours (__% of total). Visits: __ hours, inbox/follow-up: __ hours
+
+## Work no one on the current team is assigned to do
+
+- [for example: Medicaid renewal tracking (home health, private duty nursing, PPEC, equipment), referral loop closure, private duty nursing staffing gaps]
 
 ## Examples (generic, no PHI)
 
@@ -28,6 +34,16 @@ That is about __ hours/week, roughly __ of a 40-hour support FTE.
 2.
 3.
 
+## Context
+
+- Published complex care programs typically staff a nurse care coordinator and a social worker alongside the clinicians; this clinic has [describe current staffing].
+- State law and institutional policy already let PAs and RNs take on much of this work; the barrier is assigned time, protocols and funding, not scope of practice.
+- Savings from complex care accrue to payers while programs carry the cost; Medicaid health homes for children with medical complexity (ACE Kids Act) and managed care contract terms are possible funding routes.
+
 ## Ask
 
-Clerical support for [forms / scheduling / records / prior-auth paperwork] and care-coordination support for [referrals / DME / cross-setting follow-through], totalling about __ FTE, so physician hours return to complex patients.
+1. Protocol-backed RN time assigned to this clinic for [triage / refills / results / home health and PDN paperwork].
+2. A dedicated RN care coordinator for [referrals / DME / care plans / school and agency coordination].
+3. Clerical support for [forms / prior auth / the renewal calendar / scheduling / records].
+
+Together about __ FTE, so physician and PA hours return to complex patients.

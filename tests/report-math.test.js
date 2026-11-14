@@ -17,7 +17,7 @@ const text = (all, opts = {}) =>
 
 test("totals split by who could do the work", async () => {
   const r = await report([
-    entry("2026-11-10T09:00", { who: "Only a physician", minutes: 60, facing: true }),
+    entry("2026-11-10T09:00", { who: "Physician or PA", minutes: 60, facing: true }),
     entry("2026-11-10T10:00", { who: "Clerical / admin", minutes: 30 }),
     entry("2026-11-10T11:00", { who: "Care coordinator", minutes: 45, clinic: "Non-complex Healthy Urgent" }),
     entry("2026-11-10T18:00", { who: "MA", minutes: 15, afterHours: true, interrupted: true }),
@@ -53,7 +53,7 @@ test("support work by task: largest first, with the main role", async () => {
     entry("2026-11-10T10:00", { label: "Forms", minutes: 20 }),
     entry("2026-11-10T11:00", { label: "DME / supplies", who: "Care coordinator", minutes: 50 }),
     entry("2026-11-10T12:00", { label: "Forms", who: "MA", minutes: 10 }),
-    entry("2026-11-10T13:00", { label: "Complex visit", who: "Only a physician", minutes: 90 }),
+    entry("2026-11-10T13:00", { label: "Complex visit", who: "Physician or PA", minutes: 90 }),
   ]);
   assert.deepEqual(r.byTask, [
     { label: "DME / supplies", minutes: 50, roles: ["Care coordinator"], mainRole: "Care coordinator" },
@@ -68,13 +68,26 @@ test("an empty range gives zeros, not errors", async () => {
 
 test("the supervisor summary says exactly what the numbers say", async () => {
   const all = ["2026-10-15", "2026-10-22", "2026-10-29", "2026-11-05"].map((d) => entry(d + "T10:00", { minutes: 120 }))
-    .concat([entry("2026-11-10T18:00", { label: "Complex visit", who: "Only a physician", minutes: 60, afterHours: true, interrupted: true })]);
+    .concat([entry("2026-11-10T18:00", { label: "Complex visit", who: "Physician or PA", minutes: 60, afterHours: true, interrupted: true })]);
   assert.equal(await text(all, { from: "2026-10-15", to: "2026-11-11" }),
     "In this period (28 days) I logged 9.0 h of work, about 2.3 h a week. " +
-    "8.0 h (89%) did not require a physician: 8.0 h clerical and 0.0 h care coordination. " +
+    "8.0 h (89%) did not require a physician or PA: 8.0 h clerical and 0.0 h care coordination. " +
     "The largest delegable categories were Forms (8.0 h). " +
     "9.0 h was not patient-facing. 0.0 h was non-complex healthy urgent work assigned on top of complex care. " +
     "1.0 h was done after hours. This work interrupted a visit 1 time. " +
     "That is about 2.0 h a week of delegable work, roughly 0.05 of a 40-hour support FTE. " +
-    "This is necessary complex-clinic work, not inefficiency. It needs clerical and care-coordination support.");
+    "This is necessary complex-clinic work, not inefficiency. It needs dedicated nursing, care-coordination and clerical support.");
+});
+
+test("the summary names other support roles (RN, plan case manager) with their hours, largest first", async () => {
+  const all = [
+    entry("2026-11-10T09:00", { label: "Phone with family", who: "RN", minutes: 60 }),
+    entry("2026-11-10T10:00", { label: "PDN / PPEC staffing gap", who: "Plan case manager", minutes: 30 }),
+    entry("2026-11-10T11:00", { label: "Forms", minutes: 30 }),
+    entry("2026-11-10T12:00", { label: "Peer-to-peer / medical necessity", who: "Physician or PA", minutes: 20 }),
+  ];
+  const r = await report(all);
+  assert.deepEqual(r.byRole, [
+    { role: "RN", minutes: 60 }, { role: "Plan case manager", minutes: 30 }, { role: "Clerical / admin", minutes: 30 }]);
+  assert.match(await text(all), /did not require a physician or PA: 0\.5 h clerical and 0\.0 h care coordination\. Other support roles: RN 1\.0 h, Plan case manager 0\.5 h\./);
 });

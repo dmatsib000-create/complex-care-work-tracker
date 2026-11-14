@@ -12,7 +12,7 @@ test("opens on Track with no timer running", async () => {
   assert.ok(await p.isVisible("#view-track"));
   assert.ok(!(await p.isVisible("#rangeBox")), "the date range only shows on Report and Entries");
   assert.ok(!(await p.isVisible("#running")));
-  assert.equal(await p.locator(".tile").count(), 16);
+  assert.equal(await p.locator(".tile").count(), 22);
   assert.deepEqual(p.errors, []);
 });
 
@@ -146,4 +146,11 @@ test("phone width: no sideways scrolling, and the page makes no network requests
     assert.equal(await p.evaluate(() => document.documentElement.scrollWidth), 390, `${tab} fits a phone`);
   }
   assert.deepEqual(requests, []);
+});
+
+test("the label of an active clinician tile is readable on the dark tile", async () => {
+  const p = await openTracker(browser);
+  await p.click(".tile >> text=Complex visit");
+  const color = await p.$eval(".tile.active .mark", (el) => getComputedStyle(el).color);
+  assert.equal(color, "rgb(255, 255, 255)");
 });
