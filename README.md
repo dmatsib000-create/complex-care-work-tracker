@@ -2,7 +2,7 @@
 
 **Open the tracker:** https://dmatsib000-create.github.io/complex-care-work-tracker/tracker.html
 
-Bookmark that link on each phone and computer she uses. Entries are saved in that browser only; use Save backup file (Entries tab) to keep them safe or move them to another device.
+Bookmark that link on each phone and computer she uses. Entries are saved in that browser only; use Save backup file (the line under the title) to keep them safe or move them to another device.
 
 A simple, modifiable tracker for a clinician in a complex care clinic to log **all** the work she does — patient-facing and invisible — and to separate:
 
@@ -144,9 +144,10 @@ They also run automatically on GitHub for every pull request and after each merg
 
 - No PHI, ever, in either version.
 - The standalone file stores data only in your browser on your device. Nothing is sent anywhere.
-- **Back it up:** Entries tab, Save backup file. It downloads one small `.json` file with every entry (and your button changes). Keep it in your email or a cloud drive. The page reminds you if you have not saved one for a week.
-- **Move to another device or browser:** open the tracker there, Entries tab, Restore from backup file. New entries are added. An entry that is already there is replaced only if the backup's copy was edited more recently, so restoring the same file twice is harmless. Deleting an entry on one device does not delete it from another.
-- **iPhone / Safari:** Safari can clear a website's saved data if the site is not opened for about a week. Save backups regularly, or add the page to your Home Screen.
+- **Back it up:** the line under the title, on every tab, says how many entries, and whether any button changes, are not in a backup yet. It turns amber, with a Save backup file button, once work that is not backed up is 2 days old. Back up or restore opens the backup panel. Saving makes one small `.json` file with every entry (and your button changes). On a computer it goes to Downloads; on a phone the share sheet opens so it can be emailed or saved to Files or a cloud drive. Keep it somewhere other than the device, such as your email or a cloud drive.
+- **Move to another device or browser:** open the tracker there, then Restore from a backup file (on a new browser it is offered right under the title). New entries are added. An entry that is already there is replaced only if the backup's copy was edited more recently, so restoring the same file twice is harmless. Deleting an entry on one device does not delete it from another.
+- **Work computers:** some hospital computers erase browser data when you sign out. On those, save a backup file at the end of each session.
+- **iPhone / Safari:** Safari can clear a website's saved data if the site is not opened for about a week. Save backups regularly. Adding the page to the Home Screen avoids this, but the Home Screen icon keeps its own entries, separate from Safari: save a backup in Safari and restore it in the Home Screen version to switch.
 - This repo is private by default in spirit: do not publish logs containing clinic-identifying operational details without checking your employer's policies.
 
 ## Licence / ownership
