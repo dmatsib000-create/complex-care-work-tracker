@@ -47,7 +47,7 @@ test("changing buttons on the page saves them and shows a notice; reset returns 
   answerDialogs(p, [true]); await p.click("#bReset");
   assert.ok(!(await p.isVisible("#bCustom")));
   assert.equal(await saved(p, "buttons"), null);
-  assert.equal(await p.locator(".tile").count(), 16);
+  assert.equal(await p.locator(".tile").count(), 20);
 });
 
 test("renaming a button back to the original makes it un-customised again", async () => {
@@ -65,7 +65,7 @@ test("renaming the button that is being timed keeps the timer attached to it", a
   const p = await openTracker(browser);
   await p.click(".tile >> text=Forms");
   await p.click("#tab-buttons");
-  const row = p.locator("#buttonList .bitem").nth(4);
+  const row = p.locator("#buttonList .bitem").nth(12);
   await row.locator("input").first().fill("Forms and letters"); await row.locator("input").first().dispatchEvent("change");
   assert.equal(await p.textContent("#rLabel"), "Forms and letters");
   await p.click("#tab-track");
@@ -76,7 +76,7 @@ test("removing a button asks first", async () => {
   const p = await openTracker(browser);
   await p.click("#tab-buttons");
   answerDialogs(p, [false]); await p.locator("#buttonList .bitem button").first().click();
-  assert.equal(await p.locator("#buttonList .bitem").count(), 16);
+  assert.equal(await p.locator("#buttonList .bitem").count(), 20);
   answerDialogs(p, [true]); await p.locator("#buttonList .bitem button").first().click();
-  assert.equal(await p.locator("#buttonList .bitem").count(), 15);
+  assert.equal(await p.locator("#buttonList .bitem").count(), 19);
 });

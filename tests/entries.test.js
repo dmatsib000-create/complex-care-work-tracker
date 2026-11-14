@@ -57,13 +57,13 @@ test("every field of a saved entry can be edited; Done closes; Delete asks first
   const row = p.locator(".entry", { hasText: "Forms" });
   await row.locator(".e-edit").click();
   const ed = row.locator(".editor");
-  await ed.locator("select").nth(1).selectOption("Only a physician");
+  await ed.locator("select").nth(1).selectOption("Physician or PA");
   await ed.locator("input[type=number]").fill("55"); await ed.locator("input[type=number]").dispatchEvent("change");
   await ed.locator("select").nth(2).selectOption("Insurer");
   const note = ed.getByPlaceholder("e.g. School form batch"); await note.fill("Batch of school forms"); await note.dispatchEvent("change");
   await ed.locator("input[type=checkbox]").nth(2).check();
   let e = (await savedEntries(p)).find((x) => x.label === "Forms");
-  assert.deepEqual([e.who, e.minutes, e.source, e.note, e.interrupted], ["Only a physician", 55, "Insurer", "Batch of school forms", true]);
+  assert.deepEqual([e.who, e.minutes, e.source, e.note, e.interrupted], ["Physician or PA", 55, "Insurer", "Batch of school forms", true]);
   await ed.locator("input[type=date]").fill("2026-11-09"); await ed.locator("input[type=date]").dispatchEvent("change");
   e = (await savedEntries(p)).find((x) => x.label === "Forms");
   assert.equal(new Date(e.date).toISOString(), "2026-11-09T18:00:00.000Z", "date changes keep the time of day");
@@ -92,7 +92,7 @@ test("entries saved by the older version load, and after hours is worked out for
 
 test("damaged saved data does not stop the page, and is kept aside", async () => {
   const p = await openTracker(browser, { storage: { entries: "{broken", running: "nope", buttons: "[1,2" } });
-  assert.equal(await p.locator(".tile").count(), 16);
+  assert.equal(await p.locator(".tile").count(), 20);
   assert.deepEqual(p.errors, []);
   const kept = await p.evaluate(() => Object.keys(localStorage).filter((k) => k.includes("_unreadable_")).length);
   assert.equal(kept, 3);

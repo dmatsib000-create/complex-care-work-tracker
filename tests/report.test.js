@@ -16,7 +16,7 @@ test("support hours are per week across the range (6 h over 4 weeks = 1.5 h a we
   const p = await openTracker(browser, { storage: { entries: days.map((d) => entry(d + "T10:00", { minutes: 60 })) } });
   await report(p, "4w");
   assert.match(await p.textContent("#fte"), /1\.5 h a week of support work, about 0\.04 of a full-time support role/);
-  assert.match(await p.textContent("#headline"), /^6\.0 h of 6\.0 h logged \(100%\) did not need a physician\.$/);
+  assert.match(await p.textContent("#headline"), /^6\.0 h of 6\.0 h logged \(100%\) did not need a physician or PA\.$/);
   assert.match(await p.textContent("#summaryText"), /about 1\.5 h a week of delegable work, roughly 0\.04 of a 40-hour support FTE/);
 });
 
@@ -37,11 +37,11 @@ test("a short range asks for 7 days or more instead of estimating", async () => 
 
 test("split by role, key figures, and support work by task", async () => {
   const p = await openTracker(browser, { storage: { entries: [
-    entry("2026-11-09T09:00", { label: "Complex visit", who: "Only a physician", facing: true, minutes: 60 }),
+    entry("2026-11-09T09:00", { label: "Complex visit", who: "Physician or PA", facing: true, minutes: 60 }),
     entry("2026-11-09T10:00", { label: "Forms", minutes: 30 }),
     entry("2026-11-10T11:00", { label: "DME / supplies", who: "Care coordinator", minutes: 50, interrupted: true }),
     entry("2026-11-10T18:00", { label: "Forms", minutes: 15, afterHours: true }),
-    entry("2026-11-11T09:00", { label: "Healthy urgent visit", clinic: "Non-complex Healthy Urgent", who: "Only a physician", facing: true, minutes: 30 }),
+    entry("2026-11-11T09:00", { label: "Healthy urgent visit", clinic: "Non-complex Healthy Urgent", who: "Physician or PA", facing: true, minutes: 30 }),
   ] } });
   await report(p, "week");
   assert.equal(await p.locator("#splitBar span").count(), 3);
@@ -110,4 +110,14 @@ test("CSV export: selected range only, oldest first, local dates, safe for sprea
   assert.equal(lines.length, 3, "the October entry is outside the range");
   assert.equal(lines[1], '"2026-11-09","Café forms","Complex Care","30","No","Clerical / admin","","","No","No",""');
   assert.equal(lines[2], '"2026-11-10","\'=SUM(A1)","Complex Care","30","No","Clerical / admin","","","Yes","No","21:00"');
+});
+
+test("RN work has its own highlighter in the report split", async () => {
+  const p = await openTracker(browser, { storage: { entries: [
+    entry("2026-11-10T09:00", { label: "Phone with family", who: "RN", minutes: 30 }),
+    entry("2026-11-10T10:00", { label: "Forms", minutes: 30 }),
+  ] } });
+  await p.click("#tab-report"); await p.click('#presets [data-range="week"]');
+  assert.equal(await p.locator("#splitBar .r-rn").count(), 1);
+  assert.match(await p.textContent("#splitLegend"), /RN: 0\.5 h \(50%\)/);
 });

@@ -4,7 +4,7 @@
 
 Bookmark that link on each phone and computer she uses. Entries are saved in that browser only; use Save backup file (the line under the title) to keep them safe or move them to another device.
 
-A simple, modifiable tracker for a clinician in a complex care clinic to log **all** the work she does — patient-facing and invisible — and to separate:
+A simple, modifiable tracker for a clinician in a complex care clinic to log **all** the work she does (patient-facing and invisible) and to separate:
 
 1. **Complex care work** (her actual clinic)
 2. **Non-complex, healthy urgent work** that has been assigned to her on top of it
@@ -13,9 +13,11 @@ The point is not to prove she is slow. The point is to make visible:
 
 - the **volume** of work,
 - how much of it is **not patient-facing** and therefore invisible in schedules and RVUs,
-- and how much of it **does not require a doctor at all** — it is clerical and care-coordination work that a complex care clinic needs, but that should be done by clerical / care-coordination support.
+- and how much of it **does not need a physician or PA at all**: it is nursing, care-coordination and clerical work that a complex care clinic needs, but that should be done by support staff.
 
-> **No PHI.** Never enter patient names, MRNs, dates of birth, or identifying details. Use a short generic description only, e.g. "DME order follow-up — wheelchair" or "school form — complex patient".
+The defaults (which tasks need a clinician, which role could do the rest) come from cited research: see "Research behind the defaults" below.
+
+> **No PHI.** Never enter patient names, MRNs, dates of birth, or identifying details. Use a short generic description only, e.g. "DME order follow-up, wheelchair" or "school form, complex patient".
 
 ## Feedback, suggestions, and bugs
 
@@ -32,8 +34,8 @@ The page saves entries only in the browser it is opened in (localStorage), expor
 
 The page has four tabs:
 
-- **Track:** today's timeline (blue for work that needs a physician, highlighter yellow and orange for work support staff could do, shaded after hours) and the task buttons, grouped into "Needs a physician" and "Could be done by support staff". While a timer runs, a bar pinned to the bottom of the screen shows it with Stop and save.
-- **Report:** the date range, the headline share of work that did not need a physician, the support-FTE estimate, support work by task, and a summary to copy for a supervisor.
+- **Track:** today's timeline (blue for work that needs a physician or PA, highlighter yellow and orange for work support staff could do, shaded after hours) and the task buttons, grouped into "Needs a physician or PA" and "Could be done by support staff". While a timer runs, a bar pinned to the bottom of the screen shows it with Stop and save.
+- **Report:** the date range, the headline share of work that did not need a physician or PA, the support-FTE estimate, support work by task, and a summary to copy for a supervisor.
 - **Entries:** the log grouped by day, with Edit on each entry, and "Add work you forgot to time".
 - **Buttons:** add, rename, re-preset, or remove task buttons.
 
@@ -54,7 +56,7 @@ Only the clinician doing this work knows its ins and outs, so nothing here is lo
 - `CLINICS`, `WHO_OPTIONS`, `SOURCES`: the dropdown options. Roles other than the three named below (RN, MA, Social work, ...) can be added, renamed or removed freely.
 - `CLINIC_START_HOUR`, `CLINIC_END_HOUR`: clinic hours, used to mark after-hours work.
 - `LONG_TIMER_MIN`: how long a timer can run before she is asked whether it was left on. A panel then lets her save the real time (minutes like `45`, or `1:30`), discard it, or keep timing.
-- `PHYSICIAN`, `CLERICAL`, `COORDINATOR`, `COMPLEX`, `URGENT`: the names the report depends on. `PHYSICIAN` decides what counts as needing a physician (everything else is support work), `CLERICAL` and `COORDINATOR` are the two support totals, and anything not in `COMPLEX` counts as work assigned on top.
+- `PHYSICIAN`, `CLERICAL`, `COORDINATOR`, `COMPLEX`, `URGENT`: the names the report depends on. `PHYSICIAN` ("Physician or PA") decides what counts as needing a clinician (everything else is support work), `CLERICAL` and `COORDINATOR` are the two support totals, and anything not in `COMPLEX` counts as work assigned on top.
 
 **Renaming one of those five names:** change it in its line (for example `const CLERICAL = "Front desk";`), then add the old name to `RENAMES` so entries saved under it follow:
 
@@ -75,13 +77,13 @@ Keep `config/taxonomy.json` the same as the settings block; `npm test` checks th
 
 Add categories freely. If a task does not fit, create the category on the spot and log it: a growing "Other / doesn't fit" pile is itself evidence that the job is bigger than the job description.
 
-## How it works — single click
+## How it works: single click
 
-**One click starts a timer. One click stops it and saves.** Tap a different button to switch tasks — the previous one saves automatically. There is no form to fill in at log time.
+**One click starts a timer. One click stops it and saves.** Tap a different button to switch tasks; the previous one saves automatically. There is no form to fill in at log time.
 
 Each large button is a task type with its defaults preset (clinic, patient-facing or not, who could do it instead). She taps, works, taps again. An optional one-line note can be added afterwards, and a wrong preset can be fixed on the saved entry, but neither ever blocks the next tap.
 
-While a timer runs she can optionally pick a source (who asked) and tick "Interrupted a visit". After hours is set automatically from the start time (before 8am, from 5pm, or weekends). Every field on a saved entry can be corrected in the log.
+While a timer runs she can optionally pick a source (who asked) and tick "Interrupted a visit". On a support task she can also tick "Needed a clinician" when this one needed a physician or PA (for example a call where a clinical decision was made); that entry then counts as clinician work. After hours is set automatically from the start time (before 8am, from 5pm, or weekends). Every field on a saved entry can be corrected in the log.
 
 A manual add exists only for forgotten work: label, minutes, and the date (and optionally the start time) it actually happened, so yesterday's work can be backdated.
 
@@ -92,19 +94,19 @@ A manual add exists only for forgotten work: label, minutes, and the date (and o
 | Date + minutes | Volume and time are the argument |
 | Clinic type: Complex Care vs Non-complex Healthy Urgent | Separates her clinic from the dumped work |
 | Patient-facing? Yes / No | Makes invisible work visible |
-| Task category | e.g. Forms, Prior auth, Referral coordination, DME / supplies, Scheduling, Inbox, Phone, Results, Care plan coordination, Family communication logistics, Prescriptions, Records, Visit + notes |
-| Does this require a doctor? | The single most important field |
-| Who could do this instead? | Clerical / admin, Care coordinator, RN, MA, Social work, Pharmacist, Only a physician, System / automation fix |
+| Task category | e.g. Visit, Inbox, Notes, Peer-to-peer / appeal, Phone with family, Results follow-up, HH / PDN / PPEC orders, PDN shift gaps, Referral coordination, DME / supplies, Care plan coordination, Forms, Prior auth, Auth renewals, Prescriptions, Scheduling, Records |
+| Does this need a physician or PA? | The single most important field |
+| Who could do this instead? | Physician or PA, Clerical / admin, Care coordinator, RN, MA, Social work, Pharmacist, Plan case manager, System / automation fix |
 | Source / who asked | Family, School, Pharmacy, Insurer, Specialist, Inbox, Phone, Internal |
 | After hours? Interrupted a visit? | Shows spillover and fragmentation |
 | Notes (generic, no PHI) | One line is enough |
 
-## Reading the results — the argument it makes
+## Reading the results: the argument it makes
 
 The dashboard / report answers, for any date range (Today, This week, Last 7 days, Last 4 weeks, All time, or custom dates; it opens on This week):
 
 - **Total hours logged**, and hours per week
-- **% of time that did not require a physician**
+- **% of time that did not need a physician or PA**
 - **Hours of clerical work** and **hours of care-coordination work** done by a physician
 - **Patient-facing vs non-patient-facing** split
 - **Complex care vs non-complex healthy urgent** split
@@ -112,9 +114,21 @@ The dashboard / report answers, for any date range (Today, This week, Last 7 day
 - **After-hours and interruption** counts
 - A rough **support FTE translation**: delegable hours per week ÷ 40 = the fraction of a support FTE already being consumed by physician time (e.g. 12 delegable hrs/week ≈ 0.3 FTE of support work being done at physician cost and physician scarcity). Weeks are counted from the first day she logged anything, so choosing a long range early on does not water the figure down; it appears once a full week has been logged.
 
-Framing for a supervisor conversation — see `docs/making-the-case.md`. The claim is:
+Framing for a supervisor conversation: see `docs/making-the-case.md`. The claim is:
 
-> "This is not about speed. In [period] I logged X hours beyond visits. Y hours (Z%) did not require a physician. They were necessary for a complex care clinic — forms, coordination, authorisations, follow-up — but they were clerical and coordination work. That is Y hours a week of support work currently done by the one person who cannot be replaced in clinic. I need clerical and care-coordination support so those hours return to complex patients."
+> "This is not about speed. In [period] I logged X hours beyond visits. Y hours (Z%) did not need a physician or PA. They were necessary for a complex care clinic (forms, coordination, authorisations, triage, follow-up), but they were nursing, coordination and clerical work. That is Y hours a week of support work currently done by the one person who cannot be replaced in clinic. I need dedicated nursing, care-coordination and clerical support so those hours return to complex patients."
+
+## Research behind the defaults
+
+Cited research reports set the starter buttons and roles. They are kept in the repository only in encrypted form (see `research/README.md`). In short:
+
+- **"Physician or PA", not "Only a physician".** Federal rules and many state laws let a PA sign many of the orders and forms a physician signs, so the line that matters for staffing is clinician versus support staff. What a PA is actually assigned follows state law and the employer's policies (privileges, supervision protocol, co-signature rules). Entries saved as "Only a physician" by earlier versions are renamed automatically.
+- **Calls default to RN, with a tick for decisions.** "Phone with family" and "Results follow-up" default to RN, because protocol triage and relaying classified results are generally RN scope. She often cannot know when a call starts whether it will need a decision, so instead of a separate button she ticks "Needed a clinician" in the timer bar and that call counts as clinician work.
+- **Prior auth is split.** The peer-to-peer and clinical argument need a clinician; paperwork and the renewal calendar ("Prior auth", "Auth renewals") are clerical.
+- **Medicaid renewal cycles get their own buttons.** "HH / PDN / PPEC orders" (home health, private duty nursing and PPEC orders and plans of care; an RN can draft, the clinician signs) and "PDN shift gaps" (the Medicaid plan's case manager is contracted to coordinate this; logged as "Plan case manager").
+- **The buttons are ordered by role, and each role has its own highlighter:** aqua for RN, orange for care coordinator, yellow for clerical, pink for other roles such as the plan case manager. The three main colours match the three staffing asks.
+
+Each split is labeled in the reports as a law or payer rule, published evidence, or professional convention. Change any default to fit the clinic.
 
 ## Files
 
@@ -123,10 +137,12 @@ Framing for a supervisor conversation — see `docs/making-the-case.md`. The cla
 - `tests/`: automated browser tests (see Testing)
 - `package.json`, `package-lock.json`: only used to run the tests
 - `.github/workflows/test.yml`: runs the tests on GitHub
-- `docs/data-dictionary.md` — what every field means
-- `docs/making-the-case.md` — how to turn a week of logs into a short, non-defensive ask
-- `docs/sample-report.md` — fill-in template for a 1-page summary to a supervisor
-- `examples/example-entries.csv` — example entries (fictional, no PHI) showing the granularity to aim for
+- `docs/data-dictionary.md`: what every field means, and which button to use for which work
+- `docs/making-the-case.md`: how to turn a week of logs into a short, non-defensive ask, with cited evidence
+- `docs/sample-report.md`: fill-in template for a 1-page summary to a supervisor
+- `examples/example-entries.csv`: example entries (fictional, no PHI) showing the granularity to aim for
+- `research/`: the research behind the defaults, encrypted (see `research/README.md`)
+- `scripts/`: encrypt, decrypt and check the research archive
 
 ## Testing
 

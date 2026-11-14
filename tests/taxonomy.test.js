@@ -14,7 +14,7 @@ const json = JSON.parse(fs.readFileSync(path.join(root, "config", "taxonomy.json
 function settings() {
   const m = html.match(/\/\/ =+ SETTINGS START =+([\s\S]*?)\/\/ =+ SETTINGS END =+/);
   assert.ok(m, "SETTINGS START / SETTINGS END markers not found in tracker.html");
-  return new Function(`${m[1]}; return { TAXONOMY, CLINICS, WHO_OPTIONS, SOURCES, PHYSICIAN, CLERICAL, COORDINATOR, COMPLEX, URGENT, RENAMES };`)();
+  return new Function(`${m[1]}; return { TAXONOMY, CLINICS, WHO_OPTIONS, SOURCES, PHYSICIAN, CLERICAL, COORDINATOR, NURSE, COMPLEX, URGENT, RENAMES };`)();
 }
 const page = settings();
 const fromPage = (name) => page[name];
@@ -35,6 +35,7 @@ test("the names the logic depends on are in the option lists", () => {
   assert.ok(page.WHO_OPTIONS.includes(page.PHYSICIAN));
   assert.ok(page.WHO_OPTIONS.includes(page.CLERICAL));
   assert.ok(page.WHO_OPTIONS.includes(page.COORDINATOR));
+  assert.ok(page.WHO_OPTIONS.includes(page.NURSE));
   assert.ok(page.CLINICS.includes(page.COMPLEX));
   assert.ok(page.CLINICS.includes(page.URGENT));
 });
