@@ -142,7 +142,7 @@ Each split is labeled in the reports as a law or payer rule, published evidence,
 - `docs/sample-report.md`: fill-in template for a 1-page summary to a supervisor
 - `examples/example-entries.csv`: example entries (fictional, no PHI) showing the granularity to aim for
 - `research/`: the research behind the defaults, encrypted (see `research/README.md`)
-- `scripts/`: encrypt and decrypt the research archive
+- `scripts/`: encrypt, decrypt and check the research archive
 
 ## Testing
 

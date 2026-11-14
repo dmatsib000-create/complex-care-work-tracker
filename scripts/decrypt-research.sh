@@ -1,12 +1,11 @@
 #!/usr/bin/env bash
-# Decrypt research/research.tar.gz.enc into private/ (ignored by git, so the plaintext is never committed).
-# The key is read from the RESEARCH_KEY environment variable.
-# Usage:  RESEARCH_KEY='...' scripts/decrypt-research.sh
+# Check the archive's HMAC, then decrypt it into private/ (ignored by git, so the plaintext is never committed).
+# Usage (the key is typed without being shown or saved in shell history):
+#   read -rs RESEARCH_KEY && export RESEARCH_KEY && scripts/decrypt-research.sh
 set -euo pipefail
 cd "$(dirname "$0")/.."
-: "${RESEARCH_KEY:?Set RESEARCH_KEY to the research key first}"
+. scripts/research-lib.sh
+verify_mac
 mkdir -p private
-openssl enc -d -aes-256-cbc -pbkdf2 -iter 600000 -md sha256 -pass env:RESEARCH_KEY \
-    -in research/research.tar.gz.enc \
-  | tar -xzf - -C private
+decrypt_to_stdout | tar -xzf - -C private
 echo "Decrypted into private/."

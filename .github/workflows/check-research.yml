@@ -1,10 +1,10 @@
 name: Check research archive
 
-# Confirms that the RESEARCH_KEY secret opens research/research.tar.gz.enc.
+# Confirms that the RESEARCH_KEY secret opens research/research.tar.gz.enc and that the archive matches its HMAC.
 # Logs in a public repository are public, so this prints only a file count: never names or contents.
 on:
   push:
-    paths: ["research/research.tar.gz.enc", ".github/workflows/check-research.yml"]
+    paths: ["research/**", "scripts/*research*", ".github/workflows/check-research.yml"]
   workflow_dispatch:
 
 permissions:
@@ -15,7 +15,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - name: Decrypt in memory and count files
+      - name: Check the archive without writing plaintext
+        shell: bash
         env:
           RESEARCH_KEY: ${{ secrets.RESEARCH_KEY }}
         run: |
@@ -23,7 +24,4 @@ jobs:
             echo "::warning::The RESEARCH_KEY secret is not set, so the archive was not checked."
             exit 0
           fi
-          n=$(openssl enc -d -aes-256-cbc -pbkdf2 -iter 600000 -md sha256 -pass env:RESEARCH_KEY \
-                -in research/research.tar.gz.enc 2>/dev/null | tar -tzf - 2>/dev/null | grep -vc '/$') \
-            || { echo "::error::RESEARCH_KEY does not open research/research.tar.gz.enc."; exit 1; }
-          echo "The research archive opens with RESEARCH_KEY and holds $n files."
+          scripts/check-research.sh 2>&1 | sed 's/^The archive does not match/::error::The archive does not match/'

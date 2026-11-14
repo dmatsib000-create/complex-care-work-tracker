@@ -367,7 +367,7 @@
     </div>
     <div class="run-extra">
       <select id="rSource" aria-label="Source (optional)"></select>
-      <label class="check" id="rClinicianWrap" title="Tick if this one needed a physician or PA, for example a call where a clinical decision was made. It then counts as clinician work."><input type="checkbox" id="rClinician" aria-describedby="rClinicianHint">Needed a clinician</label>
+      <label class="check" id="rClinicianWrap"><input type="checkbox" id="rClinician" aria-describedby="rClinicianHint">Needed a clinician</label>
       <span id="rClinicianHint" hidden>Tick if this one needed a physician or PA, for example a call where a clinical decision was made. It then counts as clinician work.</span>
       <label class="check"><input type="checkbox" id="rInterrupted">Interrupted a visit</label>
     </div>
@@ -430,7 +430,7 @@ const RENAMES = {
 // Starter task buttons. Each one presets its clinic, patient-facing flag, and who could do it instead.
 // The defaults follow the research behind this tracker: change any of them to fit the clinic.
 // Support buttons are ordered by role (RN, coordinator, clerical) so each highlighter colour forms one block.
-// A call or result that turns out to need a clinician is ticked "Needed a clinical decision" while timing.
+// A call or result that turns out to need a clinician is ticked "Needed a clinician" while timing.
 let TAXONOMY = [
  {label:"Complex visit",clinic:COMPLEX,facing:true,who:PHYSICIAN},
  {label:"Complex inbox",clinic:COMPLEX,facing:false,who:PHYSICIAN},
@@ -700,7 +700,7 @@ function renderRunning(){
   if(!running) return;
   $("rLabel").textContent=running.label; $("rSince").textContent="since "+clock(running.startedAt)+(isAfterHours(running.startedAt)?", after hours":"");
   $("rSource").innerHTML=sourceOpts(running.source); $("rInterrupted").checked=!!running.interrupted;
-  // "Needed a clinical decision" turns support work into clinician work for this one entry (shown only for support tasks).
+  // "Needed a clinician" turns support work into clinician work for this one entry (shown only for support tasks).
   const preset=running.presetWho||running.who;
   $("rClinicianWrap").hidden=isDoc(preset); $("rClinician").checked=isDoc(running.who);
   tick();
