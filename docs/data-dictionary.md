@@ -6,6 +6,7 @@ All fields are preset on each button so logging is a single click. Fields can be
 |---|---|---|
 | Started / stopped | When the click-timer ran | Automatic |
 | Minutes | Rounded duration, minimum 1 | Automatic, editable via manual add for forgotten work |
+| Start time | When the work started | Automatic for timed work. Work added by hand without a time shows "No time" and has a blank `start_time` in the CSV |
 | Label / button | The task type tapped | Editable list — see `config/taxonomy.json` |
 | Clinic | Which job this belonged to | `Complex Care` or `Non-complex Healthy Urgent` |
 | Patient-facing | Was a patient/family directly involved in the moment? | Yes / No. "No" is the invisible work: forms, chasing, coordinating, documenting |

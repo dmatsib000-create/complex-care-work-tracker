@@ -80,7 +80,7 @@ The dashboard / report answers, for any date range (Today, This week, Last 7 day
 - **Complex care vs non-complex healthy urgent** split
 - **Top delegable categories** by hours
 - **After-hours and interruption** counts
-- A rough **support FTE translation**: delegable hours per week ÷ 40 = the fraction of a support FTE already being consumed by physician time (e.g. 12 delegable hrs/week ≈ 0.3 FTE of support work being done at physician cost and physician scarcity)
+- A rough **support FTE translation**: delegable hours per week ÷ 40 = the fraction of a support FTE already being consumed by physician time (e.g. 12 delegable hrs/week ≈ 0.3 FTE of support work being done at physician cost and physician scarcity). Weeks are counted from the first day she logged anything, so choosing a long range early on does not water the figure down; it appears once a full week has been logged.
 
 Framing for a supervisor conversation — see `docs/making-the-case.md`. The claim is:
 

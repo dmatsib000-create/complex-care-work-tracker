@@ -403,32 +403,71 @@ const LS_B="ccwt_buttons_v1", LS_E="ccwt_entries_v1", LS_R="ccwt_running_v1";
 // Buttons: the TAXONOMY list above is used unless buttons are changed on the page.
 // Only a list that differs from TAXONOMY is saved in the browser, so editing TAXONOMY in this file takes effect.
 const buttonKey = list => JSON.stringify(list.map(b=>[b.label,b.clinic,!!b.facing,b.who]));
-let savedButtons = JSON.parse(localStorage.getItem(LS_B)||"null");
-if(savedButtons && buttonKey(savedButtons)===buttonKey(TAXONOMY)){ localStorage.removeItem(LS_B); savedButtons=null; }
-let buttons = savedButtons || TAXONOMY.map(b=>({...b}));
-let buttonsCustom = !!savedButtons;
-const buttonsChanged = () => { buttonsCustom = buttonKey(buttons)!==buttonKey(TAXONOMY); save(); };
-let entries = JSON.parse(localStorage.getItem(LS_E)||"[]");
-let running = JSON.parse(localStorage.getItem(LS_R)||"null");
-const save=()=>{ if(buttonsCustom) localStorage.setItem(LS_B,JSON.stringify(buttons)); else localStorage.removeItem(LS_B);localStorage.setItem(LS_E,JSON.stringify(entries));localStorage.setItem(LS_R,JSON.stringify(running));};
-// Entries saved before after-hours tracking existed: work it out from their start time.
-entries.forEach(e=>{ if(e.afterHours===undefined) e.afterHours=isAfterHours(e.date); });
-let lastId = entries.reduce((a,e)=>Math.max(a,e.id||0),0);
+// ---------- Saved data ----------
+// Ids are creation times in milliseconds. Anything else (missing, duplicated, huge) gets a fresh id.
+const safeId = id => Number.isSafeInteger(id) && id>0 && id<=Date.now()+86400000;
+let lastId = 0;
 const newId = () => (lastId = Math.max(Date.now(), lastId+1));
+const validEntry = e => e && typeof e==="object" && typeof e.label==="string" && e.label.trim() && !isNaN(new Date(e.date)) && Number(e.minutes)>0;
+const validButton = b => b && typeof b==="object" && typeof b.label==="string" && b.label.trim();
+// One clean shape for every entry, whether it came from this browser, an older version, or a backup file.
+const cleanEntry = e => ({ id:e.id, date:new Date(e.date).toISOString(), label:String(e.label), clinic:String(e.clinic||"Complex Care"), facing:!!e.facing,
+  who:String(e.who||"Only a physician"), minutes:Math.round(Number(e.minutes)), note:String(e.note||""), source:String(e.source||""),
+  // Entries saved before after-hours tracking existed: work it out from their start time.
+  afterHours:e.afterHours===undefined?isAfterHours(e.date):!!e.afterHours, interrupted:!!e.interrupted, timeUnknown:!!e.timeUnknown });
+const cleanButton = b => ({label:String(b.label).trim(),clinic:String(b.clinic||"Complex Care"),facing:!!b.facing,who:String(b.who||"Only a physician")});
+// Read one saved value. A damaged value is copied aside (so nothing is lost) instead of stopping the page.
+function readKey(key,fallback){
+  let raw=null; try{ raw=localStorage.getItem(key); }catch(e){ return fallback; }
+  if(raw==null) return fallback;
+  try{ return JSON.parse(raw); }catch(e){ try{ localStorage.setItem(key+"_unreadable_"+Date.now(),raw); }catch(_){} return fallback; }
+}
+let buttons, buttonsCustom, entries, running;
+function loadState(){
+  let saved=readKey(LS_B,null);
+  saved = Array.isArray(saved) ? saved.filter(validButton).map(cleanButton) : null;
+  if(saved && (!saved.length || buttonKey(saved)===buttonKey(TAXONOMY))){ try{ localStorage.removeItem(LS_B); }catch(e){} saved=null; }
+  buttons = saved || TAXONOMY.map(b=>({...b})); buttonsCustom = !!saved;
+  const list = readKey(LS_E,[]);
+  entries = (Array.isArray(list)?list:[]).filter(validEntry).map(cleanEntry);
+  lastId = entries.reduce((a,e)=>safeId(e.id)?Math.max(a,e.id):a,0);
+  const seen=new Set(); let repaired=false;
+  entries.forEach(e=>{ if(!safeId(e.id)||seen.has(e.id)){ e.id=newId(); repaired=true; } seen.add(e.id); });
+  const r = readKey(LS_R,null);
+  running = (r && typeof r==="object" && typeof r.label==="string" && Number.isFinite(r.startedAt)) ? r : null;
+  return repaired;
+}
+const save=()=>{ try{
+  if(buttonsCustom) localStorage.setItem(LS_B,JSON.stringify(buttons)); else localStorage.removeItem(LS_B);
+  localStorage.setItem(LS_E,JSON.stringify(entries)); localStorage.setItem(LS_R,JSON.stringify(running));
+  }catch(e){ alert("This browser would not save the change (storage may be full or blocked). Save a backup file from Entries now."); } };
+const buttonsChanged = () => { buttonsCustom = buttonKey(buttons)!==buttonKey(TAXONOMY); save(); };
+if(loadState()) save();
 
 function start(btn){ stop(false); running={label:btn.label,clinic:btn.clinic,facing:btn.facing,who:btn.who,startedAt:Date.now(),source:"",interrupted:false}; save(); render(); }
 function stop(renderAfter=true){ if(!running) { if(renderAfter) render(); return; }
   let mins=Math.max(1,Math.round((Date.now()-running.startedAt)/60000));
   if(mins>LONG_TIMER_MIN){
     const started=new Date(running.startedAt), sameDay=localDay(started)===localDay(Date.now());
-    const ans=prompt(`"${running.label}" ran for ${fmtDur(mins)} (started ${sameDay?"today":started.toLocaleDateString()} at ${started.toLocaleTimeString([], {hour:"numeric",minute:"2-digit"})}). Was it left running?\n\nOK saves the minutes in the box. Change them to the real time first if needed.\nCancel discards this entry.`, mins);
-    if(ans===null){ running=null; save(); if(renderAfter) render(); return; }
-    const fixed=parseInt(ans,10);
-    if(fixed>0) mins=fixed;
+    let msg=`"${running.label}" ran for ${fmtDur(mins)} (started ${sameDay?"today":started.toLocaleDateString()} at ${started.toLocaleTimeString([], {hour:"numeric",minute:"2-digit"})}). Was it left running?\n\nType the real time in minutes (45) or hours:minutes (1:30), then OK. Leave the number as it is to keep the full time.\nCancel discards this entry.`;
+    for(;;){
+      const ans=prompt(msg, mins);
+      if(ans===null){ running=null; save(); if(renderAfter) render(); return; }
+      const v=parseDuration(ans);
+      if(v>0){ mins=v; break; }
+      msg=`"${ans}" is not a time this tracker can read.\n\nType minutes (45) or hours:minutes (1:30).\nCancel discards this entry.`;
+    }
   }
   entries.unshift({id:newId(),date:new Date(running.startedAt).toISOString(),label:running.label,clinic:running.clinic,facing:running.facing,who:running.who,minutes:mins,note:"",
     source:running.source||"",afterHours:isAfterHours(running.startedAt),interrupted:!!running.interrupted});
   running=null; save(); if(renderAfter) render(); }
+// "45" -> 45 min, "1:30" -> 90, "1.5h" / "2 hours" -> hours, "45m" / "45 min" -> minutes. Anything else is unreadable.
+function parseDuration(text){ const t=String(text).trim().toLowerCase(); let m;
+  if(/^\d+$/.test(t)) return +t;
+  if((m=t.match(/^(\d+):([0-5]\d)$/))) return +m[1]*60 + +m[2];
+  if((m=t.match(/^(\d+(?:\.\d+)?)\s*h(?:rs?|ours?)?$/))) return Math.round(parseFloat(m[1])*60);
+  if((m=t.match(/^(\d+)\s*m(?:in(?:s|utes?)?)?$/))) return +m[1];
+  return NaN; }
 function elapsedText(){ const s=Math.floor((Date.now()-running.startedAt)/1000), h=Math.floor(s/3600), m=Math.floor(s/60)%60;
   return (h?h+":"+pad2(m):pad2(m))+":"+pad2(s%60); }
 let tickCount=0;
@@ -455,20 +494,20 @@ document.querySelectorAll("nav button").forEach(b=>{
 // ---------- Today: header line and day strip ----------
 function renderToday(){
   const today=localDay(Date.now());
-  const items=entries.filter(e=>localDay(e.date)===today).map(e=>({start:new Date(e.date),min:e.minutes,who:e.who,label:e.label,urgent:e.clinic!=="Complex Care"}));
+  const items=entries.filter(e=>localDay(e.date)===today).map(e=>({start:new Date(e.date),min:e.minutes,who:e.who,label:e.label,urgent:e.clinic!=="Complex Care",untimed:e.timeUnknown}));
   if(running&&localDay(running.startedAt)===today) items.push({start:new Date(running.startedAt),min:Math.max(1,(Date.now()-running.startedAt)/60000),who:running.who,label:running.label,urgent:running.clinic!=="Complex Care",live:true});
   const tot=items.reduce((a,i)=>a+i.min,0), sup=items.filter(i=>!isDoc(i.who)).reduce((a,i)=>a+i.min,0);
   $("todayLine").innerHTML = tot
     ? `Today: <b>${hm(tot)}</b> logged, of which <span class="mark r-cler"><b>${hm(sup)}</b> could have been done by support staff</span>.`
     : `Nothing logged today yet.`;
-  // Strip spans at least 7am to 7pm, wider if work started earlier or ran later.
-  const hr=d=>d.getHours()+d.getMinutes()/60;
-  const a=Math.max(0,Math.min(7,...items.map(i=>Math.floor(hr(i.start)))));
-  const b=Math.min(24,Math.max(19,...items.map(i=>Math.ceil(hr(i.start)+i.min/60))));
+  // Strip spans at least 7am to 7pm, wider if work started earlier or ran later. Entries added without a start time are not drawn.
+  const hr=d=>d.getHours()+d.getMinutes()/60, drawn=items.filter(i=>!i.untimed), untimedN=items.length-drawn.length;
+  const a=Math.max(0,Math.min(7,...drawn.map(i=>Math.floor(hr(i.start)))));
+  const b=Math.min(24,Math.max(19,...drawn.map(i=>Math.ceil(hr(i.start)+i.min/60))));
   const pct=x=>((x-a)/(b-a)*100).toFixed(3)+"%";
   const wd=new Date().getDay(), weekend=wd===0||wd===6;
   let html=weekend?"":`<div class="band" style="left:${pct(CLINIC_START_HOUR)};width:calc(${pct(CLINIC_END_HOUR)} - ${pct(CLINIC_START_HOUR)})"></div>`;
-  html+=items.map(i=>{ const s=hr(i.start), w=Math.min(b,s+i.min/60);
+  html+=drawn.map(i=>{ const s=hr(i.start), w=Math.min(b,s+i.min/60);
     return `<div class="blk ${roleClass(i.who)}${i.urgent?" urgent":""}${i.live?" live":""}" style="left:${pct(s)};width:calc(${pct(w)} - ${pct(s)})" title="${esc(i.label)}, ${clock(i.start)}, ${hm(i.min)}"></div>`; }).join("");
   const nowH=hr(new Date()); if(nowH>=a&&nowH<=b) html+=`<div class="now" style="left:${pct(nowH)}"></div>`;
   $("track").innerHTML=html;
@@ -480,7 +519,7 @@ function renderToday(){
   const LEG=[["r-doc","Needs a physician"],["r-cler","Clerical could do it"],["r-coord","Care coordinator could do it"],["r-other","Other support role"]];
   const present=new Set(items.map(i=>roleClass(i.who)));
   $("stripLegend").innerHTML=LEG.filter(([c])=>!items.length||present.has(c)).map(([c,l])=>`<span><i class="key ${c}"></i>${l}</span>`).join("")+`<span><i class="key dusk"></i>After hours</span>`;
-  $("stripNote").textContent = items.length ? `${items.length} ${items.length===1?"block":"blocks"} of work` : "Tap a task below to start. Today's work builds up here.";
+  $("stripNote").textContent = items.length ? `${drawn.length} ${drawn.length===1?"block":"blocks"} of work`+(untimedN?`, plus ${untimedN} added without a time`:"") : "Tap a task below to start. Today's work builds up here.";
 }
 
 // ---------- Task tiles ----------
@@ -517,16 +556,21 @@ function renderSummary(){
   const h=m=>(m/60).toFixed(1)+" h";
   const pc=m=>total?Math.round(m/total*100)+"%":"0%";
   // Weeks covered: the chosen From/To, or the first to last logged day when left blank.
+  // Days before her very first entry, or after today, are not counted: no work was being tracked then.
   const days=rs.map(e=>localDay(e.date)).sort();
-  const fromV=$("from").value, toV=$("to").value;
-  const spanStart=fromV||days[0], spanEnd=toV||days[days.length-1];
+  const fromV=$("from").value, toV=$("to").value, todayD=localDay(Date.now());
+  const firstEver=entries.reduce((m,e)=>{ const d=localDay(e.date); return !m||d<m?d:m; },"");
+  let spanStart=fromV||days[0], spanEnd=toV||days[days.length-1];
+  const startClamped=!!(fromV&&firstEver&&firstEver>fromV&&rs.length); if(startClamped) spanStart=firstEver;
+  if(toV&&toV>todayD&&rs.length) spanEnd=days[days.length-1]>todayD?days[days.length-1]:todayD;
   const spanDays=(spanStart&&spanEnd)?Math.max(1,dayNum(spanEnd)-dayNum(spanStart)+1):0;
   const weeks=spanDays/7, fullWeek=spanDays>=7, perWeek=weeks?nonDoc/weeks:0, fte=(perWeek/60/40).toFixed(2);
   const nice=ymd=>ymdDate(ymd).toLocaleDateString(undefined,{weekday:"short",day:"numeric",month:"short",year:"numeric"});
   const name={today:"Today",week:"This week",["7d"]:"Last 7 days",["4w"]:"Last 4 weeks",all:"All time"}[rangeKey]||"Custom range";
   const n=rs.length, nE=`${n} ${n===1?"entry":"entries"}`;
   $("rangeLabel").textContent = (fromV||toV)
-    ? `${name}: ${fromV?nice(fromV):"first entry"} to ${toV?nice(toV):"latest entry"}${spanDays?` (${spanDays} day${spanDays===1?"":"s"})`:""}, ${nE}.`
+    ? `${name}: ${fromV?nice(fromV):"first entry"} to ${toV?nice(toV):"latest entry"}${spanDays&&!startClamped?` (${spanDays} day${spanDays===1?"":"s"})`:""}, ${nE}.`+
+      (startClamped?` Weekly figures count ${spanDays} day${spanDays===1?"":"s"}, from your first entry on ${nice(firstEver)}.`:"")
     : `All time: ${nE}${spanDays?` over ${spanDays} day${spanDays===1?"":"s"}`:""}.`;
 
   $("headline").textContent = total
@@ -535,6 +579,7 @@ function renderSummary(){
   $("fte").textContent = !total ? "Time tasks on the Track tab, or add forgotten work under Entries. Pick a longer range above to include older work."
     : !nonDoc ? "All work in this range needed a physician."
     : fullWeek ? `That is ${h(perWeek)} a week of support work, about ${fte} of a full-time support role (40 hours a week), currently done by a physician.`
+    : startClamped ? `You started logging on ${nice(firstEver)}. Once a full week has been logged, this shows hours a week and a share of a support role.`
     : (fromV&&toV) ? `Choose a range of 7 days or more (for example Last 4 weeks) to see this as hours a week and a share of a support role.`
     : `Log at least a full week to see this as hours a week and a share of a support role.`;
   const segs=[["r-doc","Needs a physician",docM],["r-cler","Clerical / admin",cler],["r-coord","Care coordinator",coord],["r-other","Other support roles",otherM]].filter(s=>s[2]>0);
@@ -551,12 +596,13 @@ function renderSummary(){
   $("summary").innerHTML=facts.map(([k,v,s])=>`<div><dt>${k}</dt><dd>${v}${s?` <small>${s}</small>`:""}</dd></div>`).join("");
 
   // Support work by task, grouped by task label.
-  const groups={}; nonDocE.forEach(e=>{ const g=groups[e.label]||(groups[e.label]={label:e.label,min:0,who:{}}); g.min+=e.minutes; g.who[e.who]=(g.who[e.who]||0)+e.minutes; });
-  const top=Object.values(groups).sort((a,b)=>b.min-a.min); const max=top[0]?.min||1;
-  $("topDelegable").innerHTML=top.length?top.map(g=>{ const mainWho=Object.entries(g.who).sort((a,b)=>b[1]-a[1])[0][0];
+  const groups=new Map(); nonDocE.forEach(e=>{ let g=groups.get(e.label); if(!g){ g={label:e.label,min:0,who:new Map()}; groups.set(e.label,g); }
+    g.min+=e.minutes; g.who.set(e.who,(g.who.get(e.who)||0)+e.minutes); });
+  const top=[...groups.values()].sort((a,b)=>b.min-a.min); const max=top[0]?.min||1;
+  $("topDelegable").innerHTML=top.length?top.map(g=>{ const mainWho=[...g.who.entries()].sort((a,b)=>b[1]-a[1])[0][0];
     return `<li class="${roleClass(mainWho)}"><span>${esc(g.label)}</span><span class="bar" style="width:${g.min/max*100}%"></span>
       <span class="num">${h(g.min)}<small>${Math.round(g.min/nonDoc*100)}% of support work${fullWeek?`, ${h(g.min/weeks)} a week`:""}</small></span>
-      <span class="who">${esc(Object.keys(g.who).join(", "))} could do this</span></li>`; }).join("")
+      <span class="who">${esc([...g.who.keys()].join(", "))} could do this</span></li>`; }).join("")
     : `<li class="empty" style="display:block">No support work logged in this range yet.</li>`;
 
   const topText=top.slice(0,3).map(g=>`${g.label} (${h(g.min)})`).join(", ");
@@ -585,10 +631,10 @@ function renderLog(){
     list.forEach(e=>{ const id=e.id, open=openEdit===id;
       const meta=[isDoc(e.who)?"Needs a physician":`${esc(e.who)} could do this`, e.clinic!=="Complex Care"?"Healthy urgent":"", e.facing?"Patient-facing":"",
         e.source?`From ${esc(e.source)}`:"", e.afterHours?"After hours":"", e.interrupted?"Interrupted a visit":"", e.note?`“${esc(e.note)}”`:""].filter(Boolean).join(", ");
-      html+=`<div class="entry"><span class="e-time">${clock(e.date)}</span>
+      html+=`<div class="entry"><span class="e-time">${e.timeUnknown?"No time":clock(e.date)}</span>
         <span class="e-task"><span class="e-label ${roleClass(e.who)}"><span class="mark">${esc(e.label)}</span></span><span class="e-meta">${meta}</span></span>
         <span class="e-side"><span class="e-min">${hm(e.minutes)}</span>
-        <button class="btn quiet e-edit" aria-expanded="${open}" aria-label="${open?"Close":"Edit"} ${esc(e.label)} at ${clock(e.date)}" onclick="toggleEdit(${id})">${open?"Close":"Edit"}</button></span>
+        <button class="btn quiet e-edit" aria-expanded="${open}" aria-label="${open?"Close":"Edit"} ${esc(e.label)}${e.timeUnknown?"":` at ${clock(e.date)}`}" onclick="toggleEdit(${id})">${open?"Close":"Edit"}</button></span>
         ${open?editorHtml(e):""}</div>`; });
     html+=`</div>`; });
   $("log").innerHTML=html;
@@ -648,9 +694,10 @@ const LS_RANGE="ccwt_range_v1";
 const shiftDay=(days)=>{ const d=new Date(); d.setDate(d.getDate()+days); return localDay(d); };
 const RANGES={ today:()=>[shiftDay(0),shiftDay(0)], week:()=>[shiftDay(-((new Date().getDay()+6)%7)),shiftDay(0)],
   "7d":()=>[shiftDay(-6),shiftDay(0)], "4w":()=>[shiftDay(-27),shiftDay(0)], all:()=>["",""] };
-let rangeKey="week"; try{ const k=localStorage.getItem(LS_RANGE); if(RANGES[k]) rangeKey=k; }catch(e){}
+const isPreset=k=>Object.prototype.hasOwnProperty.call(RANGES,k);
+let rangeKey="week"; try{ const k=localStorage.getItem(LS_RANGE); if(isPreset(k)) rangeKey=k; }catch(e){}
 function setRange(key){ rangeKey=key;
-  if(RANGES[key]){ [$("from").value,$("to").value]=RANGES[key](); try{ localStorage.setItem(LS_RANGE,key); }catch(e){} }
+  if(isPreset(key)){ [$("from").value,$("to").value]=RANGES[key](); try{ localStorage.setItem(LS_RANGE,key); }catch(e){} }
   document.querySelectorAll("#presets button").forEach(b=>{ const on=b.dataset.range===key; b.classList.toggle("on",on); b.setAttribute("aria-pressed",on); }); render(); }
 document.querySelectorAll("#presets button").forEach(b=>b.onclick=()=>setRange(b.dataset.range));
 $("from").onchange=$("to").onchange=()=>setRange("custom");
@@ -660,20 +707,23 @@ $("mClinic").innerHTML=opts(CLINICS); $("bClinic").innerHTML=opts(CLINICS);
 $("mWho").innerHTML=opts(WHO_OPTIONS,"Clerical / admin"); $("bWho").innerHTML=opts(WHO_OPTIONS,"Clerical / admin");
 $("mSource").innerHTML=sourceOpts("");
 $("mDate").value=localDay(Date.now());
+let mDateTouched=false; // true once she picks a date herself; until then the date follows today
 const manualStart=()=>{ const [y,m,d]=($("mDate").value||localDay(Date.now())).split("-").map(Number);
   const [hh,mm]=($("mTime").value||"12:00").split(":").map(Number); return new Date(y,m-1,d,hh,mm); };
 $("mLabel").onchange=()=>{ const b=buttons.find(x=>x.label===$("mLabel").value.trim()); if(!b) return;
   $("mClinic").innerHTML=opts(CLINICS,b.clinic); $("mWho").innerHTML=opts(WHO_OPTIONS,b.who); $("mFacing").checked=!!b.facing; };
-const autoAfter=()=>{ if($("mTime").value) $("mAfter").checked=isAfterHours(manualStart()); };
-$("mTime").onchange=autoAfter; $("mDate").onchange=autoAfter;
+// With a start time: after hours by clinic hours. Without one: after hours only on a weekend.
+const autoAfter=()=>{ const d=manualStart(), wk=d.getDay()===0||d.getDay()===6; $("mAfter").checked=$("mTime").value?isAfterHours(d):wk; };
+$("mTime").onchange=autoAfter;
+$("mDate").onchange=()=>{ mDateTouched=$("mDate").value!==localDay(Date.now()); autoAfter(); };
 $("mAdd").onclick=()=>{ const label=$("mLabel").value.trim(); const mins=parseInt($("mMinutes").value,10);
   if(!label||!(mins>0)){ $("mMsg").textContent="Enter a task and the minutes it took."; return; }
   const when=manualStart();
   entries.unshift({id:newId(),date:when.toISOString(),label,clinic:$("mClinic").value,facing:$("mFacing").checked,who:$("mWho").value,minutes:mins,note:"",
-    source:$("mSource").value,afterHours:$("mAfter").checked,interrupted:$("mInterrupted").checked});
+    source:$("mSource").value,afterHours:$("mAfter").checked,interrupted:$("mInterrupted").checked,timeUnknown:!$("mTime").value});
   save(); render();
   $("mMsg").textContent=`Added ${label}, ${hm(mins)}, on ${when.toLocaleDateString(undefined,{weekday:"short",day:"numeric",month:"short"})}.`+(inRange({date:when.toISOString()})?"":" It is outside the range shown.");
-  ["mLabel","mMinutes","mTime"].forEach(id=>$(id).value=""); ["mAfter","mInterrupted"].forEach(id=>$(id).checked=false); };
+  ["mLabel","mMinutes","mTime"].forEach(id=>$(id).value=""); $("mInterrupted").checked=false; autoAfter(); };
 
 $("bAdd").onclick=()=>{const label=$("bLabel").value.trim(); if(!label) return $("bLabel").focus(); buttons.push({label,clinic:$("bClinic").value,who:$("bWho").value,facing:$("bFacing").checked}); $("bLabel").value=""; buttonsChanged(); render();};
 // CSV of the selected range, oldest first, with local dates and times.
@@ -684,8 +734,9 @@ const hhmm=d=>{ d=new Date(d); return pad2(d.getHours())+":"+pad2(d.getMinutes()
 $("exportCsv").onclick=()=>{ const rs=entries.filter(inRange).sort((a,b)=>a.date.localeCompare(b.date));
   if(!rs.length) return alert("No entries in this range to export. Pick a different range, or All time.");
   const rows=[["date","label","clinic","minutes","patient_facing","who_could_do","note","source","after_hours","interrupted_visit","start_time"],
-    ...rs.map(e=>[localDay(e.date),e.label,e.clinic,e.minutes,yn(e.facing),e.who,e.note||"",e.source||"",yn(e.afterHours),yn(e.interrupted),hhmm(e.date)])];
-  const csv=rows.map(r=>r.map(csvCell).join(",")).join("\n");
+    ...rs.map(e=>[localDay(e.date),e.label,e.clinic,e.minutes,yn(e.facing),e.who,e.note||"",e.source||"",yn(e.afterHours),yn(e.interrupted),e.timeUnknown?"":hhmm(e.date)])];
+  // The leading byte-order mark tells Excel the file is UTF-8, so accented letters survive.
+  const csv="\ufeff"+rows.map(r=>r.map(csvCell).join(",")).join("\n");
   const first=localDay(rs[0].date), last=localDay(rs[rs.length-1].date);
   const a=document.createElement("a"); a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv"}));
   a.download=`complex-care-work_${$("from").value||first}_to_${$("to").value||last}.csv`; a.click(); };
@@ -716,33 +767,48 @@ function saveBackup(){
   $("backupMsg").textContent=`Saved ${entries.length} ${entries.length===1?"entry":"entries"}. Keep the file somewhere safe, such as your email or a cloud drive.`;
   renderBackup();
 }
-const validEntry=e=>e&&typeof e==="object"&&typeof e.label==="string"&&e.label&&!isNaN(new Date(e.date))&&Number(e.minutes)>0;
 async function restoreBackup(file){
-  let data; try{ data=JSON.parse(await file.text()); }catch(e){ $("backupMsg").textContent="That file is not a backup from this tracker. Choose a file saved with Save backup file."; return; }
-  const list=Array.isArray(data)?data:data&&data.entries;
-  if(!Array.isArray(list)){ $("backupMsg").textContent="That file has no entries in it. Choose a file saved with Save backup file."; return; }
-  const have=new Set(entries.map(e=>e.id)); let added=0, skipped=0, bad=0;
-  list.forEach(e=>{ if(!validEntry(e)){ bad++; return; } if(have.has(e.id)){ skipped++; return; }
-    const id=(typeof e.id==="number"&&isFinite(e.id))?e.id:newId(); have.add(id);
-    entries.push({id,date:new Date(e.date).toISOString(),label:String(e.label),clinic:String(e.clinic||"Complex Care"),facing:!!e.facing,who:String(e.who||"Only a physician"),
-      minutes:Math.round(Number(e.minutes)),note:String(e.note||""),source:String(e.source||""),afterHours:e.afterHours===undefined?isAfterHours(e.date):!!e.afterHours,interrupted:!!e.interrupted}); added++; });
-  entries.sort((a,b)=>b.date.localeCompare(a.date));
-  lastId=entries.reduce((a,e)=>Math.max(a,e.id||0),0);
-  let btnNote="";
-  if(Array.isArray(data.buttons)&&data.buttons.length&&buttonKey(data.buttons)!==buttonKey(buttons)
-     && confirm("This backup also has its own task buttons. Use those buttons in this browser? Entries are added either way.")){
-    buttons=data.buttons.filter(b=>b&&b.label).map(b=>({label:String(b.label),clinic:String(b.clinic||"Complex Care"),facing:!!b.facing,who:String(b.who||"Only a physician")}));
-    buttonsChanged(); btnNote=" Buttons updated from the backup.";
-  }
-  save(); render();
-  $("backupMsg").textContent=`Added ${added} ${added===1?"entry":"entries"}.`+(skipped?` ${skipped} ${skipped===1?"was":"were"} already here.`:"")+(bad?` ${bad} could not be read and ${bad===1?"was":"were"} skipped.`:"")+btnNote;
+  const say=t=>$("backupMsg").textContent=t;
+  try{
+    let data; try{ data=JSON.parse(await file.text()); }catch(e){ return say("That file is not a backup from this tracker. Choose a file saved with Save backup file."); }
+    const list=Array.isArray(data)?data:(data&&typeof data==="object"?data.entries:null);
+    if(!Array.isArray(list)) return say("That file has no entries in it. Choose a file saved with Save backup file.");
+    // Work out everything before changing anything, so a bad file cannot leave a half-finished restore.
+    const have=new Set(entries.map(e=>e.id)), incoming=[]; let skipped=0, bad=0;
+    list.forEach(raw=>{ if(!validEntry(raw)){ bad++; return; }
+      if(safeId(raw.id)&&have.has(raw.id)){ skipped++; return; }
+      const e=cleanEntry(raw); if(!safeId(e.id)) e.id=newId(); else lastId=Math.max(lastId,e.id);
+      have.add(e.id); incoming.push(e); });
+    const nb=Array.isArray(data.buttons)?data.buttons.filter(validButton).map(cleanButton):[];
+    const useButtons=nb.length>0&&buttonKey(nb)!==buttonKey(buttons)
+      &&confirm("This backup also has its own task buttons. Use those buttons in this browser? Entries are added either way.");
+    entries=entries.concat(incoming).sort((a,b)=>b.date.localeCompare(a.date));
+    if(useButtons){ buttons=nb; buttonsCustom=buttonKey(buttons)!==buttonKey(TAXONOMY); }
+    save(); render();
+    const n=incoming.length;
+    say(`Added ${n} ${n===1?"entry":"entries"}.`+(skipped?` ${skipped} ${skipped===1?"was":"were"} already here.`:"")+(bad?` ${bad} could not be read and ${bad===1?"was":"were"} skipped.`:"")+(useButtons?" Buttons updated from the backup.":""));
+  }catch(err){ say("Could not restore from that file. Nothing was changed. Choose a file saved with Save backup file."); }
 }
 $("backupSave").onclick=saveBackup;
 $("nudgeSave").onclick=()=>{ saveBackup(); showView("entries"); };
 $("backupLoad").onclick=()=>$("backupFile").click();
 $("backupFile").onchange=e=>{ const f=e.target.files[0]; if(f) restoreBackup(f); e.target.value=""; };
 
+// ---------- Staying current ----------
+// Another tab or window saved a change: reload from storage so this tab does not overwrite it.
+function reloadFromStorage(){ loadState(); if(openEdit!=null&&!entries.some(e=>e.id===openEdit)) openEdit=null; render(); }
+window.addEventListener("storage",e=>{ if(e.key===null||[LS_E,LS_B,LS_R].includes(e.key)) reloadFromStorage(); else if(e.key===LS_BACKUP) renderBackup(); });
+// A new day while the page is open: move "Today"/"This week" etc. and the manual-add date to the new day.
+let shownDay=localDay(Date.now());
+function checkDay(){ const d=localDay(Date.now()); if(d===shownDay) return false; shownDay=d;
+  if(!mDateTouched){ $("mDate").value=d; autoAfter(); }
+  if(isPreset(rangeKey)) setRange(rangeKey); else render(); return true; }
+setInterval(()=>{ if(!checkDay()) renderToday(); },30000);
+// Coming back to the tab (phones pause hidden tabs): pick up the new day and any changes made elsewhere.
+document.addEventListener("visibilitychange",()=>{ if(document.hidden) return; checkDay(); reloadFromStorage(); });
+
 showView("track");
+autoAfter();
 setRange(rangeKey);
 </script>
 </body>
