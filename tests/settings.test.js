@@ -56,7 +56,7 @@ test("renaming the physician role without a RENAMES line is flagged, not silentl
   const url = editedTracker([['const PHYSICIAN   = "Only a physician";', 'const PHYSICIAN   = "Physician only";']]);
   const p = await openTracker(browser, { url, storage: { entries: oldEntries() } });
   assert.ok(await p.isVisible("#setupWarn"));
-  assert.match(await p.textContent("#setupWarn"), /1 saved entry uses the role "Only a physician", which is not in WHO_OPTIONS\. If it was renamed, add it to RENAMES/);
+  assert.match(await p.textContent("#setupWarn"), /1 saved entry still uses "Only a physician", the old name of PHYSICIAN \(now "Physician only"\)\. Add this line to RENAMES: "Only a physician": "Physician only"/);
 });
 
 test("a task button with a role or clinic missing from the lists is flagged", async () => {
@@ -71,4 +71,84 @@ test("removing the physician role from the list is flagged", async () => {
   const url = editedTracker([["const WHO_OPTIONS = [PHYSICIAN, ", "const WHO_OPTIONS = ["]]);
   const p = await openTracker(browser, { url });
   assert.match(await p.textContent("#setupWarn"), /WHO_OPTIONS does not include PHYSICIAN/);
+});
+
+// ---- Follow-up from the PR #2 review ----
+
+const summaryFact = async (p, label) => {
+  await p.click("#tab-report"); await p.click('#presets [data-range="week"]');
+  return (await p.textContent("#summary")).match(new RegExp(label + "([\\d.]+ h)"))[1];
+};
+
+test("renaming the clinic without a RENAMES line is flagged; with one, the work stays complex care", async () => {
+  const bad = editedTracker([['const COMPLEX     = "Complex Care";', 'const COMPLEX     = "Complex care clinic";']]);
+  let p = await openTracker(browser, { url: bad, storage: { entries: oldEntries() } });
+  assert.match(await p.textContent("#setupWarn"), /3 saved entries still use "Complex Care", the old name of COMPLEX/);
+  const good = editedTracker([['const COMPLEX     = "Complex Care";', 'const COMPLEX     = "Complex care clinic";'],
+    ["const RENAMES = {};", 'const RENAMES = { "Complex Care": "Complex care clinic" };']]);
+  p = await openTracker(browser, { url: good, storage: { entries: oldEntries() } });
+  assert.ok(!(await p.isVisible("#setupWarn")));
+  assert.equal(await summaryFact(p, "Healthy urgents assigned on top"), "0.0 h");
+});
+
+test("buttons changed on the page and a running timer under an old name are flagged", async () => {
+  const url = editedTracker([['const COMPLEX     = "Complex Care";', 'const COMPLEX     = "Complex care clinic";']]);
+  const p = await openTracker(browser, { url, storage: {
+    buttons: [{ label: "Forms", clinic: "Complex Care", facing: false, who: "MA" }],
+    running: { label: "Forms", clinic: "Complex Care", facing: false, who: "MA", startedAt: Date.parse("2026-11-11T09:55:00-08:00") } } });
+  assert.match(await p.textContent("#setupWarn"), /1 button changed on the page, the running timer still use "Complex Care", the old name of COMPLEX/);
+});
+
+test("removing a role that is not a key name does not raise a warning, and its entries still count", async () => {
+  const url = editedTracker([['"Social work", "Pharmacist",', '"Social work",']]);
+  const p = await openTracker(browser, { url, storage: { entries: [entry("2026-11-10T10:00", { who: "Pharmacist", minutes: 30 })] } });
+  assert.ok(!(await p.isVisible("#setupWarn")));
+  await p.click("#tab-report"); await p.click('#presets [data-range="week"]');
+  assert.match(await p.textContent("#splitLegend"), /Other support roles: 0\.5 h/);
+});
+
+test("removing CLERICAL or COORDINATOR from the list is flagged", async () => {
+  const url = editedTracker([["const WHO_OPTIONS = [PHYSICIAN, CLERICAL, COORDINATOR, ", "const WHO_OPTIONS = [PHYSICIAN, "]]);
+  const text = await (await openTracker(browser, { url })).textContent("#setupWarn");
+  assert.match(text, /WHO_OPTIONS does not include CLERICAL/);
+  assert.match(text, /WHO_OPTIONS does not include COORDINATOR/);
+});
+
+test("chained renames are followed to the end", async () => {
+  const url = editedTracker([['const CLERICAL    = "Clerical / admin";', 'const CLERICAL    = "Clerk";'],
+    ["const RENAMES = {};", 'const RENAMES = { "Clerical / admin": "Front desk", "Front desk": "Clerk" };']]);
+  const p = await openTracker(browser, { url, storage: { entries: [entry("2026-11-10T10:00"), entry("2026-11-10T11:00", { who: "Front desk" })] } });
+  assert.ok(!(await p.isVisible("#setupWarn")));
+  assert.deepEqual((await savedEntries(p)).map((e) => e.who), ["Clerk", "Clerk"]);
+  await p.click("#tab-report"); await p.click('#presets [data-range="week"]');
+  assert.match(await p.textContent("#summaryText"), /1\.0 h clerical/);
+});
+
+test("a RENAMES loop or a rename to a name not in the lists is flagged, and does not hang", async () => {
+  const url = editedTracker([["const RENAMES = {};", 'const RENAMES = { "MA": "Medical assistant", "A": "B", "B": "A" };']]);
+  const text = await (await openTracker(browser, { url })).textContent("#setupWarn");
+  assert.match(text, /RENAMES changes "MA" to "Medical assistant", which is not in WHO_OPTIONS or CLINICS/);
+  assert.match(text, /RENAMES changes "A" to "B"/);
+});
+
+test("renamed values are saved straight away, so removing the RENAMES line later is safe", async () => {
+  const renamedUrl = editedTracker([['const CLERICAL    = "Clerical / admin";', 'const CLERICAL    = "Front desk";'],
+    ["const RENAMES = {};", 'const RENAMES = { "Clerical / admin": "Front desk" };']]);
+  const p = await openTracker(browser, { url: renamedUrl, storage: { entries: [entry("2026-11-10T10:00")] } });
+  assert.deepEqual((await savedEntries(p)).map((e) => e.who), ["Front desk"], "saved on load, before any tap");
+  const later = editedTracker([['const CLERICAL    = "Clerical / admin";', 'const CLERICAL    = "Front desk";']]);
+  await p.goto(later);
+  assert.ok(!(await p.isVisible("#setupWarn")));
+});
+
+test("key names containing quotes or angle brackets display correctly", async () => {
+  const url = editedTracker([['const CLERICAL    = "Clerical / admin";', 'const CLERICAL    = "Clerk \\"front\\" <desk>";'],
+    ["const RENAMES = {};", 'const RENAMES = { "Clerical / admin": "Clerk \\"front\\" <desk>" };']]);
+  const p = await openTracker(browser, { url, storage: { entries: [entry("2026-11-10T10:00")] } });
+  await p.click("#tab-report"); await p.click('#presets [data-range="week"]');
+  assert.match(await p.textContent("#splitLegend"), /Clerk "front" <desk>: 0\.5 h/);
+  assert.equal(await p.locator("#splitBar span").first().getAttribute("title"), 'Clerk "front" <desk>: 0.5 h');
+  await p.click("#tab-track");
+  assert.match(await p.textContent("#stripLegend"), /Clerk "front" <desk> could do it/);
+  assert.deepEqual(p.errors, []);
 });
