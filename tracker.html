@@ -178,6 +178,8 @@
   .warnbox{background:var(--warn-bg);border:1px solid #E6C87A;border-radius:10px;padding:var(--s3) var(--s4);margin-bottom:var(--s4)}
   .warnbox[hidden]{display:none}
   .blist{margin-top:var(--s4)}
+  .bitem > *,.form-grid > *{min-width:0}
+  .bitem select,.bitem input:not([type=checkbox]),.form-grid select,.form-grid input{width:100%;max-width:100%}
   .bitem{display:grid;grid-template-columns:minmax(160px,1.4fr) minmax(150px,1fr) minmax(150px,1fr) auto auto;gap:var(--s2) var(--s3);align-items:center;padding:var(--s2) 0;border-bottom:1px solid var(--rule)}
 
   footer{border-top:1px solid var(--rule);padding:var(--s4) 0 var(--s6);font-size:14px;color:var(--muted)}

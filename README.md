@@ -1,5 +1,9 @@
 # Complex Care Work Tracker
 
+**Open the tracker:** https://dmatsib000-create.github.io/complex-care-work-tracker/tracker.html
+
+Bookmark that link on each phone and computer she uses. Entries are saved in that browser only; use Save backup file (Entries tab) to keep them safe or move them to another device.
+
 A simple, modifiable tracker for a clinician in a complex care clinic to log **all** the work she does — patient-facing and invisible — and to separate:
 
 1. **Complex care work** (her actual clinic)
@@ -17,15 +21,14 @@ The point is not to prove she is slow. The point is to make visible:
 
 Use the Google Form: https://docs.google.com/forms/d/e/1FAIpQLScd_fsY-B3A2AiI4-EwMtFP4WyT56Yk1As_pT2pULxEW0xu0A/viewform
 
-It records feedback, suggestions, missing task buttons, and bug reports. The same link is a button at the top of `tracker.html` and in the Muse tracker page. No PHI in the form either.
+It records feedback, suggestions, missing task buttons, and bug reports. The same link is at the top of the tracker (in the footer on phones). No PHI in the form either.
 
-## Two ways to use it
+## How to use it
 
-### 1. The Muse artifact (easiest)
-Open the **Complex Care Work Tracker** artifact in Muse. Log entries there, edit the categories in Settings, and use the Dashboard / Report view to summarise a week or a month.
+### The tracker page (use this one)
+Open https://dmatsib000-create.github.io/complex-care-work-tracker/tracker.html, or download `tracker.html` and open it in any browser; it is the same page. A downloaded copy keeps its own separate entries, so pick one way and stick to it (or move entries with a backup file).
 
-### 2. The standalone file (no account, fully yours)
-Open `tracker.html` in any browser. It saves entries only in that browser (localStorage), exports CSV for the selected date range (local dates and start times), and can be edited directly — it is one self-contained file with no server. It makes no network requests: no fonts or scripts are downloaded. It uses the Atkinson Hyperlegible font if it is installed on the computer, and the system font otherwise.
+The page saves entries only in the browser it is opened in (localStorage), exports CSV for the selected date range (local dates and start times), and can be edited directly: it is one self-contained file with no server. It makes no network requests: no fonts or scripts are downloaded. It uses the Atkinson Hyperlegible font if it is installed on the computer, and the system font otherwise.
 
 The page has four tabs:
 
@@ -34,7 +37,10 @@ The page has four tabs:
 - **Entries:** the log grouped by day, with Edit on each entry, and "Add work you forgot to time".
 - **Buttons:** add, rename, re-preset, or remove task buttons.
 
-Both use the same taxonomy in `config/taxonomy.json`.
+The starter task list is in `config/taxonomy.json` and in the `TAXONOMY` list at the top of `tracker.html`. Keep the two the same; `npm test` checks that they match.
+
+### Earlier Muse artifact (separate, not kept up to date)
+An earlier version was built as a Muse artifact. It is separate from this repository and does not have the fixes and features here (local dates, per-week figures, backups, and so on). Use the tracker page above instead.
 
 ## Make it yours — modifiability
 
@@ -88,12 +94,26 @@ Framing for a supervisor conversation — see `docs/making-the-case.md`. The cla
 
 ## Files
 
-- `tracker.html` — standalone tracker, one file, works offline
-- `config/taxonomy.json` — editable starter categories (single source for lists)
+- `tracker.html`: the tracker. One file, works offline, nothing to install
+- `config/taxonomy.json`: the starter task list and dropdown options (must match `TAXONOMY` in `tracker.html`)
+- `tests/`: automated browser tests (see Testing)
+- `package.json`: only used to run the tests
 - `docs/data-dictionary.md` — what every field means
 - `docs/making-the-case.md` — how to turn a week of logs into a short, non-defensive ask
 - `docs/sample-report.md` — fill-in template for a 1-page summary to a supervisor
 - `examples/example-entries.csv` — example entries (fictional, no PHI) showing the granularity to aim for
+
+## Testing
+
+The tests open `tracker.html` in a headless browser and check timing, the report figures, editing, backups, two open tabs, phone layout, and that the task list matches `config/taxonomy.json`. They use a fixed clock (a Wednesday morning, Pacific time), so results do not depend on the day they run.
+
+```
+npm install
+npx playwright install chromium
+npm test
+```
+
+Run them before merging changes to `main`, since `main` is what GitHub Pages publishes.
 
 ## Privacy and safety
 
