@@ -46,13 +46,13 @@ test("split by role, key figures, and support work by task", async () => {
   await report(p, "week");
   assert.equal(await p.locator("#splitBar span").count(), 3);
   const facts = await p.textContent("#summary");
-  assert.match(facts, /After hours0\.3 h 1 entry/);
+  assert.match(facts, /After hours15 min 1 entry/);
   assert.match(facts, /Interrupted a visit1 time/);
-  assert.match(facts, /Healthy urgents assigned on top0\.5 h/);
+  assert.match(facts, /Healthy urgents assigned on top30 min/);
   const cats = await p.$$eval("#topDelegable li > span:first-child", (x) => x.map((y) => y.textContent));
   assert.deepEqual(cats, ["DME / supplies", "Forms"]);
   const text = await p.textContent("#summaryText");
-  assert.match(text, /0\.3 h was done after hours\. This work interrupted a visit 1 time\./);
+  assert.match(text, /15 min was done after hours\. This work interrupted a visit 1 time\./);
 });
 
 test("the summary leaves out after-hours and interruption sentences when there are none", async () => {
@@ -119,5 +119,5 @@ test("RN work has its own highlighter in the report split", async () => {
   ] } });
   await p.click("#tab-report"); await p.click('#presets [data-range="week"]');
   assert.equal(await p.locator("#splitBar .r-rn").count(), 1);
-  assert.match(await p.textContent("#splitLegend"), /RN: 0\.5 h \(50%\)/);
+  assert.match(await p.textContent("#splitLegend"), /RN: 30 min \(50%\)/);
 });

@@ -148,6 +148,39 @@ test("phone width: no sideways scrolling, and the page makes no network requests
   assert.deepEqual(requests, []);
 });
 
+test("phone width: the first task buttons are on the first screen", async () => {
+  const p = await openTracker(browser, { viewport: { width: 375, height: 667 } });
+  const top = await p.$eval("#gridDoc .tile", (el) => el.getBoundingClientRect().top);
+  assert.ok(top < 667 / 2, `first tile starts at ${Math.round(top)}px, in the top half of a small phone screen`);
+  assert.ok(await p.isVisible("#track"), "the Today strip is still on the page, below the buttons");
+});
+
+test("starting a timer does not change any tile's size, so the buttons stay put", async () => {
+  for (const viewport of [{ width: 1280, height: 900 }, { width: 375, height: 667 }]) {
+    const p = await openTracker(browser, { viewport });
+    // Each tile's height and its distance from the first tile.
+    const boxes = () => p.$$eval(".tile", (els) => { const top0 = els[0].getBoundingClientRect().top;
+      return els.map((el) => { const r = el.getBoundingClientRect(); return [r.top - top0, r.height]; }); });
+    const firstTop = () => p.$eval(".tile", (el) => el.getBoundingClientRect().top + scrollY);
+    const before = await boxes(), top = await firstTop();
+    await p.click(".tile >> text=Notes / documentation");
+    assert.equal(await firstTop(), top, `${viewport.width}px wide: the first tap of the day does not push the buttons down`);
+    for (const label of ["Notes / documentation", "Prescription coordination", "Healthy urgent inbox / follow-up"]) {
+      if (label !== "Notes / documentation") await p.click(`.tile >> text=${label}`);
+      assert.deepEqual(await boxes(), before, `${viewport.width}px wide, timing "${label}"`);
+    }
+  }
+});
+
+test("screen readers hear when a timer starts and is saved, not every tick", async () => {
+  const p = await openTracker(browser);
+  assert.equal(await p.getAttribute("#running", "aria-live"), null, "the ticking bar is not a live region");
+  await p.click(".tile >> text=Forms");
+  await p.waitForFunction(() => document.getElementById("runStatus").textContent === "Timing Forms.");
+  await p.click(".tile >> text=Prior auth");
+  await p.waitForFunction(() => document.getElementById("runStatus").textContent === "Saved Forms, 1 min. Timing Prior auth.");
+});
+
 test("the label of an active clinician tile is readable on the dark tile", async () => {
   const p = await openTracker(browser);
   await p.click(".tile >> text=Complex visit");
