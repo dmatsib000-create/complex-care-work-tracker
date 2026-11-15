@@ -67,7 +67,7 @@ const RENAMES = { "Clerical / admin": "Front desk" };
 
 If a settings edit would make the report wrong, the page shows a yellow "Check the settings" notice listing what to fix, including the exact line to add to `RENAMES`. It catches:
 
-- a renamed key name (any of the five above) whose old name is still on saved entries, on buttons changed on the page, or on a running timer;
+- a renamed key name (any of the role names above, or `COMPLEX`) whose old name is still on saved entries, on buttons changed on the page, or on a running timer;
 - a key name missing from `WHO_OPTIONS` or `CLINICS`;
 - a `RENAMES` line that leads to a name not in the lists;
 - a starter button using a role or clinic that is not in the lists.
@@ -155,8 +155,9 @@ Each split is labeled in the reports as a law or payer rule, published evidence,
 - `tracker.html`: the tracker. One file, works offline, nothing to install
 - `config/taxonomy.json`: the starter task list and dropdown options (must match `TAXONOMY` in `tracker.html`)
 - `tests/`: automated browser tests (see Testing)
-- `package.json`, `package-lock.json`: only used to run the tests
-- `.github/workflows/test.yml`: runs the tests on GitHub
+- `package.json`, `package-lock.json`: only used to run the tests and the lint check
+- `eslint.config.js`: the lint check (names used but never defined, or defined but never used)
+- `.github/workflows/test.yml`: runs the lint check and the tests on GitHub
 - `docs/data-dictionary.md`: what every field means, and which button to use for which work
 - `docs/making-the-case.md`: how to turn a week of logs into a short, non-defensive ask, with cited evidence
 - `docs/sample-report.md`: fill-in template for a 1-page summary to a supervisor
@@ -171,10 +172,20 @@ The tests open `tracker.html` in a headless browser and check timing, the report
 ```
 npm install
 npx playwright install chromium
+npm run lint
 npm test
 ```
 
-They also run automatically on GitHub for every pull request and after each merge to `main` (`.github/workflows/test.yml`). `main` is what GitHub Pages publishes, so do not merge a pull request whose Tests check is red.
+`npm run lint` checks the page's script and the tests for names that are used but never defined, or defined but never used (usually a typo or leftover code). It checks nothing about style.
+
+The lint check and the tests also run automatically on GitHub for every pull request and after each merge to `main` (`.github/workflows/test.yml`). `main` is what GitHub Pages publishes, and it accepts a merge only once the Tests check (lint and tests) has passed.
+
+**Adding a support role the report names** (the way social work was added) needs four edits in `tracker.html`:
+
+1. In the settings block, a constant for its name, and that name in `WHO_OPTIONS`.
+2. One row in `ROLES`, just below `SETTINGS END`: its colour class, its figure in the report, and its words in the summaries. The legend, report, team report and summaries all read from `ROLES`.
+3. In the styles, a highlighter and edge colour in `:root` (`--hl-*`, `--edge-*`) and a `.r-*` class that uses them.
+4. Further down the script, in the saved-data section: the constant in `KEY_ROLES` and its shipped name in `SHIPPED_NAMES`. The settings check uses these to spot a rename that has no `RENAMES` line, and the page stops with an error if a key role has no `SHIPPED_NAMES` entry.
 
 ## Privacy and safety
 

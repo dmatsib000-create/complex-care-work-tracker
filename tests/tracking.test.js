@@ -69,7 +69,7 @@ test("a timer left running is checked in a panel on stop: corrected time, re-ask
   assert.ok(await p.isVisible("#rLong"), "a long-running warning shows in the bar");
   await p.click("#stop");
   assert.ok(await p.isVisible("#longPanel"));
-  assert.match(await p.textContent("#longText"), /"Forms" has been timing for 5h 0m, since 5:00am\./);
+  assert.match(await p.textContent("#longText"), /"Forms" has been timing for 5 h, since 5:00am\./);
   assert.equal(await p.inputValue("#longMinutes"), "300", "prefilled with the full time");
   assert.equal((await savedEntries(p)).length, 0, "nothing is saved until she answers");
 
