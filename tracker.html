@@ -9,6 +9,9 @@
   :root{
     --paper:#F1F3EE; --surface:#FFFFFF; --ink:#1E2836; --muted:#566170; --rule:#D3D9CE; --rule-strong:#A9B2A5;
     --doc:#2B4C8C;
+    /* Support work as a whole, not one role: the marker on "could have been done by support staff", the timer's dot
+       and Stop. It starts as the clerical yellow, but changing a role's colour does not change it. */
+    --hl-support:#FFE45C;
     /* Each support role: a highlighter (--hl-*) and a darker edge (--edge-*) that outlines it on light backgrounds. */
     --hl-rn:#9FE7DD; --edge-rn:#2E8C80; --hl-coord:#FFC27A; --edge-coord:#B86F14; --hl-sw:#B8A0F0; --edge-sw:#6E4FB3;
     --hl-cler:#FFE45C; --edge-cler:#A88900; --hl-other:#F9CFE0; --edge-other:#B0607F;
@@ -38,7 +41,7 @@
      --fill: the solid colour of a block, key or bar (the highlighter, or blue ink for physician or PA work). */
   .r-rn{--m:var(--hl-rn);--e:var(--edge-rn)} .r-coord{--m:var(--hl-coord);--e:var(--edge-coord)}
   .r-sw{--m:var(--hl-sw);--e:var(--edge-sw)} .r-cler{--m:var(--hl-cler);--e:var(--edge-cler)}
-  .r-other{--m:var(--hl-other);--e:var(--edge-other)} .r-doc{--m:transparent;--e:transparent;--fill:var(--doc)}
+  .r-other{--m:var(--hl-other);--e:var(--edge-other)} .r-support{--m:var(--hl-support)} .r-doc{--m:transparent;--e:transparent;--fill:var(--doc)}
 
   /* Header */
   header{padding:var(--s5) 0 var(--s3)}
@@ -92,7 +95,7 @@
   .tile.active .mark{color:var(--ink)}
   .tile.active.r-doc .mark{color:#fff} /* no highlighter on clinician tiles, so the label needs light ink on the dark tile */
   .t-live{font-size:15px;font-weight:800;color:#fff;line-height:17px;height:17.55px} /* same height as the .t-meta line it replaces */
-  .dot{display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--hl-cler);margin-right:6px;animation:pulse 1.6s ease-in-out infinite}
+  .dot{display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--hl-support);margin-right:6px;animation:pulse 1.6s ease-in-out infinite}
   @keyframes pulse{50%{opacity:.25}}
   .howto{margin:var(--s5) 0 0;font-size:14px;color:var(--muted);max-width:68ch}
 
@@ -108,7 +111,7 @@
   .run-time small{font-size:14px;font-weight:400;color:#C9D1DC;margin-left:var(--s2)}
   .run-extra{display:flex;flex-wrap:wrap;gap:var(--s2) var(--s4);align-items:center;font-size:14px}
   .run-extra select{background:#2C394A;color:#fff;border:1px solid #4A5A70;border-radius:6px;padding:6px 8px}
-  #stop{background:var(--hl-cler);color:var(--ink);border:0;border-radius:10px;padding:14px 22px;font-weight:800;font-size:17px;cursor:pointer}
+  #stop{background:var(--hl-support);color:var(--ink);border:0;border-radius:10px;padding:14px 22px;font-weight:800;font-size:17px;cursor:pointer}
   #rLong{flex-basis:100%;font-size:14px;color:#FFE7B0}
   #rLong[hidden]{display:none}
 
@@ -581,13 +584,21 @@ const midSentence = v => /^[A-Z][a-z]/.test(v) ? v[0].toLowerCase()+v.slice(1) :
 // highlighter (the CSS class, whose colours are in :root), its figure in the report (r.nurse, ...), and its words in
 // the summaries: `work` in "... 2.0 h nursing ...", `support` in "It needs dedicated nursing ... support".
 // Work for any other support role counts as other support. To name another role in the report, add a row here;
-// the README's "Adding a support role" lists the other three places it needs (settings, colours, settings check).
+// the README's "Adding a support role" lists the other two places it needs (the settings block and the colours).
+// For the settings check, which spots a renamed role whose old name is still on saved work:
+//   key:     the constant's name in the settings block. The check names it, and this browser stores the role's past
+//            names under it (ccwt_key_names_v1), so it must not change.
+//   shipped: the role's names in versions already in use, oldest first. A role added later leaves it out.
 const ROLES = [
-  {name:NURSE,       cls:"r-rn",    field:"nurse",        work:"nursing",           support:"nursing"},
-  {name:COORDINATOR, cls:"r-coord", field:"coordination", work:"care coordination", support:"care-coordination"},
+  {key:"NURSE",       shipped:["RN"],               name:NURSE,       cls:"r-rn",    field:"nurse",
+    work:"nursing",           support:"nursing"},
+  {key:"COORDINATOR", shipped:["Care coordinator"], name:COORDINATOR, cls:"r-coord", field:"coordination",
+    work:"care coordination", support:"care-coordination"},
   // Named in the summaries only when some was logged, so a summary without social work reads as it always has.
-  {name:SOCIAL,      cls:"r-sw",    field:"social",       work:midSentence(SOCIAL), support:midSentence(SOCIAL), onlyIfLogged:true},
-  {name:CLERICAL,    cls:"r-cler",  field:"clerical",     work:"clerical",          support:"clerical"},
+  {key:"SOCIAL",      shipped:["Social work"],      name:SOCIAL,      cls:"r-sw",    field:"social",
+    work:midSentence(SOCIAL), support:midSentence(SOCIAL), onlyIfLogged:true},
+  {key:"CLERICAL",    shipped:["Clerical / admin"], name:CLERICAL,    cls:"r-cler",  field:"clerical",
+    work:"clerical",          support:"clerical"},
 ];
 // Colour role: physician ink, or which highlighter marks the support work.
 const isDoc = who => who===PHYSICIAN;
@@ -633,13 +644,16 @@ let buttons, buttonsCustom, entries, running, deleted;
 // Every name each key setting has had in this browser, starting from the names it shipped with.
 // The settings check uses this to spot data still under an old key name (a rename with no RENAMES line).
 const LS_NAMES="ccwt_key_names_v1";
-const KEY_ROLES={PHYSICIAN,CLERICAL,COORDINATOR,NURSE,SOCIAL}, KEY_CLINICS={COMPLEX};
-// Each key's names in shipped versions, oldest first.
-const SHIPPED_NAMES={PHYSICIAN:["Only a physician","Physician or PA"],CLERICAL:["Clerical / admin"],COORDINATOR:["Care coordinator"],NURSE:["RN"],SOCIAL:["Social work"],COMPLEX:["Complex Care"]};
+// The key settings, by the constant's name: PHYSICIAN and each role in ROLES, and the COMPLEX clinic.
+const KEY_ROLES={PHYSICIAN, ...Object.fromEntries(ROLES.map(x=>[x.key,x.name]))}, KEY_CLINICS={COMPLEX};
+// Each key's names in shipped versions, oldest first. A key with none listed (a role added later) starts from its
+// current name.
+const SHIPPED_NAMES={PHYSICIAN:["Only a physician","Physician or PA"], COMPLEX:["Complex Care"],
+  ...Object.fromEntries(ROLES.filter(x=>x.shipped).map(x=>[x.key,x.shipped]))};
 let keyNames={};
 function rememberKeyNames(){
   const stored=readKey(LS_NAMES,{}), now={...KEY_ROLES,...KEY_CLINICS}; keyNames={};
-  for(const k in now){ const had=Array.isArray(stored&&stored[k])?stored[k].map(String):[...SHIPPED_NAMES[k]];
+  for(const k in now){ const had=Array.isArray(stored&&stored[k])?stored[k].map(String):[...(SHIPPED_NAMES[k]||[now[k]])];
     keyNames[k]=had.includes(now[k])?had:had.concat(now[k]); }
   try{ localStorage.setItem(LS_NAMES,JSON.stringify(keyNames)); }catch(e){}
 }
@@ -790,7 +804,7 @@ function renderToday(){
     urgent:running.clinic!==COMPLEX, live:true});
   const tot=items.reduce((a,i)=>a+i.min,0), sup=items.filter(i=>!isDoc(i.who)).reduce((a,i)=>a+i.min,0);
   $("todayLine").innerHTML = tot
-    ? `Today: <b>${hm(tot)}</b> logged, of which <span class="mark r-cler"><b>${hm(sup)}</b> could have been done by support staff</span>.`
+    ? `Today: <b>${hm(tot)}</b> logged, of which <span class="mark r-support"><b>${hm(sup)}</b> could have been done by support staff</span>.`
     : `Nothing logged today yet.`;
   // Strip spans at least 7am to 7pm, wider if work started earlier or ran later. Entries added without a start time are not drawn.
   const hr=d=>d.getHours()+d.getMinutes()/60, drawn=items.filter(i=>!i.untimed), untimedN=items.length-drawn.length;
@@ -1116,7 +1130,7 @@ function renderTeam(){
     const nameOf=s=>`<span data-person="${s.person}">${esc(s.label)}</span>`;
     let body;
     if(!r.count) body=`<p class="p-fig">Nothing logged in this range.${p.today&&fromV>p.today?` This backup was saved before the range starts.`:""}</p>`;
-    else body=`<p class="p-fig"><b>${hrs(r.total)}</b> logged${x.weekly?`, ${hrs(r.totalPerWeek)} a week`:""}. <span class="mark r-cler">${hrs(r.support)} (${pc(r.support)})</span> did not need a physician or PA.</p>
+    else body=`<p class="p-fig"><b>${hrs(r.total)}</b> logged${x.weekly?`, ${hrs(r.totalPerWeek)} a week`:""}. <span class="mark r-support">${hrs(r.support)} (${pc(r.support)})</span> did not need a physician or PA.</p>
       <div class="split" role="img" aria-label="${esc(splitLabel(r))}">${splitSpans(r)}</div>
       <p class="p-more">${unitLine([...ROLES.map(y=>[y.name,r[y.field]]),["Other support",r.otherSupport],
         ["Healthy urgents",r.urgent],["Not patient-facing",r.notFacing],["After hours",r.afterHours]])

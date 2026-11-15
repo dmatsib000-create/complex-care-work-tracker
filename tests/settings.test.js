@@ -171,3 +171,21 @@ test("renaming SOCIAL carries social work over, and the summary uses the new nam
   assert.match(await p.textContent("#splitLegend"), /Medical social work: 30 min/);
   assert.match(await p.textContent("#summaryText"), /30 min medical social work and 0 h clerical\..*It needs dedicated nursing, care-coordination, medical social work and clerical support\./);
 });
+
+test("a support role added as one ROLES row is named in the report, with no other edits to the script", async () => {
+  // Pharmacist is already in WHO_OPTIONS; only a ROLES row is added. It has no `shipped`, and this browser's stored
+  // key names (from before the row existed) do not list it, so the settings check starts from its current name.
+  const url = editedTracker([['    work:"clerical",          support:"clerical"},\n];',
+    '    work:"clerical",          support:"clerical"},\n  {key:"PHARMACIST", name:"Pharmacist", cls:"r-other", field:"pharmacy", work:"pharmacy", support:"pharmacy"},\n];']]);
+  const p = await openTracker(browser, { url, storage: {
+    entries: [entry("2026-11-10T10:00", { label: "Prescription coordination", who: "Pharmacist", minutes: 30 })],
+    ccwt_key_names_v1: { PHYSICIAN: ["Only a physician", "Physician or PA"], CLERICAL: ["Clerical / admin"] } } });
+  assert.deepEqual(p.errors, []);
+  assert.ok(!(await p.isVisible("#setupWarn")));
+  assert.deepEqual((await saved(p, "ccwt_key_names_v1")).PHARMACIST, ["Pharmacist"]);
+  await p.click("#tab-report"); await p.click('#presets [data-range="week"]');
+  assert.match(await p.textContent("#splitLegend"), /Pharmacist: 30 min/);
+  const text = await p.textContent("#summaryText");
+  assert.match(text, /0 h clerical and 30 min pharmacy\..*It needs dedicated nursing, care-coordination, clerical and pharmacy support\./);
+  assert.doesNotMatch(text, /Other support roles/);
+});

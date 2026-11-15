@@ -180,12 +180,13 @@ npm test
 
 The lint check and the tests also run automatically on GitHub for every pull request and after each merge to `main` (`.github/workflows/test.yml`). `main` is what GitHub Pages publishes, and it accepts a merge only once the Tests check (lint and tests) has passed.
 
-**Adding a support role the report names** (the way social work was added) needs four edits in `tracker.html`:
+**Adding a support role the report names** (the way social work was added) needs three edits in `tracker.html`:
 
 1. In the settings block, a constant for its name, and that name in `WHO_OPTIONS`.
-2. One row in `ROLES`, just below `SETTINGS END`: its colour class, its figure in the report, and its words in the summaries. The legend, report, team report and summaries all read from `ROLES`.
+2. One row in `ROLES`, just below `SETTINGS END`: the constant's name as `key` (for the settings check), its colour class, its figure in the report, and its words in the summaries. The legend, report, team report, summaries and settings check all read from `ROLES`. Leave out `shipped`: it is only for the roles earlier versions already had, so the check knows their original names.
 3. In the styles, a highlighter and edge colour in `:root` (`--hl-*`, `--edge-*`) and a `.r-*` class that uses them.
-4. Further down the script, in the saved-data section: the constant in `KEY_ROLES` and its shipped name in `SHIPPED_NAMES`. The settings check uses these to spot a rename that has no `RENAMES` line, and the page stops with an error if a key role has no `SHIPPED_NAMES` entry.
+
+The yellow marker on "could have been done by support staff", the timer's dot and the Stop button use `--hl-support`, which stands for support work as a whole, so changing a role's colour leaves them as they are.
 
 ## Privacy and safety
 
