@@ -1,6 +1,6 @@
 # Plan: optional sync through her own Google Sheet (Option B prototype)
 
-> **Status: proposal only. Nothing in this plan has been built.** The tracker does not sync between devices; it saves entries only in the browser, and backup files are the only way to move or keep them. Do not start building until both checks below are done:
+> **Status: proposal. Only the deletion records (Client, item 2) have been built,** because backup files needed them too. The tracker does not sync between devices; it saves entries only in the browser, and backup files are the only way to move or keep them. Do not start building the rest until both checks below are done:
 > - her employer's IT policy allows work data (no PHI) in a personal Google account;
 > - the hospital network does not block `script.google.com`.
 
@@ -12,13 +12,17 @@ IT policy and whether hospital networks reach `script.google.com` are **not conf
 
 ## Starting point
 
-Updated 2026-11-14 for the current `main` (96b8cee). The backup GUI this builds on is now merged (PR #6): the status line under the title, the "Back up and restore" panel, `renderBackup`, `markBackedUp`, plus the review fixes in f5a18f0. Build on the latest `main`; no other branch needs merging first.
+Updated 2026-11-15 for `main` after the tech-debt pull requests (#13, #14) and the deletion records. Build on the latest `main`; no other branch needs merging first.
 
 What is already on `main` that this plan reuses or must keep working:
+- **Deletion records (item 2 below, built):** `ccwt_deleted_v1` (`LS_D`, `deleted`, `cleanDeleted`), written by `delEntry` and `save()`, watched by the `storage` listener. Backup files carry them in `deleted`; `restoreBackup` merges them (later time wins), keeps deleted entries out, removes entries the file deleted, and drops a deletion once a later edit has beaten it. The status line counts deletions since the last backup (`deletionsNotBackedUp`).
+- `readBackupFile` is shared by Restore and the Team tab. It refuses a file from another app (`app` other than `BACKUP_APP`) or a newer version (`format` above `BACKUP_FORMAT`, still 1: `deleted` was added without raising it, because older copies ignore it).
 - `ccwt_buttons_changed_v1` (`LS_BTN_CHANGED`, `buttonsChangedAt()`), stamped by `buttonsChanged()`. The status line already counts button changes since the last backup.
-- `restoreBackup` counts a file as a full backup only when it has every entry here, each at least as recently edited, and the same buttons (`covered`, `fileEdit`); it then moves `LS_BACKUP` and may lower `LS_BTN_CHANGED` to the file's `savedAt`.
+- `restoreBackup` counts a file as a full backup only when it has every entry kept here, each at least as recently edited, every deletion made here, and the same buttons (`covered`, `fileEdit`); it then moves `LS_BACKUP` and may lower `LS_BTN_CHANGED` to the file's `savedAt`.
 - `askPersist()` asks for persistent storage once per browser (`ccwt_persist_asked_v1`).
 - The `storage` listener already re-renders on `LS_BACKUP` and `LS_BTN_CHANGED`.
+- The Team tab reads other people's backup files in memory only. Sync must not touch it: synced entries are this person's own.
+- `npm run lint` (ESLint: undefined and unused names) runs in the Tests job alongside `npm test`; `sync/Code.gs` should be added to the lint command.
 
 ## Design
 
@@ -31,7 +35,7 @@ What is already on `main` that this plan reuses or must keep working:
 
 ### Client: `tracker.html`
 1. **One merge function shared by restore and sync.** Extract the per-id decision from `restoreBackup` into `mergeEntries(list, deletedMap)`: newer wins by `changedAt(e)` (the existing helper: `max(id, updatedAt)`, so a never-edited copy never replaces an edited one, same as today). `restoreBackup` keeps its current messages and behaviour, now via this function, including the `covered` / `fileEdit` full-backup check and its `LS_BTN_CHANGED` adjustment.
-2. **Tombstones.** `delEntry` records `{id: deletedAt}` in new key `ccwt_deleted_v1` (kept out of `entries`, so rendering code is untouched). A tombstone beats any copy changed at or before `deletedAt`; a later edit elsewhere beats the tombstone. Backup files gain an additive `deleted` field (format stays 1); restoring applies it, and a restore no longer resurrects an entry deleted here after the backup's copy was last changed (message: "N deleted here were not brought back"). Tombstones are tiny and kept indefinitely.
+2. **Tombstones (built; kept here as the design record).** `delEntry` records `{id: deletedAt}` in new key `ccwt_deleted_v1` (kept out of `entries`, so rendering code is untouched). A tombstone beats any copy changed at or before `deletedAt`; a later edit elsewhere beats the tombstone. Backup files gain an additive `deleted` field (format stays 1); restoring applies it, and a restore no longer resurrects an entry deleted here after the backup's copy was last changed (messages: "N deleted entries were not brought back." and "Removed N that were deleted where the backup was made."). Tombstones are tiny and kept indefinitely.
 3. **Buttons.** Reuse the existing `ccwt_buttons_changed_v1` stamp (`buttonsChangedAt()`); sync is last-writer-wins on it (never-changed defaults have stamp 0, so a synced list wins on a new device). Two gaps to close: a restore that takes the file's buttons (`useButtons`) does not stamp today, and buttons received by sync must set the stamp to the sender's time, not `Date.now()`, so they are not pushed straight back as newer. The full-backup check lowering the stamp to `savedAt` stays as is.
 4. **Sync state** in `ccwt_sync_v1`: `{url, key, rev, pushedAt, lastOkAt, lastError}`. URL must match `https://script.google.com/macros/s/<id>/exec`; nothing else is accepted, so the page can only ever talk to her own script.
 5. **When it syncs:** on load, ~2 s after any `save()` (debounced), on `visibilitychange` to visible, on `online`, and every 5 min while visible. Push = entries/tombstones with `changedAt > pushedAt` (first sync pushes everything) plus buttons if newer. On response: `loadState()` fresh from storage, apply returned changes with `mergeEntries`, `save()`, `render()`, all synchronously so a second tab cannot interleave. One request in flight per tab; the existing `storage` listener keeps tabs in step (add `ccwt_deleted_v1` and `ccwt_sync_v1` to the keys it watches). Running timers stay per device (not synced).
@@ -51,7 +55,7 @@ What is already on `main` that this plan reuses or must keep working:
   - wrong key: refused with a message, no local change; non-Google URL rejected
   - buttons changed on A reach B; a running timer does not
   - first connect on a device with existing entries merges both ways
-- `tests/backup.test.js`: existing restore tests keep passing (merge semantics unchanged); add tombstone-in-backup case.
+- `tests/backup.test.js` and `tests/deletions.test.js`: existing restore and deletion tests keep passing (merge semantics unchanged).
 - Unit test for `mergeRows` in `sync/Code.gs` (pure function, node only).
 
 ### Docs
