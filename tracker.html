@@ -654,10 +654,12 @@ function loadState(){
   const list = readKey(LS_E,[]);
   if(Array.isArray(list) && list.some(stale)) renamedAny=true;
   entries = (Array.isArray(list)?list:[]).filter(validEntry).map(cleanEntry);
-  lastId = entries.reduce((a,e)=>safeId(e.id)?Math.max(a,e.id):a,0);
+  deleted = cleanDeleted(readKey(LS_D,{}));
+  // New ids start above every id in use or deleted, so a new entry can never take a deleted entry's id
+  // (possible if the device clock is set back) and then be removed as deleted by a later restore.
+  lastId = Math.max(entries.reduce((a,e)=>safeId(e.id)?Math.max(a,e.id):a,0), ...Object.keys(deleted).map(Number));
   const seen=new Set(); let repaired=false;
   entries.forEach(e=>{ if(!safeId(e.id)||seen.has(e.id)){ e.id=newId(); repaired=true; } seen.add(e.id); });
-  deleted = cleanDeleted(readKey(LS_D,{}));
   const r = readKey(LS_R,null);
   if(stale(r)) renamedAny=true;
   running = (r && typeof r==="object" && typeof r.label==="string" && Number.isFinite(r.startedAt)) ? {...r, who:renamed(String(r.who||PHYSICIAN)), clinic:renamed(String(r.clinic||COMPLEX)), ...(r.presetWho?{presetWho:renamed(String(r.presetWho))}:{})} : null;
@@ -1433,6 +1435,7 @@ async function restoreBackup(file){
     entries=merged.filter(e=>!gone(e)).concat(incoming).sort((a,b)=>b.date.localeCompare(a.date));
     // A deletion older than the entry's last change is spent (the entry is back), so it is dropped.
     deleted=allDel; entries.forEach(e=>{ if(deleted[e.id]!==undefined&&deleted[e.id]<changedAt(e)) delete deleted[e.id]; });
+    lastId=Math.max(lastId,...Object.keys(deleted).map(Number)); // new ids stay above the file's deleted ids too
     if(covered&&savedAt>lastBackupAt()&&savedAt<=Date.now()) try{ localStorage.setItem(LS_BACKUP,String(savedAt));
       // The buttons here are the file's, so any earlier change to them is in this backup too.
       if(buttonsChangedAt()>savedAt) localStorage.setItem(LS_BTN_CHANGED,String(savedAt)); }catch(e){}

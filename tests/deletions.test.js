@@ -79,6 +79,36 @@ test("an edit made after the deletion beats it, and the spent deletion is droppe
   assert.equal((await savedEntries(q)).length, 0);
 });
 
+test("a deletion is never stamped earlier than the entry's last change (an edit from a clock that runs ahead)", async () => {
+  const later = at("2026-11-11T12:00"); // two hours ahead of this device's clock
+  const forms = { ...entry("2026-11-09T10:00"), updatedAt: later };
+  const p = await openTracker(browser, { storage: { entries: [forms] } });
+  await deleteFirstEntry(p);
+  assert.equal((await saved(p, "ccwt_deleted_v1"))[forms.id], later);
+  // So restoring that edited copy does not bring it back.
+  assert.match(await restore(p, writeFile("ahead.json", { entries: [forms] })), /1 deleted entry was not brought back/);
+});
+
+test("a newer copy in the file that is itself deleted is reported as removed, not updated", async () => {
+  const forms = entry("2026-11-09T10:00");
+  const file = writeFile("edited-then-deleted.json", { entries: [{ ...forms, minutes: 45, updatedAt: at("2026-11-11T08:00") }],
+    deleted: { [forms.id]: at("2026-11-11T08:30") } });
+  const p = await openTracker(browser, { storage: { entries: [forms] } });
+  assert.equal(await restore(p, file), "Added 0 entries. Removed 1 that was deleted where the backup was made.");
+  assert.equal((await savedEntries(p)).length, 0);
+});
+
+test("new entries get ids above every deleted id, even if the device clock was set back", async () => {
+  const deletedId = at("2026-11-11T12:00"); // created later than this device's clock now says
+  const p = await openTracker(browser, { storage: { "ccwt_deleted_v1": { [deletedId]: at("2026-11-11T12:05") } } });
+  await p.click(".tile >> text=Forms"); await p.click("#stop");
+  const [e] = await savedEntries(p);
+  assert.ok(e.id > deletedId, `new id ${e.id} is above the deleted id ${deletedId}`);
+  // And it survives restoring a file that carries that deletion.
+  await restore(p, writeFile("carries-deletion.json", { entries: [], deleted: { [deletedId]: at("2026-11-11T12:05") } }));
+  assert.equal((await savedEntries(p)).length, 1);
+});
+
 test("a deletion in another tab is picked up, so this tab does not save the entry back", async () => {
   const forms = entry("2026-11-09T10:00");
   const A = await openTracker(browser, { storage: { entries: [forms] } });
