@@ -88,6 +88,8 @@ test("the colour key names each role in its own highlighter, from the settings",
   assert.equal(await p.textContent("#helpRoles"), "RN, care coordinator, social work, clerical / admin or other roles");
   assert.deepEqual(await p.$$eval("#helpRoles .mark", (x) => x.map((y) => y.className)),
     ["mark r-rn", "mark r-coord", "mark r-sw", "mark r-cler", "mark r-other"]);
+  // The headline answer names the same roles, and the others the headline counts.
+  assert.equal(await p.textContent("#helpRolesText"), "RN, care coordinator, social work, clerical / admin, or another role such as an MA");
 });
 
 test("a browser with nothing in it offers the quick start under the title, until work is logged", async () => {

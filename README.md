@@ -39,7 +39,7 @@ The page has five tabs, and a Help page:
 - **Entries:** the log grouped by day, with Edit on each entry, and "Add work you forgot to time".
 - **Buttons:** add, rename, re-preset, or remove task buttons.
 - **Team:** a team report built from several people's backup files (see "Tracking as a team" below).
-- **Help** (the link beside the title, on phones too): a quick start and an FAQ (tracking, the report, backups and devices, changing the tracker, team reports). It is also linked from the bottom of the Track tab ("Read the quick start") and from the footer. It is a link rather than a sixth tab because six tabs do not fit on a small phone. It is part of `tracker.html`, so it works offline and in downloaded copies. It quotes the clinic hours and the long-timer limit from the settings; the rest is plain text in the `HELP` section of `tracker.html`, so update it when a feature it describes changes.
+- **Help** (the link beside the title, on phones too): a quick start and an FAQ (tracking, the report, backups and devices, changing the tracker, team reports). It is also linked from the bottom of the Track tab ("Read the quick start"), from the footer, and, while a browser has no entries yet, from the line under the title ("New here? Read the quick start"). It is a link rather than a sixth tab because six tabs do not fit on a small phone. It is part of `tracker.html`, so it works offline and in downloaded copies. It quotes the support roles' names and highlighter colours (from `ROLES`), the clinic hours and the long-timer limit from the settings; the rest is plain text in the `HELP` section of `tracker.html`, so update it when a feature it describes changes.
 
 The starter task list is in `config/taxonomy.json` and in the `TAXONOMY` list at the top of `tracker.html`. Keep the two the same; `npm test` checks that they match.
 
@@ -184,7 +184,7 @@ The lint check and the tests also run automatically on GitHub for every pull req
 **Adding a support role the report names** (the way social work was added) needs three edits in `tracker.html`:
 
 1. In the settings block, a constant for its name, and that name in `WHO_OPTIONS`.
-2. One row in `ROLES`, just below `SETTINGS END`: the constant's name as `key` (for the settings check), its colour class, its figure in the report, and its words in the summaries. The legend, report, team report, summaries and settings check all read from `ROLES`. Leave out `shipped`: it is only for the roles earlier versions already had, so the check knows their original names.
+2. One row in `ROLES`, just below `SETTINGS END`: the constant's name as `key` (for the settings check), its colour class, its figure in the report, and its words in the summaries. The legend, report, team report, summaries and settings check all read from `ROLES`. Leave out `shipped` when adding the role: it lists a role's names in versions already in use, so the check knows their original names. Once the role has been published, add its name as `shipped` before you ever rename it (for example `shipped:["Pharmacist"]`), or a browser that never opened the version with the old name will not spot entries still saved under it.
 3. In the styles, a highlighter and edge colour in `:root` (`--hl-*`, `--edge-*`) and a `.r-*` class that uses them.
 
 The yellow marker on "could have been done by support staff", the timer's dot and the Stop button use `--hl-support`, which stands for support work as a whole, so changing a role's colour leaves them as they are.

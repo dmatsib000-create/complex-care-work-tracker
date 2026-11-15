@@ -521,9 +521,9 @@
       <details><summary>A task I do has no button. What do I use?</summary>
         <p>Add one on the <button class="link" data-go="buttons">Buttons</button> tab: give it a name, the clinic, and who could do it instead. Or use the closest button and add a short note to the entry. A growing pile of work that does not fit is itself evidence that the job is bigger than its description. You can also suggest a button with the feedback form.</p></details>
       <details><summary>I tapped the wrong button, or a preset is wrong for this one.</summary>
-        <p>Open <button class="link" data-go="entries">Entries</button> and use Edit on the entry. Every field can be changed: task, minutes, date, clinic, who could do it, and the ticks. Delete entry is there too.</p></details>
+        <p>Open <button class="link" data-go="entries">Entries</button> and use Edit on the entry. You can change the task, minutes, date, clinic, who could do it, source, note and the ticks (only the start time cannot be changed). Delete entry is there too.</p></details>
       <details><summary>A call turned into a clinical decision. Is it still support work?</summary>
-        <p>Not if it needed you. Tick "Needed a clinician" in the timer bar (or change "Who could do it" on the entry afterwards) and it counts as physician or PA work. Calls and results default to RN because triage and relaying results that are already classified are generally RN work; the tick covers the ones that were not.</p></details>
+        <p>Not if it needed you. Tick "Needed a clinician" in the timer bar (or change "Who could do it" on the entry afterwards) and it counts as physician or PA work. Family calls and results follow-up default to RN because triage and relaying results that are already classified are generally RN work; the tick covers the ones that were not.</p></details>
       <details><summary>I left a timer running.</summary>
         <p>When a timer has run longer than <span id="helpLong">2 h</span>, the bar turns brown and Stop asks how long the work actually took. Type minutes (<code>45</code>) or hours and minutes (<code>1:30</code>), discard it, or keep timing.</p></details>
       <details><summary>What if I close the page, or my phone locks, while timing?</summary>
@@ -541,9 +541,9 @@
     <h3 class="faq-group">The report</h3>
     <div class="faq">
       <details><summary>What does the headline percentage mean?</summary>
-        <p>The share of the time you logged in the chosen dates that did not need a physician or PA: work that nursing, care coordination, social work or clerical staff could have done.</p></details>
+        <p>The share of the time you logged in the chosen dates that did not need a physician or PA: work that support staff could have done (<span id="helpRolesText"></span>).</p></details>
       <details><summary>What is the support-FTE estimate, and why is it missing?</summary>
-        <p>Support hours a week divided by 40: how much of a full-time support job you are doing yourself. For example, 12 hours a week is about 0.3 of a support FTE. Weeks are counted from the first day you logged anything, so it appears once a full week has been logged.</p></details>
+        <p>Support hours a week divided by 40: how much of a full-time support job you are doing yourself. For example, 12 hours a week is about 0.3 of a support FTE. It needs a date range of at least 7 days, so it is missing on "Today", and on "This week" until Sunday: choose Last 7 days or Last 4 weeks. Days before your first entry are not counted, so it also needs a full week of logging.</p></details>
       <details><summary>How do I share it with my supervisor?</summary>
         <p>On <button class="link" data-go="report">Report</button>, choose the dates and use Copy summary: it is plain text for an email. Export CSV gives every entry in those dates for a spreadsheet. Two to four ordinary weeks make a stronger case than one.</p></details>
       <details><summary>Will this make it look as if I am slow?</summary>
@@ -555,9 +555,9 @@
       <details><summary>Where are my entries saved?</summary>
         <p>Only in this browser on this device. Nothing is sent anywhere: the page makes no network requests at all. That also means clearing browsing data, a private window, or a work computer that resets when you sign out can erase them. A backup file protects them.</p></details>
       <details><summary>How do I back up?</summary>
-        <p>Use Save backup file under the title, or <button class="link" id="helpBackup">Back up or restore</button>. On a computer the file goes to Downloads; on a phone the share sheet opens so you can email it to yourself or save it to Files or a cloud drive. Keep it somewhere other than the device.</p></details>
+        <p>Open <button class="link" id="helpBackup">Back up or restore</button> (it is also under the title) and use Save backup file. When a backup is due, a Save backup file button also appears under the title. On a computer the file goes to Downloads; on a phone the share sheet opens so you can email it to yourself or save it to Files or a cloud drive. Keep it somewhere other than the device.</p></details>
       <details><summary>How do I use it on my phone and my computer?</summary>
-        <p>Each browser keeps its own entries. To move them, save a backup file on one and use Restore from backup file on the other. New entries are added, and an entry already there is replaced only by a more recently edited copy, so restoring the same file twice does no harm. Deleted entries stay deleted, and deletions travel in backups too.</p></details>
+        <p>Each browser keeps its own entries. To move them, save a backup file on one and use Restore from backup file on the other. New entries are added, and an entry already there is replaced only by a more recently edited copy, so restoring the same file twice does no harm. Deleted entries stay deleted, and deletions travel in backups too, unless the entry was edited on the other device after it was deleted: then the edit wins.</p></details>
       <details><summary>I use an iPhone.</summary>
         <p>Safari can clear a site's saved data if it is not opened for about a week, so save backups regularly. Adding the page to the Home Screen avoids that, but the Home Screen icon keeps its own entries, separate from Safari: save a backup in one and restore it in the other to switch.</p></details>
       <details><summary>A backup was refused as "from a newer version".</summary>
@@ -734,7 +734,8 @@ const midSentence = v => /^[A-Z][a-z]/.test(v) ? v[0].toLowerCase()+v.slice(1) :
 // For the settings check, which spots a renamed role whose old name is still on saved work:
 //   key:     the constant's name in the settings block. The check names it, and this browser stores the role's past
 //            names under it (ccwt_key_names_v1), so it must not change.
-//   shipped: the role's names in versions already in use, oldest first. A role added later leaves it out.
+//   shipped: the role's names in versions already in use, oldest first. A newly added role leaves it out; once it
+//            has been published, add its name here before renaming it.
 const ROLES = [
   {key:"NURSE",       shipped:["RN"],               name:NURSE,       cls:"r-rn",    field:"nurse",
     work:"nursing",           support:"nursing"},
@@ -1690,6 +1691,8 @@ document.addEventListener("visibilitychange",()=>{ if(document.hidden) return; c
 { const roles=[...ROLES.map(r=>[r.cls,midSentence(r.name)]),["r-other","other roles"]]
     .map(([cls,name])=>`<span class="mark ${cls}">${esc(name)}</span>`);
   $("helpRoles").innerHTML=roles.slice(0,-1).join(", ")+" or "+roles[roles.length-1];
+  // The headline answer names the same roles in plain text: the headline counts every role but the physician or PA.
+  $("helpRolesText").textContent=ROLES.map(r=>midSentence(r.name)).join(", ")+", or another role such as an MA";
   const at=h=>clock(new Date(2000,0,1,0,Math.round(h*60))).replace(":00","");
   $("helpLong").textContent=hm(LONG_TIMER_MIN);
   $("helpHours").textContent=`before ${at(CLINIC_START_HOUR)} or from ${at(CLINIC_END_HOUR)}`; }
