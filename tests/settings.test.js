@@ -108,7 +108,7 @@ test("buttons changed on the page and a running timer under an old name are flag
 });
 
 test("removing a role that is not a key name does not raise a warning, and its entries still count", async () => {
-  const url = editedTracker([['"Social work", "Pharmacist",', '"Social work",']]);
+  const url = editedTracker([['SOCIAL, "Pharmacist",', 'SOCIAL,']]);
   const p = await openTracker(browser, { url, storage: { entries: [entry("2026-11-10T10:00", { who: "Pharmacist", minutes: 30 })] } });
   assert.ok(!(await p.isVisible("#setupWarn")));
   await p.click("#tab-report"); await p.click('#presets [data-range="week"]');

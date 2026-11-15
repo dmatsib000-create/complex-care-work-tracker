@@ -92,7 +92,7 @@ test("entries saved by the older version load, and after hours is worked out for
 
 test("damaged saved data does not stop the page, and is kept aside", async () => {
   const p = await openTracker(browser, { storage: { entries: "{broken", running: "nope", buttons: "[1,2" } });
-  assert.equal(await p.locator(".tile").count(), 20);
+  assert.equal(await p.locator(".tile").count(), 24);
   assert.deepEqual(p.errors, []);
   const kept = await p.evaluate(() => Object.keys(localStorage).filter((k) => k.includes("_unreadable_")).length);
   assert.equal(kept, 3);

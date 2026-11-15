@@ -56,6 +56,19 @@ test("team math: weeks count from each person's first entry to the day their fil
   assert.doesNotMatch(t.text, /\bA\b|\bB\b|Clinician/, "the summary has no line for each person");
 });
 
+test("team math: social work is its own line, in the totals, the weekly figures and the summary", async () => {
+  const p = await openTracker(browser);
+  const sw = ["2026-10-15", "2026-10-22", "2026-10-29", "2026-11-05"].map((d) => entry(d + "T10:00", { label: "Community resources", who: "Social work", minutes: 60 }));
+  const t = await p.evaluate(([a, b]) => {
+    const t = computeTeam([{ label: "A", entries: a }, { label: "B", entries: b }], "2026-10-15", "2026-11-11", "2026-11-11");
+    return { ...t, text: teamSummaryText(t) };
+  }, [peopleA(), sw]);
+  assert.deepEqual([t.social, t.otherSupport, Math.round(t.week.social)], [240, 0, 60]);
+  assert.match(t.text, /0 h care coordination, 4\.0 h social work and 6\.0 h clerical\./);
+  assert.match(t.text, /\(0 h nursing, 0 h care coordination, 1\.0 h social work, 1\.5 h clerical\)/);
+  assert.match(t.text, /It needs dedicated nursing, care-coordination, social work and clerical support\./);
+});
+
 test("backup files are read for the report only: nothing is added to this browser, and a reload forgets them", async () => {
   const own = [entry("2026-11-10T09:00", { label: "Complex visit", who: "Physician or PA", facing: true, minutes: 60 })];
   const p = await openTracker(browser, { storage: { entries: own } });
