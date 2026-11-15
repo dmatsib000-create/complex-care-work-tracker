@@ -57,8 +57,8 @@ test("the help quotes the clinic hours and the long-timer limit from the setting
 });
 
 test("phone: Help is in the header beside the title, and the Help page does not scroll sideways", async () => {
-  // Checked with the page's own fonts and with Verdana, a wide font, since phones differ.
-  for (const width of [320, 375]) for (const font of ["", "Verdana"]) {
+  // Checked with the page's own fonts, Verdana (wide) and a serif (narrow), since phones and test machines differ.
+  for (const width of [320, 375]) for (const font of ["", "Verdana", "serif"]) {
     const p = await openTracker(browser, { viewport: { width, height: 700 } });
     if (font) await p.addStyleTag({ content: `body,button{font-family:${font}!important}` });
     const [help, title] = await Promise.all(["#topHelp", "h1"].map((s) => p.$eval(s, (el) => el.getBoundingClientRect().toJSON())));

@@ -241,8 +241,9 @@
   /* Help: quick start and FAQ. Buttons that move to another tab look like links. */
   button.link{background:none;border:0;padding:0;color:var(--doc);text-decoration:underline;cursor:pointer;font-size:inherit}
   .top-links{display:flex;gap:var(--s5);align-items:baseline}
-  /* A 44px target. The negative margin takes the padding back, so the header is no taller and nothing moves. */
-  #topHelp{padding:12px 8px;margin:-12px -8px}
+  /* A 44px target whatever the font (the word alone can be narrower). The negative margin takes the padding back,
+     so the header is no taller and nothing moves. */
+  #topHelp{min-width:44px;padding:12px 8px;margin:-12px -8px}
   #topHelp[aria-current="page"]{color:var(--ink);font-weight:700;text-decoration:none}
   .help{max-width:72ch}
   .help h2{font-size:20px;font-weight:800;margin:0 0 var(--s2)}
