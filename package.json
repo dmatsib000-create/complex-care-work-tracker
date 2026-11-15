@@ -3,7 +3,7 @@
   "private": true,
   "description": "Single-click work tracker for a complex care clinic. The tracker itself is tracker.html and needs nothing installed; this file is only for running the tests.",
   "scripts": {
-    "test": "node --test --test-concurrency=1 tests/*.test.js"
+    "test": "node --test --test-concurrency=1 --test-timeout=60000 tests/*.test.js"
   },
   "devDependencies": {
     "playwright": "1.63.0"

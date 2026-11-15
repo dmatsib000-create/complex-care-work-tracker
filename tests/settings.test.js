@@ -10,7 +10,8 @@ let browser;
 before(async () => { browser = await chromium.launch(); });
 after(async () => { await browser.close(); });
 
-const original = fs.readFileSync(path.join(__dirname, "..", "tracker.html"), "utf8");
+// Line endings are made "\n" so the edits below match on a Windows checkout too (Git may check out "\r\n").
+const original = fs.readFileSync(path.join(__dirname, "..", "tracker.html"), "utf8").replace(/\r\n/g, "\n");
 // A copy of tracker.html with some settings lines changed, the way she would edit them.
 function editedTracker(edits) {
   let src = original;
