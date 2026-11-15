@@ -15,8 +15,9 @@
 - RN (triage, protocol refills, results, home health / PDN / PPEC paperwork): __ hours. Top categories: __
 - Care coordination (referrals, DME, care plan, school and agency calls): __ hours. Top categories: __
 - Clerical / admin (forms, prior auth, renewal calendar, scheduling, records): __ hours. Top categories: __
+- Social work (benefits, community resources, caregiver support, transition / guardianship): __ hours. Top categories: __
 - Plan case manager (work the Medicaid plan is contracted to do, such as PDN staffing gaps): __ hours
-- Other delegable (MA, social work, pharmacy): __ hours
+- Other delegable (MA, pharmacy): __ hours
 
 That is about __ hours/week, roughly __ of a 40-hour support FTE.
 

@@ -51,7 +51,7 @@ test("team math: weeks count from each person's first entry to the day their fil
   assert.equal(t.week.fte.toFixed(4), "0.1375");
   assert.deepEqual(t.short, ["C"]);
   assert.match(t.text, /^In this period \(28 days\) 3 clinicians each tracked their own work and together logged 13\.0 h\./);
-  assert.match(t.text, /Across the 2 clinicians with a full week logged, that is about 5\.5 h a week of delegable work \(4\.0 h nursing, 0 h care coordination, 1\.5 h clerical\), roughly 0\.14 of a 40-hour support FTE\. Per clinician it ranged from 1\.5 h to 4\.0 h a week\./);
+  assert.match(t.text, /Across the 2 clinicians with a full week logged, that is about 5\.5 h a week of delegable work \(4\.0 h nursing, 0 h care coordination and 1\.5 h clerical\), roughly 0\.14 of a 40-hour support FTE\. Per clinician it ranged from 1\.5 h to 4\.0 h a week\./);
   assert.match(t.text, /Measured across 3 clinicians, this is a question of how the team is staffed/);
   assert.doesNotMatch(t.text, /\bA\b|\bB\b|Clinician/, "the summary has no line for each person");
 });
@@ -65,8 +65,27 @@ test("team math: social work is its own line, in the totals, the weekly figures 
   }, [peopleA(), sw]);
   assert.deepEqual([t.social, t.otherSupport, Math.round(t.week.social)], [240, 0, 60]);
   assert.match(t.text, /0 h care coordination, 4\.0 h social work and 6\.0 h clerical\./);
-  assert.match(t.text, /\(0 h nursing, 0 h care coordination, 1\.0 h social work, 1\.5 h clerical\)/);
+  assert.match(t.text, /\(0 h nursing, 0 h care coordination, 1\.0 h social work and 1\.5 h clerical\)/);
   assert.match(t.text, /It needs dedicated nursing, care-coordination, social work and clerical support\./);
+});
+
+test("team math: a few minutes of social work spread over weeks is left out of the weekly line, not shown as 0 h", async () => {
+  const p = await openTracker(browser);
+  const t = await p.evaluate(([a]) => {
+    const t = computeTeam([{ label: "A", entries: a }], "2026-10-15", "2026-11-11", "2026-11-11");
+    return { ...t, text: teamSummaryText(t) };
+  }, [peopleA().concat(entry("2026-11-03T15:00", { label: "Community resources", who: "Social work", minutes: 1 }))]);
+  assert.ok(t.week.social > 0 && t.week.social < 0.5);
+  assert.match(t.text, /\(0 h nursing, 0 h care coordination and 1\.5 h clerical\)/);
+  assert.match(t.text, /1 min social work and 6\.0 h clerical\./, "the period total still names the minute logged");
+});
+
+test("a person's card on the Team tab shows social work in its split bar and its line of figures", async () => {
+  const p = await openTracker(browser);
+  await team(p, "4w");
+  await add(p, [backup("sw.json", [entry("2026-11-10T10:00", { label: "Benefits / Medicaid / SSI", who: "Social work", minutes: 45 })])]);
+  assert.equal(await p.locator("#teamPeople .person .split .r-sw").count(), 1);
+  assert.match(await card(p, 0), /Social work 45 min/);
 });
 
 test("backup files are read for the report only: nothing is added to this browser, and a reload forgets them", async () => {

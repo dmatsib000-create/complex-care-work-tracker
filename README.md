@@ -59,7 +59,7 @@ Only the clinician doing this work knows its ins and outs, so nothing here is lo
 - `LONG_TIMER_MIN`: how long a timer can run before she is asked whether it was left on. A panel then lets her save the real time (minutes like `45`, or `1:30`), discard it, or keep timing.
 - `PHYSICIAN`, `CLERICAL`, `COORDINATOR`, `NURSE`, `SOCIAL`, `COMPLEX`, `URGENT`: the names the report depends on. `PHYSICIAN` ("Physician or PA") decides what counts as needing a clinician (everything else is support work), `NURSE`, `COORDINATOR`, `SOCIAL` and `CLERICAL` are the support totals, and anything not in `COMPLEX` counts as work assigned on top.
 
-**Renaming one of those five names:** change it in its line (for example `const CLERICAL = "Front desk";`), then add the old name to `RENAMES` so entries saved under it follow:
+**Renaming one of those names:** change it in its line (for example `const CLERICAL = "Front desk";`), then add the old name to `RENAMES` so entries saved under it follow:
 
 ```
 const RENAMES = { "Clerical / admin": "Front desk" };
@@ -72,7 +72,7 @@ If a settings edit would make the report wrong, the page shows a yellow "Check t
 - a `RENAMES` line that leads to a name not in the lists;
 - a starter button using a role or clinic that is not in the lists.
 
-Renamed values are saved as soon as the page opens, so the `RENAMES` line can be removed afterwards on that device; keep it if the tracker is used on other devices or old backups may be restored. Other roles (RN, MA, ...) can be removed from `WHO_OPTIONS` without a notice: entries that used them still count as other support work.
+Renamed values are saved as soon as the page opens, so the `RENAMES` line can be removed afterwards on that device; keep it if the tracker is used on other devices or old backups may be restored. Other roles (MA, Pharmacist, ...) can be removed from `WHO_OPTIONS` without a notice: entries that used them still count as other support work.
 
 Keep `config/taxonomy.json` the same as the settings block; `npm test` checks that they match.
 

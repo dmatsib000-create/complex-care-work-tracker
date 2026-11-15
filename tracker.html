@@ -8,7 +8,7 @@
   /* Tokens. Blue ink = physician or PA work. Highlighter = work support staff could do. */
   :root{
     --paper:#F1F3EE; --surface:#FFFFFF; --ink:#1E2836; --muted:#566170; --rule:#D3D9CE; --rule-strong:#A9B2A5;
-    --doc:#2B4C8C; --hl-cler:#FFE45C; --hl-coord:#FFC27A; --hl-other:#F9CFE0; --hl-rn:#9FE7DD; --hl-sw:#CDB6F6; --hl-edge:#A88900;
+    --doc:#2B4C8C; --hl-cler:#FFE45C; --hl-coord:#FFC27A; --hl-other:#F9CFE0; --hl-rn:#9FE7DD; --hl-sw:#B8A0F0; --hl-edge:#A88900;
     --dusk:#E4E1EE; --warn:#8A5A00; --warn-bg:#FFF4D6; --focus:#2B4C8C;
     /* No fonts are downloaded. Atkinson Hyperlegible is used only if it is installed on this computer. */
     --font:"Atkinson Hyperlegible Next","Atkinson Hyperlegible",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
@@ -876,10 +876,13 @@ const listUnit=list=>{ const inHours=list.some(m=>Math.round(m)>=60);
 const pctOf=(m,total)=>total?Math.round(m/total*100)+"%":"0%";
 const plural=(n,one,many)=>`${n} ${n===1?one:many}`;
 
-// Phrases shared by the personal and team summaries. Social work is named only when some was logged,
-// so a summary without it reads as it always has.
-const roleSplit=x=>`${hrs(x.nurse)} nursing, ${hrs(x.coordination)} care coordination${x.social?`, ${hrs(x.social)} social work`:""} and ${hrs(x.clerical)} clerical`;
-const supportNeeded=x=>`dedicated nursing, care-coordination${x.social?", social work":""} and clerical support`;
+// Phrases shared by the personal and team summaries. Social work is named only when it rounds to at least
+// a minute, so a summary without it reads as it always has. Its name follows SOCIAL, lower-cased mid-sentence
+// ("Social work" -> "social work") unless it starts with an acronym ("SW" stays "SW").
+const midSentence=v=>/^[A-Z][a-z]/.test(v)?v[0].toLowerCase()+v.slice(1):v;
+const hasSocial=x=>Math.round(x.social)>0;
+const roleSplit=x=>`${hrs(x.nurse)} nursing, ${hrs(x.coordination)} care coordination${hasSocial(x)?`, ${hrs(x.social)} ${midSentence(SOCIAL)}`:""} and ${hrs(x.clerical)} clerical`;
+const supportNeeded=x=>`dedicated nursing, care-coordination${hasSocial(x)?`, ${midSentence(SOCIAL)}`:""} and clerical support`;
 const otherRoles=x=>x.byRole.filter(y=>![CLERICAL,COORDINATOR,NURSE,SOCIAL].includes(y.role)).map(y=>`${y.role} ${hrs(y.minutes)}`).join(", ");
 
 // The plain-text summary for a supervisor, built from a computeReport result.
@@ -1012,7 +1015,7 @@ function teamSummaryText(t){
     t.afterHours?`${hrs(t.afterHours)} was done after hours.`:"",
     t.interruptions?`This work interrupted a visit ${plural(t.interruptions,"time","times")}.`:"",
     w&&w.support?`${w.people===n?"Across the team":`Across the ${plural(w.people,"clinician","clinicians")} with a full week logged`}, that is about ${hrs(w.support)} a week of delegable work`+
-      ` (${hrs(w.nurse)} nursing, ${hrs(w.coordination)} care coordination, ${w.social?`${hrs(w.social)} social work, `:""}${hrs(w.clerical)} clerical), roughly ${w.fte.toFixed(2)} of a 40-hour support FTE.`+
+      ` (${roleSplit(w)}), roughly ${w.fte.toFixed(2)} of a 40-hour support FTE.`+
       (w.people>1?` Per clinician it ranged from ${hrs(w.low)} to ${hrs(w.high)} a week.`:""):"",
     n>1?`Measured across ${who}, this is a question of how the team is staffed, not one person's workload.`:"",
     `This is necessary complex-clinic work, not inefficiency. It needs ${supportNeeded(t)}.`,
