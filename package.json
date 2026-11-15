@@ -3,9 +3,13 @@
   "private": true,
   "description": "Single-click work tracker for a complex care clinic. The tracker itself is tracker.html and needs nothing installed; this file is only for running the tests.",
   "scripts": {
+    "lint": "eslint tracker.html tests eslint.config.js",
     "test": "node --test --test-concurrency=1 --test-timeout=60000 tests/*.test.js"
   },
   "devDependencies": {
+    "eslint": "10.15.0",
+    "eslint-plugin-html": "8.2.1",
+    "globals": "17.14.0",
     "playwright": "1.63.0"
   }
 }

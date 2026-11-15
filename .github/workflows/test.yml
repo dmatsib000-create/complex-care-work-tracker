@@ -27,6 +27,9 @@ jobs:
           cache: npm
       - name: Install test dependencies
         run: npm ci
+      # Names used but never defined, or defined but never used (see eslint.config.js). Fast, so it runs first.
+      - name: Lint
+        run: npm run lint
       - name: Install the Chromium browser
         run: npx playwright install --with-deps chromium
       - name: Run tests

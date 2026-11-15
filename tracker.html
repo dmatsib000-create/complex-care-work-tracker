@@ -8,7 +8,10 @@
   /* Tokens. Blue ink = physician or PA work. Highlighter = work support staff could do. */
   :root{
     --paper:#F1F3EE; --surface:#FFFFFF; --ink:#1E2836; --muted:#566170; --rule:#D3D9CE; --rule-strong:#A9B2A5;
-    --doc:#2B4C8C; --hl-cler:#FFE45C; --hl-coord:#FFC27A; --hl-other:#F9CFE0; --hl-rn:#9FE7DD; --hl-sw:#B8A0F0; --hl-edge:#A88900;
+    --doc:#2B4C8C;
+    /* Each support role: a highlighter (--hl-*) and a darker edge (--edge-*) that outlines it on light backgrounds. */
+    --hl-rn:#9FE7DD; --edge-rn:#2E8C80; --hl-coord:#FFC27A; --edge-coord:#B86F14; --hl-sw:#B8A0F0; --edge-sw:#6E4FB3;
+    --hl-cler:#FFE45C; --edge-cler:#A88900; --hl-other:#F9CFE0; --edge-other:#B0607F;
     --dusk:#E4E1EE; --warn:#8A5A00; --warn-bg:#FFF4D6; --focus:#2B4C8C;
     /* No fonts are downloaded. Atkinson Hyperlegible is used only if it is installed on this computer. */
     --font:"Atkinson Hyperlegible Next","Atkinson Hyperlegible",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
@@ -31,7 +34,11 @@
   /* Marker swipe: the highlighter that marks support work everywhere on the page. */
   .mark{padding:0 .2em;margin:0 -.1em;-webkit-box-decoration-break:clone;box-decoration-break:clone;
     background:linear-gradient(transparent 12%, var(--m) 12%, var(--m) 88%, transparent 88%)}
-  .r-cler{--m:var(--hl-cler)} .r-coord{--m:var(--hl-coord)} .r-rn{--m:var(--hl-rn)} .r-sw{--m:var(--hl-sw)} .r-other{--m:var(--hl-other)} .r-doc{--m:transparent}
+  /* A role class sets the colours; each component below draws with them. --m: highlighter, --e: its edge,
+     --fill: the solid colour of a block, key or bar (the highlighter, or blue ink for physician or PA work). */
+  .r-rn{--m:var(--hl-rn);--e:var(--edge-rn)} .r-coord{--m:var(--hl-coord);--e:var(--edge-coord)}
+  .r-sw{--m:var(--hl-sw);--e:var(--edge-sw)} .r-cler{--m:var(--hl-cler);--e:var(--edge-cler)}
+  .r-other{--m:var(--hl-other);--e:var(--edge-other)} .r-doc{--m:transparent;--e:transparent;--fill:var(--doc)}
 
   /* Header */
   header{padding:var(--s5) 0 var(--s3)}
@@ -55,12 +62,7 @@
   .track{position:relative;height:56px;background:var(--dusk);border:1px solid var(--rule-strong);border-radius:8px;overflow:hidden}
   .band{position:absolute;top:0;bottom:0;background:var(--surface)}
   .blk{position:absolute;top:10px;bottom:10px;min-width:3px;border-radius:3px}
-  .blk.r-doc{background:var(--doc)}
-  .blk.r-cler{background:var(--hl-cler);box-shadow:inset 0 0 0 1px var(--hl-edge)}
-  .blk.r-coord{background:var(--hl-coord);box-shadow:inset 0 0 0 1px #B86F14}
-  .blk.r-rn{background:var(--hl-rn);box-shadow:inset 0 0 0 1px #2E8C80}
-  .blk.r-sw{background:var(--hl-sw);box-shadow:inset 0 0 0 1px #6E4FB3}
-  .blk.r-other{background:var(--hl-other);box-shadow:inset 0 0 0 1px #B0607F}
+  .blk,.key{background-color:var(--fill,var(--m));box-shadow:inset 0 0 0 1px var(--e)}
   .blk.urgent{background-image:repeating-linear-gradient(135deg,rgba(255,255,255,.55) 0 3px,transparent 3px 7px)}
   .blk.live{outline:2px solid var(--ink);outline-offset:1px}
   .now{position:absolute;top:0;bottom:0;width:2px;background:var(--ink)}
@@ -69,9 +71,6 @@
   .ticks span.first{transform:none} .ticks span.last{transform:translateX(-100%)}
   .legend{display:flex;flex-wrap:wrap;gap:var(--s2) var(--s4);font-size:14px;color:var(--muted);margin-top:var(--s1)}
   .key{display:inline-block;width:14px;height:14px;border-radius:3px;vertical-align:-2px;margin-right:6px}
-  .key.r-doc{background:var(--doc)} .key.r-cler{background:var(--hl-cler);box-shadow:inset 0 0 0 1px var(--hl-edge)}
-  .key.r-rn{background:var(--hl-rn);box-shadow:inset 0 0 0 1px #2E8C80} .key.r-sw{background:var(--hl-sw);box-shadow:inset 0 0 0 1px #6E4FB3}
-  .key.r-coord{background:var(--hl-coord)} .key.r-other{background:var(--hl-other);box-shadow:inset 0 0 0 1px #B0607F}
   .key.dusk{background:var(--dusk);box-shadow:inset 0 0 0 1px var(--rule-strong)}
 
   /* Task tiles */
@@ -140,7 +139,7 @@
   .fte{font-size:18px;margin:var(--s3) 0 0;max-width:60ch}
   .split{display:flex;height:28px;border-radius:6px;overflow:hidden;margin:var(--s5) 0 var(--s2);background:var(--rule)}
   .split span{display:block;height:100%}
-  .split .r-doc{background:var(--doc)} .split .r-cler{background:var(--hl-cler)} .split .r-coord{background:var(--hl-coord)} .split .r-rn{background:var(--hl-rn)} .split .r-sw{background:var(--hl-sw)} .split .r-other{background:var(--hl-other)}
+  .split span{background-color:var(--fill,var(--m))}
   .facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:var(--s4) var(--s5);margin:var(--s6) 0 0;padding:var(--s4) 0 0;border-top:1px solid var(--rule)}
   .facts div{margin:0} .facts dt{font-size:14px;color:var(--muted)} .facts dd{margin:2px 0 0;font-size:22px;font-weight:800}
   .facts dd small{font-size:14px;font-weight:400;color:var(--muted)}
@@ -149,7 +148,7 @@
   .rep-sec > p{margin:0 0 var(--s3);max-width:68ch}
   .cats{list-style:none;margin:0;padding:0}
   .cats li{display:grid;grid-template-columns:minmax(120px,220px) 1fr auto;gap:var(--s3);align-items:center;padding:var(--s2) 0;border-bottom:1px solid var(--rule)}
-  .cats .bar{height:12px;border-radius:3px;background:var(--m);box-shadow:inset 0 0 0 1px var(--hl-edge);min-width:3px}
+  .cats .bar{height:12px;border-radius:3px;background:var(--m);box-shadow:inset 0 0 0 1px var(--e);min-width:3px}
   .cats .num{text-align:right;white-space:nowrap;font-weight:600}
   .cats .num small{display:block;font-weight:400;font-size:13px;color:var(--muted)}
   .cats .who{grid-column:1/-1;font-size:13px;color:var(--muted);margin-top:-6px}
@@ -547,7 +546,7 @@ let TAXONOMY = [
  {label:"Healthy urgent visit",clinic:URGENT,facing:true,who:PHYSICIAN},
  {label:"Healthy urgent inbox / follow-up",clinic:URGENT,facing:false,who:CLERICAL}
 ];
-// Dropdown options. Other roles (RN, MA, ...) can be added, renamed or removed freely.
+// Dropdown options. Other roles (MA, Pharmacist, ...) can be added, renamed or removed freely; the named roles above must stay.
 // "Plan case manager" is work the child's Medicaid plan is contracted to do (for example PDN staffing gaps).
 const CLINICS = [COMPLEX, URGENT];
 const WHO_OPTIONS = [PHYSICIAN, CLERICAL, COORDINATOR, NURSE, "MA", SOCIAL, "Pharmacist", "Plan case manager", "System / automation fix"];
@@ -569,13 +568,31 @@ const pad2 = n => String(n).padStart(2,"0");
 const localDay = d => { d = new Date(d); return d.getFullYear()+"-"+pad2(d.getMonth()+1)+"-"+pad2(d.getDate()); };
 const dayNum = ymd => { const [y,m,d] = ymd.split("-").map(Number); return Math.round(new Date(y,m-1,d).getTime()/86400000); };
 const ymdDate = ymd => { const [y,m,d] = ymd.split("-").map(Number); return new Date(y,m-1,d); };
-const fmtDur = m => m >= 60 ? Math.floor(m/60)+"h "+(m%60)+"m" : m+"m";
+// Exact minutes, for the Today line, the entries and the timer ("1 h 5 min"). The report rounds instead: see hrs.
 const hm = m => { m=Math.round(m); const h=Math.floor(m/60), r=m%60; return h ? (r ? `${h} h ${r} min` : `${h} h`) : `${r} min`; };
 const clock = d => { d=new Date(d); const h=d.getHours(); return `${h%12||12}:${pad2(d.getMinutes())}${h<12?"am":"pm"}`; };
-const isAfterHours = t => { const d=new Date(t), hr=d.getHours()+d.getMinutes()/60, wd=d.getDay(); return wd===0||wd===6||hr<CLINIC_START_HOUR||hr>=CLINIC_END_HOUR; };
+const isWeekend = d => { const wd=new Date(d).getDay(); return wd===0||wd===6; };
+const isAfterHours = t => { const d=new Date(t), hr=d.getHours()+d.getMinutes()/60;
+  return isWeekend(d)||hr<CLINIC_START_HOUR||hr>=CLINIC_END_HOUR; };
+// A name in the middle of a sentence: "Social work" -> "social work", but an acronym stays as it is ("SW", "RN").
+const midSentence = v => /^[A-Z][a-z]/.test(v) ? v[0].toLowerCase()+v.slice(1) : v;
+
+// The support roles the report names, in the order they are shown. Each row ties a name from the settings to its
+// highlighter (the CSS class, whose colours are in :root), its figure in the report (r.nurse, ...), and its words in
+// the summaries: `work` in "... 2.0 h nursing ...", `support` in "It needs dedicated nursing ... support".
+// Work for any other support role counts as other support. To name another role in the report, add a row here;
+// the README's "Adding a support role" lists the other three places it needs (settings, colours, settings check).
+const ROLES = [
+  {name:NURSE,       cls:"r-rn",    field:"nurse",        work:"nursing",           support:"nursing"},
+  {name:COORDINATOR, cls:"r-coord", field:"coordination", work:"care coordination", support:"care-coordination"},
+  // Named in the summaries only when some was logged, so a summary without social work reads as it always has.
+  {name:SOCIAL,      cls:"r-sw",    field:"social",       work:midSentence(SOCIAL), support:midSentence(SOCIAL), onlyIfLogged:true},
+  {name:CLERICAL,    cls:"r-cler",  field:"clerical",     work:"clerical",          support:"clerical"},
+];
 // Colour role: physician ink, or which highlighter marks the support work.
 const isDoc = who => who===PHYSICIAN;
-const roleClass = who => isDoc(who) ? "r-doc" : who===CLERICAL ? "r-cler" : who===COORDINATOR ? "r-coord" : who===NURSE ? "r-rn" : who===SOCIAL ? "r-sw" : "r-other";
+const roleOf = who => ROLES.find(x=>x.name===who);
+const roleClass = who => isDoc(who) ? "r-doc" : roleOf(who)?.cls || "r-other";
 // <option> list; keeps a custom current value that is not in the list.
 const opts = (list,cur) => (cur&&!list.includes(cur)?[...list,cur]:list).map(o=>`<option${o===cur?" selected":""}>${esc(o)}</option>`).join("");
 const sourceOpts = cur => `<option value="">Source: not set</option>`+opts(SOURCES,cur);
@@ -700,7 +717,7 @@ function openLongPanel(nextBtn){
   nextAfterLong=nextBtn;
   const mins=runningMinutes(), started=new Date(running.startedAt), sameDay=localDay(started)===localDay(Date.now());
   const since=(sameDay?"":started.toLocaleDateString(undefined,{weekday:"short",day:"numeric",month:"short"})+" at ")+clock(started);
-  $("longText").textContent=`"${running.label}" has been timing for ${fmtDur(mins)}, since ${since}.`;
+  $("longText").textContent=`"${running.label}" has been timing for ${hm(mins)}, since ${since}.`;
   $("longMinutes").value=String(mins); $("longError").textContent="";
   $("longKeep").hidden=!!nextBtn; // switching tasks means this timer ends either way
   if(!$("longPanel").open) $("longPanel").showModal();
@@ -770,8 +787,7 @@ function renderToday(){
   const a=Math.max(0,Math.min(7,...drawn.map(i=>Math.floor(hr(i.start)))));
   const b=Math.min(24,Math.max(19,...drawn.map(i=>Math.ceil(hr(i.start)+i.min/60))));
   const pct=x=>((x-a)/(b-a)*100).toFixed(3)+"%";
-  const wd=new Date().getDay(), weekend=wd===0||wd===6;
-  let html=weekend?"":`<div class="band" style="left:${pct(CLINIC_START_HOUR)};width:calc(${pct(CLINIC_END_HOUR)} - ${pct(CLINIC_START_HOUR)})"></div>`;
+  let html=isWeekend(Date.now())?"":`<div class="band" style="left:${pct(CLINIC_START_HOUR)};width:calc(${pct(CLINIC_END_HOUR)} - ${pct(CLINIC_START_HOUR)})"></div>`;
   html+=drawn.map(i=>{ const s=hr(i.start), w=Math.min(b,s+i.min/60);
     return `<div class="blk ${roleClass(i.who)}${i.urgent?" urgent":""}${i.live?" live":""}" style="left:${pct(s)};width:calc(${pct(w)} - ${pct(s)})" title="${esc(i.label)}, ${clock(i.start)}, ${hm(i.min)}"></div>`; }).join("");
   const nowH=hr(new Date()); if(nowH>=a&&nowH<=b) html+=`<div class="now" style="left:${pct(nowH)}"></div>`;
@@ -781,7 +797,7 @@ function renderToday(){
   const pxPerHour=($("track").clientWidth||600)/(b-a), step=pxPerHour>=26?2:pxPerHour>=18?3:4;
   let ticks=""; for(let h=Math.ceil(a/step)*step; h<=b; h+=step) ticks+=`<span class="${h===a?"first":h===b?"last":""}" style="left:${pct(h)}">${h%12||12}${h<12||h===24?"am":"pm"}</span>`;
   $("ticks").innerHTML=ticks;
-  const LEG=[["r-doc","Needs a physician or PA"],["r-rn",`${esc(NURSE)} could do it`],["r-coord",`${esc(COORDINATOR)} could do it`],["r-sw",`${esc(SOCIAL)} could do it`],["r-cler",`${esc(CLERICAL)} could do it`],["r-other","Other support role"]];
+  const LEG=[["r-doc","Needs a physician or PA"], ...ROLES.map(x=>[x.cls,`${esc(x.name)} could do it`]), ["r-other","Other support role"]];
   // Every key, always: a legend that changes as she works would resize the strip and move the buttons below it.
   $("stripLegend").innerHTML=LEG.map(([c,l])=>`<span><i class="key ${c}"></i>${l}</span>`).join("")+`<span><i class="key dusk"></i>After hours</span>`;
   $("stripNote").textContent = !items.length ? "Tap a task to start. Today's work builds up here."
@@ -831,12 +847,13 @@ function computeReport(list, all, from, to, today){
   const sum=a=>a.reduce((t,e)=>t+e.minutes,0);
   const supportEntries=list.filter(e=>!isDoc(e.who));
   const r={ count:list.length, total:sum(list), support:sum(supportEntries),
-    clerical:sum(list.filter(e=>e.who===CLERICAL)), coordination:sum(list.filter(e=>e.who===COORDINATOR)), nurse:sum(list.filter(e=>e.who===NURSE)), social:sum(list.filter(e=>e.who===SOCIAL)),
     notFacing:sum(list.filter(e=>!e.facing)), urgent:sum(list.filter(e=>e.clinic!==COMPLEX)),
     afterHours:sum(list.filter(e=>e.afterHours)), afterHoursCount:list.filter(e=>e.afterHours).length,
     interruptions:list.filter(e=>e.interrupted).length };
   r.physician=r.total-r.support;
-  r.otherSupport=r.support-r.clerical-r.coordination-r.nurse-r.social;
+  // Minutes for each named support role (r.nurse, r.coordination, ...); the rest of the support work is other support.
+  ROLES.forEach(x=>{ r[x.field]=sum(list.filter(e=>e.who===x.name)); });
+  r.otherSupport=r.support-ROLES.reduce((a,x)=>a+r[x.field],0);
 
   // Days covered: the chosen From/To, or the first to last logged day when left open.
   // Days before her very first entry, or after today, are not counted: no work was being tracked then.
@@ -876,14 +893,14 @@ const listUnit=list=>{ const inHours=list.some(m=>Math.round(m)>=60);
 const pctOf=(m,total)=>total?Math.round(m/total*100)+"%":"0%";
 const plural=(n,one,many)=>`${n} ${n===1?one:many}`;
 
-// Phrases shared by the personal and team summaries. Social work is named only when it rounds to at least
-// a minute, so a summary without it reads as it always has. Its name follows SOCIAL, lower-cased mid-sentence
-// ("Social work" -> "social work") unless it starts with an acronym ("SW" stays "SW").
-const midSentence=v=>/^[A-Z][a-z]/.test(v)?v[0].toLowerCase()+v.slice(1):v;
-const hasSocial=x=>Math.round(x.social)>0;
-const roleSplit=x=>`${hrs(x.nurse)} nursing, ${hrs(x.coordination)} care coordination${hasSocial(x)?`, ${hrs(x.social)} ${midSentence(SOCIAL)}`:""} and ${hrs(x.clerical)} clerical`;
-const supportNeeded=x=>`dedicated nursing, care-coordination${hasSocial(x)?`, ${midSentence(SOCIAL)}`:""} and clerical support`;
-const otherRoles=x=>x.byRole.filter(y=>![CLERICAL,COORDINATOR,NURSE,SOCIAL].includes(y.role)).map(y=>`${y.role} ${hrs(y.minutes)}`).join(", ");
+// Phrases shared by the personal and team summaries, built from ROLES. A role marked onlyIfLogged (social work)
+// is named only when its time rounds to at least a minute.
+const namedRoles=x=>ROLES.filter(y=>!y.onlyIfLogged||Math.round(x[y.field])>0);
+// "2.0 h nursing, 1.0 h care coordination and 30 min clerical"
+const roleSplit=x=>andList(namedRoles(x).map(y=>`${hrs(x[y.field])} ${y.work}`));
+// "dedicated nursing, care-coordination and clerical support"
+const supportNeeded=x=>`dedicated ${andList(namedRoles(x).map(y=>y.support))} support`;
+const otherRoles=x=>x.byRole.filter(y=>!roleOf(y.role)).map(y=>`${y.role} ${hrs(y.minutes)}`).join(", ");
 
 // The plain-text summary for a supervisor, built from a computeReport result.
 function summaryText(r){
@@ -905,9 +922,11 @@ function summaryText(r){
 // Pieces of the report page, shared by the Report and Team tabs.
 const niceDay=ymd=>ymdDate(ymd).toLocaleDateString(undefined,{weekday:"short",day:"numeric",month:"short",year:"numeric"});
 const rangeName=()=>({today:"Today",week:"This week",["7d"]:"Last 7 days",["4w"]:"Last 4 weeks",all:"All time"}[rangeKey]||"Custom range");
+// The start of the line under the range control: "This week: Mon 9 Nov 2026 to Wed 11 Nov 2026".
+const rangeHead=(from,to)=>rangeName()+(from||to?`: ${from?niceDay(from):"first entry"} to ${to?niceDay(to):"latest entry"}`:"");
 // The split by who could do the work: [class, label, minutes] for each part with any time.
-const splitSegs=r=>[["r-doc","Needs a physician or PA",r.physician],["r-rn",NURSE,r.nurse],
-  ["r-coord",COORDINATOR,r.coordination],["r-sw",SOCIAL,r.social],["r-cler",CLERICAL,r.clerical],["r-other","Other support roles",r.otherSupport]].filter(s=>s[2]>0);
+const splitSegs=r=>[["r-doc","Needs a physician or PA",r.physician], ...ROLES.map(x=>[x.cls,x.name,r[x.field]]),
+  ["r-other","Other support roles",r.otherSupport]].filter(s=>s[2]>0);
 const splitUnit=r=>listUnit(splitSegs(r).map(s=>s[2]));
 const splitSpans=r=>{ const u=splitUnit(r); return splitSegs(r).map(([c,l,m])=>`<span class="${c}" style="width:${m/r.total*100}%" title="${esc(l)}: ${u(m)}"></span>`).join(""); };
 const splitLabel=r=>{ const u=splitUnit(r); return splitSegs(r).map(([,l,m])=>`${l} ${u(m)}`).join(", ")||"No data"; };
@@ -944,7 +963,7 @@ function renderSummary(){
   const days=n=>plural(n,"day","days"), nE=plural(r.count,"entry","entries");
 
   ownRangeText = (fromV||toV)
-    ? `${rangeName()}: ${fromV?nice(fromV):"first entry"} to ${toV?nice(toV):"latest entry"}`+
+    ? rangeHead(fromV,toV)+
       `${r.spanDays&&!r.startClamped?` (${days(r.spanDays)})`:""}, ${nE}.`+
       (r.startClamped?` Weekly figures count ${days(r.spanDays)}, from your first entry on ${nice(r.firstEver)}.`:"")
     : `All time: ${nE}${r.spanDays?` over ${days(r.spanDays)}`:""}.`;
@@ -992,8 +1011,8 @@ function computeTeam(people, from, to, today){
   t.each=each; t.people=each.length;
   // Weekly figures add up each person's own hours a week. People with less than a full week logged are left out.
   const wk=each.filter(p=>p.weekly), perWeek=k=>wk.reduce((a,p)=>a+p.r[k]/p.r.weeks,0);
-  t.week=wk.length?{people:wk.length, total:perWeek("total"), support:perWeek("support"), nurse:perWeek("nurse"),
-    coordination:perWeek("coordination"), social:perWeek("social"), clerical:perWeek("clerical"), otherSupport:perWeek("otherSupport"),
+  t.week=wk.length?{people:wk.length, total:perWeek("total"), support:perWeek("support"),
+    ...Object.fromEntries(ROLES.map(x=>[x.field,perWeek(x.field)])), otherSupport:perWeek("otherSupport"),
     fte:wk.reduce((a,p)=>a+p.r.fte,0), low:Math.min(...wk.map(p=>p.r.supportPerWeek)), high:Math.max(...wk.map(p=>p.r.supportPerWeek))}:null;
   t.short=each.filter(p=>p.r.count&&!p.r.fullWeek).map(p=>p.label);
   t.empty=each.filter(p=>!p.r.count).map(p=>p.label);
@@ -1039,9 +1058,8 @@ async function addTeamFiles(files){
   const notes=[];
   for(const f of files){ const name=f.name||"That file";
     try{
-      let data; try{ data=JSON.parse(await f.text()); }catch(e){ notes.push(`${name} is not a backup from this tracker. Choose a file saved with Save backup file.`); continue; }
-      const list=Array.isArray(data)?data:(data&&typeof data==="object"?data.entries:null);
-      if(!Array.isArray(list)){ notes.push(`${name} has no entries in it. Choose a file saved with Save backup file.`); continue; }
+      const {data, list, error}=await readBackupFile(f, name);
+      if(error){ notes.push(error); continue; }
       const good=list.filter(validEntry).map(cleanEntry), skipped=list.length-good.length;
       if(!good.length){ notes.push(list.length?`None of the ${list.length} entries in ${name} could be read. It was not added.`:`${name} has no entries yet. It was not added.`); continue; }
       // Older backups (a plain list of entries) have no saved date: their weeks run to today.
@@ -1073,10 +1091,9 @@ function renderTeam(){
   $("teamMine").checked=mine; $("teamMine").disabled=!mine&&!entries.length;
   $("teamClear").hidden=!team.length; $("teamEmpty").hidden=!!team.length; $("teamReport").hidden=!team.length; placeRange();
   const fromV=$("from").value, toV=$("to").value;
-  if(!team.length){ teamRangeText=`${rangeName()}${fromV||toV?`: ${fromV?niceDay(fromV):"first entry"} to ${toV?niceDay(toV):"latest entry"}`:""}.`; renderRangeLabel(); return; }
+  if(!team.length){ teamRangeText=rangeHead(fromV,toV)+"."; renderRangeLabel(); return; }
   const t=computeTeam(teamInput(), fromV, toV, localDay(Date.now()));
-  teamRangeText=`${rangeName()}${fromV||toV?`: ${fromV?niceDay(fromV):"first entry"} to ${toV?niceDay(toV):"latest entry"}`:""}, `+
-    `${plural(t.count,"entry","entries")} from ${plural(t.people,"clinician","clinicians")}.`;
+  teamRangeText=`${rangeHead(fromV,toV)}, ${plural(t.count,"entry","entries")} from ${plural(t.people,"clinician","clinicians")}.`;
   renderRangeLabel();
   $("teamOne").hidden=team.length>1;
 
@@ -1091,7 +1108,7 @@ function renderTeam(){
     if(!r.count) body=`<p class="p-fig">Nothing logged in this range.${p.today&&fromV>p.today?` This backup was saved before the range starts.`:""}</p>`;
     else body=`<p class="p-fig"><b>${hrs(r.total)}</b> logged${x.weekly?`, ${hrs(r.totalPerWeek)} a week`:""}. <span class="mark r-cler">${hrs(r.support)} (${pc(r.support)})</span> did not need a physician or PA.</p>
       <div class="split" role="img" aria-label="${esc(splitLabel(r))}">${splitSpans(r)}</div>
-      <p class="p-more">${unitLine([[NURSE,r.nurse],[COORDINATOR,r.coordination],[SOCIAL,r.social],[CLERICAL,r.clerical],["Other support",r.otherSupport],
+      <p class="p-more">${unitLine([...ROLES.map(y=>[y.name,r[y.field]]),["Other support",r.otherSupport],
         ["Healthy urgents",r.urgent],["Not patient-facing",r.notFacing],["After hours",r.afterHours]])
         .concat(r.interruptions?[`Interrupted a visit ${plural(r.interruptions,"time","times")}`]:[]).map(esc).join(" · ")}</p>
       <p class="p-more">${x.weekly?(r.support?`About ${r.fte.toFixed(2)} of a full-time support role (${hrs(r.supportPerWeek)} a week of support work).`:"")
@@ -1235,7 +1252,7 @@ const manualStart=()=>{ const [y,m,d]=($("mDate").value||localDay(Date.now())).s
 $("mLabel").onchange=()=>{ const b=buttons.find(x=>x.label===$("mLabel").value.trim()); if(!b) return;
   $("mClinic").innerHTML=opts(CLINICS,b.clinic); $("mWho").innerHTML=opts(WHO_OPTIONS,b.who); $("mFacing").checked=!!b.facing; };
 // With a start time: after hours by clinic hours. Without one: after hours only on a weekend.
-const autoAfter=()=>{ const d=manualStart(), wk=d.getDay()===0||d.getDay()===6; $("mAfter").checked=$("mTime").value?isAfterHours(d):wk; };
+const autoAfter=()=>{ const d=manualStart(); $("mAfter").checked=$("mTime").value?isAfterHours(d):isWeekend(d); };
 $("mTime").onchange=autoAfter;
 $("mDate").onchange=()=>{ mDateTouched=$("mDate").value!==localDay(Date.now()); autoAfter(); };
 $("mAdd").onclick=()=>{ const label=$("mLabel").value.trim(); const mins=parseInt($("mMinutes").value,10);
@@ -1338,13 +1355,24 @@ async function saveBackup(){
   download(blob,backupName());
   markBackedUp();
 }
+// Read a backup file for Restore or the Team tab: {data, list} with its entries (each still to be checked), or
+// {error} saying why it cannot be used. `name` starts the message: "That file", or the file's name on the Team tab.
+// A file that cannot be read at all throws, so each caller's own "could not be read" message is shown.
+async function readBackupFile(file, name="That file"){
+  const text=await file.text();
+  let data; try{ data=JSON.parse(text); }
+  catch(e){ return {error:`${name} is not a backup from this tracker. Choose a file saved with Save backup file.`}; }
+  // Older backups are a plain list of entries; newer ones are {app, format, savedAt, entries, buttons}.
+  const list=Array.isArray(data)?data:(data&&typeof data==="object"?data.entries:null);
+  if(!Array.isArray(list)) return {error:`${name} has no entries in it. Choose a file saved with Save backup file.`};
+  return {data, list};
+}
 function openBackup(){ renderBackup(); const p=$("backupPanel"); if(!p.open) p.showModal(); }
 async function restoreBackup(file){
   const say=t=>$("backupMsg").textContent=t;
   try{
-    let data; try{ data=JSON.parse(await file.text()); }catch(e){ return say("That file is not a backup from this tracker. Choose a file saved with Save backup file."); }
-    const list=Array.isArray(data)?data:(data&&typeof data==="object"?data.entries:null);
-    if(!Array.isArray(list)) return say("That file has no entries in it. Choose a file saved with Save backup file.");
+    const {data, list, error}=await readBackupFile(file);
+    if(error) return say(error);
     // Work out everything before changing anything, so a bad file cannot leave a half-finished restore.
     // An entry already here is replaced only if the backup's copy was edited more recently.
     const byId=new Map(entries.map(e=>[e.id,e])), seen=new Set(), incoming=[], newer=new Map(); let skipped=0, bad=0;
@@ -1405,7 +1433,7 @@ function settingsProblems(){
   TAXONOMY.forEach(b=>{ if(!clinicSet.has(b.clinic)) p.push(`The "${b.label}" button uses a clinic that is not in CLINICS: "${b.clinic}".`);
     if(!whoSet.has(b.who)) p.push(`The "${b.label}" button uses a role that is not in WHO_OPTIONS: "${b.who}".`); });
   // Data still under a former name of a key setting: a rename with no RENAMES line. Checked on saved entries,
-  // buttons changed on the page, and a running timer. Other roles (RN, MA, ...) can be removed freely: entries
+  // buttons changed on the page, and a running timer. Other roles (MA, Pharmacist, ...) can be removed freely: entries
   // that used them still count as other support work, so they are not flagged.
   const old=new Map(), all={...KEY_ROLES,...KEY_CLINICS};
   const items=[...entries.map(e=>["entry",e]), ...(buttonsCustom?buttons.map(b=>["button",b]):[]), ...(running?[["timer",running]]:[])];
