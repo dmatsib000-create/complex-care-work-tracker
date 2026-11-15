@@ -1,25 +1,12 @@
 // The settings block: renaming a role or clinic, and the on-page check that catches settings mistakes.
 const { test, before, after } = require("node:test");
 const assert = require("node:assert/strict");
-const fs = require("fs");
-const os = require("os");
-const path = require("path");
-const { chromium, entry, openTracker, savedEntries, saved } = require("./helpers");
+const { chromium, entry, openTracker, savedEntries, saved, editedTracker } = require("./helpers");
 
 let browser;
 before(async () => { browser = await chromium.launch(); });
 after(async () => { await browser.close(); });
 
-// Line endings are made "\n" so the edits below match on a Windows checkout too (Git may check out "\r\n").
-const original = fs.readFileSync(path.join(__dirname, "..", "tracker.html"), "utf8").replace(/\r\n/g, "\n");
-// A copy of tracker.html with some settings lines changed, the way she would edit them.
-function editedTracker(edits) {
-  let src = original;
-  for (const [from, to] of edits) { assert.ok(src.includes(from), `not found: ${from}`); src = src.replace(from, to); }
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ccwt-settings-"));
-  fs.writeFileSync(path.join(dir, "tracker.html"), src);
-  return "file://" + path.join(dir, "tracker.html");
-}
 const oldEntries = () => [
   entry("2026-11-10T09:00", { label: "Complex visit", who: "Only a physician", minutes: 60 }),
   entry("2026-11-10T10:00", { label: "Forms", who: "Clerical / admin", minutes: 30 }),

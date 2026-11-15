@@ -32,13 +32,14 @@ Open https://dmatsib000-create.github.io/complex-care-work-tracker/tracker.html,
 
 The page saves entries only in the browser it is opened in (localStorage), exports CSV for the selected date range (local dates and start times), and can be edited directly: it is one self-contained file with no server. It makes no network requests: no fonts or scripts are downloaded. It uses the Atkinson Hyperlegible font if it is installed on the computer, and the system font otherwise.
 
-The page has five tabs:
+The page has five tabs, and a Help page:
 
 - **Track:** today's timeline (blue for work that needs a physician or PA, highlighters for work support staff could do, shaded after hours) and the task buttons, grouped into "Needs a physician or PA" and "Could be done by support staff". Each clinician button shows today's time on that task; each support button shows who could do it instead. (Renaming a button on the Buttons tab does not rename work already saved, so a renamed button's time counts from its next tap.) While a timer runs, a bar pinned to the bottom of the screen shows it with Stop and save.
 - **Report:** the date range, the headline share of work that did not need a physician or PA, the support-FTE estimate, support work by task, and a summary to copy for a supervisor.
 - **Entries:** the log grouped by day, with Edit on each entry, and "Add work you forgot to time".
 - **Buttons:** add, rename, re-preset, or remove task buttons.
 - **Team:** a team report built from several people's backup files (see "Tracking as a team" below).
+- **Help** (the link beside the title, on phones too): a quick start and an FAQ (tracking, the report, backups and devices, changing the tracker, team reports). It is also linked from the bottom of the Track tab ("Read the quick start") and from the footer. It is a link rather than a sixth tab because six tabs do not fit on a small phone. It is part of `tracker.html`, so it works offline and in downloaded copies. It quotes the clinic hours and the long-timer limit from the settings; the rest is plain text in the `HELP` section of `tracker.html`, so update it when a feature it describes changes.
 
 The starter task list is in `config/taxonomy.json` and in the `TAXONOMY` list at the top of `tracker.html`. Keep the two the same; `npm test` checks that they match.
 

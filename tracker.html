@@ -24,7 +24,9 @@
   [hidden]{display:none !important}
   html{-webkit-text-size-adjust:100%}
   body{margin:0;background:var(--paper);color:var(--ink);font:400 16px/1.5 var(--font);font-variant-numeric:tabular-nums}
-  body.timing{padding-bottom:150px}
+  /* Room under the page for the timer bar, so nothing ends up behind it. --bar-h is the bar's measured height
+     (it grows when its controls wrap); 150px until it has been measured. */
+  body.timing{padding-bottom:calc(var(--bar-h,150px) + var(--s4))}
   a{color:var(--doc)}
   button,input,select{font:inherit;color:inherit}
   :focus-visible{outline:3px solid var(--focus);outline-offset:2px;border-radius:6px}
@@ -32,6 +34,7 @@
   .muted{color:var(--muted)}
   .sr-only{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
   .small{font-size:14px}
+  .nowrap{white-space:nowrap}
   h1,h2,h3{line-height:1.2;margin:0}
 
   /* Marker swipe: the highlighter that marks support work everywhere on the page. */
@@ -138,7 +141,8 @@
   #rangeLabel{margin:var(--s2) 0 0;font-size:14px}
 
   /* Report */
-  .headline{font-size:clamp(26px,4.2vw,36px);font-weight:800;line-height:1.15;letter-spacing:-.015em;max-width:30ch;margin:0}
+  /* Balanced lines, so the headline never ends with one word ("PA.") alone on a phone. Browsers without it ignore it. */
+  .headline{font-size:clamp(26px,4.2vw,36px);font-weight:800;line-height:1.15;letter-spacing:-.015em;max-width:30ch;margin:0;text-wrap:balance}
   .fte{font-size:18px;margin:var(--s3) 0 0;max-width:60ch}
   .split{display:flex;height:28px;border-radius:6px;overflow:hidden;margin:var(--s5) 0 var(--s2);background:var(--rule)}
   .split span{display:block;height:100%}
@@ -234,6 +238,41 @@
   #longError{color:#9B1C1C;font-size:14px;min-height:1.2em;margin:var(--s1) 0 0}
   footer{border-top:1px solid var(--rule);padding:var(--s4) 0 var(--s6);font-size:14px;color:var(--muted)}
 
+  /* Help: quick start and FAQ. Buttons that move to another tab look like links. */
+  button.link{background:none;border:0;padding:0;color:var(--doc);text-decoration:underline;cursor:pointer;font-size:inherit}
+  .top-links{display:flex;gap:var(--s5);align-items:baseline}
+  /* A 44px target. The negative margin takes the padding back, so the header is no taller and nothing moves. */
+  #topHelp{padding:12px 8px;margin:-12px -8px}
+  #topHelp[aria-current="page"]{color:var(--ink);font-weight:700;text-decoration:none}
+  .help{max-width:72ch}
+  .help h2{font-size:20px;font-weight:800;margin:0 0 var(--s2)}
+  .help h2#faq{margin-top:var(--s7)}
+  .help h3{font-size:16px;font-weight:800;margin:var(--s6) 0 var(--s1)}
+  .help > p{margin:0 0 var(--s3)}
+  .steps{margin:0 0 var(--s3);padding-left:1.5em}
+  .steps li{margin:0 0 var(--s3);padding-left:var(--s1)}
+  /* Colour key: a small sample of each mark beside its meaning. Wrapped lines stay beside the sample. */
+  .keys{list-style:none;margin:var(--s2) 0 0;padding:0}
+  .keys li{display:grid;grid-template-columns:6.5rem 1fr;gap:var(--s3);align-items:start;margin:0 0 var(--s3)}
+  .sample{display:inline-flex;align-items:center;justify-self:start;min-height:32px;padding:3px 10px;background:var(--surface);
+    border:1px solid var(--rule);border-radius:8px;font-size:14px;font-weight:600}
+  .sample.r-doc{border-left:5px solid var(--doc);padding-left:8px}
+  .sample.urgent{border-style:dashed;border-color:var(--rule-strong)}
+  .key.stripes{width:36px;margin:0;background-image:repeating-linear-gradient(135deg,rgba(255,255,255,.55) 0 3px,transparent 3px 7px)}
+  .sample-strip{position:relative;display:block;height:32px;background:var(--dusk);border:1px solid var(--rule-strong);border-radius:6px;overflow:hidden}
+  .sample-strip .band{left:25%;right:25%}
+  /* FAQ. Each group heading is drawn like a day heading on the Entries tab. The spacing is on the question itself,
+     so the whole row opens it, not just its line of text. A quiet chevron turns when it opens; wrapped lines of the
+     question and the answer line up after it. */
+  .help h3.faq-group{font-size:17px;margin:var(--s6) 0 0;padding-bottom:var(--s1);border-bottom:2px solid var(--ink)}
+  .faq details{border-bottom:1px solid var(--rule)}
+  .faq summary{display:grid;grid-template-columns:1.25rem 1fr;padding:var(--s3) 0;cursor:pointer;font-weight:600;list-style:none}
+  .faq summary::-webkit-details-marker{display:none}
+  .faq summary::before{content:"";width:7px;height:7px;margin-top:.5em;border:solid var(--muted);border-width:0 2px 2px 0;
+    transform:rotate(-45deg);transition:transform .15s}
+  .faq details[open] > summary::before{transform:rotate(45deg)}
+  .faq details p{margin:0 0 var(--s3) 1.25rem}
+
   @media (max-width:640px){
     /* Phones: get the task buttons near the top. A compact header, and the Today strip moves below the buttons
        (the line under the title already gives today's totals). */
@@ -262,23 +301,25 @@
     .fb-top{display:none}
     .run-extra,#rLong{grid-column:1/-1}
     .run-extra{font-size:14px;gap:var(--s3)}
-    body.timing{padding-bottom:140px}
     .cats li{grid-template-columns:1fr auto}
     .cats .bar{grid-column:1/-1;grid-row:2}
   }
   @media (max-width:360px){
-    /* Small phones: all five tabs still fit in one row, so none is hidden off the edge. */
+    /* Small phones: all five tabs still fit in one row, so none is hidden off the edge. Help is a link in the header,
+       not a sixth tab, because six do not fit a 320px screen. A slightly smaller title keeps Help on its row. */
     nav{gap:var(--s2)}
+    h1{font-size:18px}
+    .top{gap:var(--s3)}
     nav button{font-size:14px}
   }
-  @media (prefers-reduced-motion:reduce){ .dot{animation:none} }
+  @media (prefers-reduced-motion:reduce){ .dot{animation:none} .faq summary::before{transition:none} }
 </style>
 </head>
 <body>
 <header class="wrap">
   <div class="top">
     <h1>Complex care work log</h1>
-    <a class="small fb-top" href="https://docs.google.com/forms/d/e/1FAIpQLScd_fsY-B3A2AiI4-EwMtFP4WyT56Yk1As_pT2pULxEW0xu0A/viewform" target="_blank" rel="noopener">Send feedback or report a bug</a>
+    <span class="small top-links"><button class="link" id="topHelp" data-go="help">Help</button><a class="fb-top" href="https://docs.google.com/forms/d/e/1FAIpQLScd_fsY-B3A2AiI4-EwMtFP4WyT56Yk1As_pT2pULxEW0xu0A/viewform" target="_blank" rel="noopener">Send feedback or report a bug</a></span>
   </div>
   <p id="todayLine"></p>
   <p class="phi"><b>No patient identifiers.</b><span class="phi-more"> Never type a name, MRN, or date of birth. Generic labels only.</span></p>
@@ -312,7 +353,7 @@
       <h2>Healthy urgents, assigned on top</h2>
       <div class="group"><div class="grid" id="gridUrgent"></div></div>
     </div>
-    <p class="howto">Tap a task to start timing it. Tap it again, or Stop, to save. Tapping a different task saves the current one and starts the next. Forgot to tap? Add it under Entries.</p>
+    <p class="howto">Tap a task to start timing it. Tap it again, or Stop, to save. Tapping a different task saves the current one and starts the next. Forgot to tap? Add it under Entries. New here? <button class="link" data-go="help" id="howtoHelp">Read the quick start</button>.</p>
   </section>
 
   <!-- RANGE (shared by Report and Entries) -->
@@ -441,10 +482,114 @@
       </div>
     </div>
   </section>
+
+  <!-- HELP: the quick start and the FAQ. Kept in this file so it works offline and in a downloaded copy. -->
+  <section class="view help" id="view-help" aria-labelledby="quickstart" hidden>
+    <h2 id="quickstart" tabindex="-1">Quick start</h2>
+    <p class="muted">Five minutes to set up, then one tap per task. The point is not to prove you are slow: it is to show how much of your day is work that does not need a physician or PA.</p>
+    <ol class="steps">
+      <li><b>Bookmark this page</b> on each phone and computer you use. Entries are saved in the browser you log them in, so use the same one each time.</li>
+      <li><b>Tap a task when you start it.</b> A bar at the bottom of the screen shows the timer. Buttons with a blue edge are work that needs a physician or PA; highlighted buttons are work support staff could do, and each says who.</li>
+      <li><b>While it runs, add detail if you like</b> (all optional): who asked, "Interrupted a visit", and on a support task "Needed a clinician" if this one needed a physician or PA, for example a call where you made a clinical decision.</li>
+      <li><b>Tap the task again, or Stop and save, when you finish.</b> Tapping a different task saves this one and starts the next. There is nothing to fill in.</li>
+      <li><b>Forgot to tap?</b> Open <button class="link" data-go="entries">Entries</button>, then "Add work you forgot to time". Choose the date it actually happened.</li>
+      <li><b>Save a backup file every few days.</b> The line under the title says what is not backed up yet, and turns amber when it is time.</li>
+      <li><b>At the end of the week,</b> open <button class="link" data-go="report">Report</button>, choose the dates, and use Copy summary to paste the figures into an email to your supervisor.</li>
+    </ol>
+    <p class="phi"><b>No patient identifiers.</b> Never type a patient's name, MRN, date of birth or anything else that identifies them. Generic labels only, such as "DME order follow-up, wheelchair".</p>
+
+    <!-- Each sample is drawn with the page's own classes, so it looks like what she will see on the Track tab. -->
+    <h3>What the colours mean</h3>
+    <ul class="keys">
+      <li><span class="sample r-doc" aria-hidden="true">Visit</span>
+        <span>A blue edge: work that needs a physician or PA.</span></li>
+      <li><span class="sample" aria-hidden="true"><span class="mark r-cler">Forms</span></span>
+        <span>A highlighter: work support staff could do, in the colour of the role that could do it: <span id="helpRoles"></span>.</span></li>
+      <li><span class="sample urgent" aria-hidden="true"><span class="key r-cler stripes"></span></span>
+        <span>Dashed buttons and striped blocks: healthy urgent work assigned on top of your own clinic.</span></li>
+      <li><span class="sample-strip" aria-hidden="true"><span class="band"></span></span>
+        <span>The shaded ends of the Today strip: outside clinic hours.</span></li>
+    </ul>
+
+    <h2 id="faq">Frequently asked questions</h2>
+
+    <h3 class="faq-group">Tracking</h3>
+    <div class="faq">
+      <details><summary>What should I time?</summary>
+        <p>All of it: visits, inbox, notes, calls, forms, chasing, coordinating. The work that is not patient-facing is the work nobody sees in a schedule, so it matters most. Short tasks count too; each saved entry is at least 1 minute.</p></details>
+      <details><summary>A task I do has no button. What do I use?</summary>
+        <p>Add one on the <button class="link" data-go="buttons">Buttons</button> tab: give it a name, the clinic, and who could do it instead. Or use the closest button and add a short note to the entry. A growing pile of work that does not fit is itself evidence that the job is bigger than its description. You can also suggest a button with the feedback form.</p></details>
+      <details><summary>I tapped the wrong button, or a preset is wrong for this one.</summary>
+        <p>Open <button class="link" data-go="entries">Entries</button> and use Edit on the entry. Every field can be changed: task, minutes, date, clinic, who could do it, and the ticks. Delete entry is there too.</p></details>
+      <details><summary>A call turned into a clinical decision. Is it still support work?</summary>
+        <p>Not if it needed you. Tick "Needed a clinician" in the timer bar (or change "Who could do it" on the entry afterwards) and it counts as physician or PA work. Calls and results default to RN because triage and relaying results that are already classified are generally RN work; the tick covers the ones that were not.</p></details>
+      <details><summary>I left a timer running.</summary>
+        <p>When a timer has run longer than <span id="helpLong">2 h</span>, the bar turns brown and Stop asks how long the work actually took. Type minutes (<code>45</code>) or hours and minutes (<code>1:30</code>), discard it, or keep timing.</p></details>
+      <details><summary>What if I close the page, or my phone locks, while timing?</summary>
+        <p>The timer keeps going. When you open the page again it is still running from when you started it.</p></details>
+      <details><summary>What counts as after hours?</summary>
+        <p>Work that starts <span id="helpHours">before 8am or from 5pm</span>, or on a weekend. It is set from the start time; change it on the entry if it is wrong.</p></details>
+      <details><summary>What does "patient-facing" mean?</summary>
+        <p>A patient or family was directly involved at the time, such as a visit or a call with a parent. Forms, chasing, documenting and coordinating are not patient-facing: that is the invisible work.</p></details>
+      <details><summary>What are the healthy urgent buttons for?</summary>
+        <p>Work for non-complex, healthy urgent patients that has been assigned to you on top of your complex care clinic. The report counts it separately, so it shows how much of your time goes to work outside your own clinic.</p></details>
+      <details><summary>Can I have the tracker open in two tabs or windows?</summary>
+        <p>Yes. A change saved in one shows up in the other.</p></details>
+    </div>
+
+    <h3 class="faq-group">The report</h3>
+    <div class="faq">
+      <details><summary>What does the headline percentage mean?</summary>
+        <p>The share of the time you logged in the chosen dates that did not need a physician or PA: work that nursing, care coordination, social work or clerical staff could have done.</p></details>
+      <details><summary>What is the support-FTE estimate, and why is it missing?</summary>
+        <p>Support hours a week divided by 40: how much of a full-time support job you are doing yourself. For example, 12 hours a week is about 0.3 of a support FTE. Weeks are counted from the first day you logged anything, so it appears once a full week has been logged.</p></details>
+      <details><summary>How do I share it with my supervisor?</summary>
+        <p>On <button class="link" data-go="report">Report</button>, choose the dates and use Copy summary: it is plain text for an email. Export CSV gives every entry in those dates for a spreadsheet. Two to four ordinary weeks make a stronger case than one.</p></details>
+      <details><summary>Will this make it look as if I am slow?</summary>
+        <p>The report is about volume and who the work belongs to, not speed. It shows hours of work that did not need a physician or PA, and so how much support the clinic needs to return that time to patients.</p></details>
+    </div>
+
+    <h3 class="faq-group">Backups, phones and computers</h3>
+    <div class="faq">
+      <details><summary>Where are my entries saved?</summary>
+        <p>Only in this browser on this device. Nothing is sent anywhere: the page makes no network requests at all. That also means clearing browsing data, a private window, or a work computer that resets when you sign out can erase them. A backup file protects them.</p></details>
+      <details><summary>How do I back up?</summary>
+        <p>Use Save backup file under the title, or <button class="link" id="helpBackup">Back up or restore</button>. On a computer the file goes to Downloads; on a phone the share sheet opens so you can email it to yourself or save it to Files or a cloud drive. Keep it somewhere other than the device.</p></details>
+      <details><summary>How do I use it on my phone and my computer?</summary>
+        <p>Each browser keeps its own entries. To move them, save a backup file on one and use Restore from backup file on the other. New entries are added, and an entry already there is replaced only by a more recently edited copy, so restoring the same file twice does no harm. Deleted entries stay deleted, and deletions travel in backups too.</p></details>
+      <details><summary>I use an iPhone.</summary>
+        <p>Safari can clear a site's saved data if it is not opened for about a week, so save backups regularly. Adding the page to the Home Screen avoids that, but the Home Screen icon keeps its own entries, separate from Safari: save a backup in one and restore it in the other to switch.</p></details>
+      <details><summary>A backup was refused as "from a newer version".</summary>
+        <p>The page you are using is an older copy, such as a downloaded file. Open the tracker at its usual link, which is always the latest version, and restore the file there.</p></details>
+    </div>
+
+    <h3 class="faq-group">Changing the tracker</h3>
+    <div class="faq">
+      <details><summary>Can I rename, add or remove buttons?</summary>
+        <p>Yes, on the <button class="link" data-go="buttons">Buttons</button> tab. Changes apply to new taps; saved entries keep what they had, so a renamed button's time counts from its next tap. Button changes are saved in this browser and travel in backup files.</p></details>
+      <details><summary>Can I change clinic hours or role names?</summary>
+        <p>Yes, in the settings block at the top of <code>tracker.html</code> (between <code>SETTINGS START</code> and <code>SETTINGS END</code>). If an edit there would make the report wrong, a yellow "Check the settings" notice says what to fix.</p></details>
+    </div>
+
+    <h3 class="faq-group">Tracking as a team</h3>
+    <div class="faq">
+      <details><summary>How do several clinicians make one report?</summary>
+        <p>Agree on the same 2 to 4 ordinary weeks. Everyone tracks on their own device, then uses Save backup file and sends the file to whoever builds the report. That person opens <button class="link" data-go="team">Team</button> and uses Add backup files. People are shown as Clinician A, Clinician B, and so on, never by name.</p></details>
+      <details><summary>Are the team's files stored in my browser?</summary>
+        <p>No. They are only read for the report, never added to your own entries, and forgotten when the page is closed or reloaded.</p></details>
+    </div>
+
+    <h3 class="faq-group">Something else</h3>
+    <div class="faq">
+      <details><summary>I found a bug, or have an idea.</summary>
+        <p>Use the <a href="https://docs.google.com/forms/d/e/1FAIpQLScd_fsY-B3A2AiI4-EwMtFP4WyT56Yk1As_pT2pULxEW0xu0A/viewform" target="_blank" rel="noopener">feedback form</a>. No patient information in the form either.</p></details>
+    </div>
+  </section>
 </main>
 
 <footer class="wrap">
   Entries are saved only in this browser on this device. <span id="lastBackup"></span>
+  <span id="footHelp"><button class="link" data-go="help">Quick start and FAQ</button>.</span>
   <a href="https://docs.google.com/forms/d/e/1FAIpQLScd_fsY-B3A2AiI4-EwMtFP4WyT56Yk1As_pT2pULxEW0xu0A/viewform" target="_blank" rel="noopener">Send feedback, suggest a task button, or report a bug</a>.
 </footer>
 
@@ -781,9 +926,19 @@ function render(){ renderSetupWarn(); renderToday(); renderButtons(); renderRunn
 // ---------- Views ----------
 let view="track";
 function showView(v){ view=v;
-  document.querySelectorAll("nav button").forEach(b=>{ const on=b.dataset.view===v; b.setAttribute("aria-selected",on); b.tabIndex=on?0:-1; });
-  ["track","report","entries","buttons","team"].forEach(k=>$("view-"+k).hidden=k!==v);
+  // One tab is always reachable with Tab: the one showing, or Track while Help (not a tab) is open.
+  const tabbed=$("tab-"+v)?v:"track";
+  document.querySelectorAll("nav button").forEach(b=>{ b.setAttribute("aria-selected",b.dataset.view===v); b.tabIndex=b.dataset.view===tabbed?0:-1; });
+  ["track","report","entries","buttons","team","help"].forEach(k=>$("view-"+k).hidden=k!==v);
+  if(v==="help") $("topHelp").setAttribute("aria-current","page"); else $("topHelp").removeAttribute("aria-current");
+  $("footHelp").hidden=v==="help"; // no link to the page you are reading
   placeRange(); renderRangeLabel(); }
+// Help (in the header, not a tab), and links that open another view at its top: in the help text, the line under the
+// title, the Track tab and the footer. One listener, so links drawn later (the line under the title) work too.
+// Focus moves to that view's tab, or to the Quick start heading.
+document.addEventListener("click",e=>{ const b=e.target.closest("[data-go]"); if(!b) return;
+  const v=b.dataset.go; showView(v); scrollTo(0,0);
+  (v==="help"?$("quickstart"):$("tab-"+v)).focus({preventScroll:true}); });
 // The date range is shared by Report, Entries and Team. On Team it goes under "Add backup files", just above the
 // results, and only once someone is in the report: the first thing to do there is add the files.
 function placeRange(){ const box=$("rangeBox");
@@ -803,9 +958,13 @@ function renderToday(){
     min:Math.max(1,(Date.now()-running.startedAt)/60000), who:running.who, label:running.label,
     urgent:running.clinic!==COMPLEX, live:true});
   const tot=items.reduce((a,i)=>a+i.min,0), sup=items.filter(i=>!isDoc(i.who)).reduce((a,i)=>a+i.min,0);
-  $("todayLine").innerHTML = tot
+  const todayHtml = tot
     ? `Today: <b>${hm(tot)}</b> logged, of which <span class="mark r-support"><b>${hm(sup)}</b> could have been done by support staff</span>.`
-    : `Nothing logged today yet.`;
+    // A browser with nothing in it yet is most likely someone new, so the quick start is offered where they look first.
+    : entries.length||running ? `Nothing logged today yet.`
+    : `Nothing logged yet. <span class="nowrap">New here? <button class="link" data-go="help" id="firstHelp">Read the quick start</button>.</span>`;
+  // Redrawn every 30 seconds: only replace it when it changed, so keyboard focus on the quick start link is not lost.
+  if($("todayLine").innerHTML!==todayHtml) $("todayLine").innerHTML=todayHtml;
   // Strip spans at least 7am to 7pm, wider if work started earlier or ran later. Entries added without a start time are not drawn.
   const hr=d=>d.getHours()+d.getMinutes()/60, drawn=items.filter(i=>!i.untimed), untimedN=items.length-drawn.length;
   const a=Math.max(0,Math.min(7,...drawn.map(i=>Math.floor(hr(i.start)))));
@@ -851,6 +1010,9 @@ function renderButtons(){
   $("labelList").innerHTML=buttons.map(b=>`<option value="${esc(b.label)}">`).join("");
 }
 
+// The bar's height depends on the phone's width, its fonts, and whether "Needed a clinician" shows; measure it.
+new ResizeObserver(([r])=>{ if(r.contentRect.height) document.body.style.setProperty("--bar-h",
+  Math.ceil(r.target.getBoundingClientRect().height)+"px"); }).observe($("running"));
 function renderRunning(){
   $("running").hidden=!running; document.body.classList.toggle("timing",!!running);
   if(!running) return;
@@ -1468,6 +1630,7 @@ async function restoreBackup(file){
 $("backupSave").onclick=saveBackup;
 $("safeSave").onclick=async()=>{ await saveBackup(); if($("backupMsg").textContent) openBackup(); };
 $("safeMore").onclick=openBackup;
+$("helpBackup").onclick=openBackup;
 $("bpClose").onclick=()=>$("backupPanel").close();
 // A tap on the dimmed page outside the panel closes it.
 $("backupPanel").addEventListener("click",e=>{ const r=$("backupPanel").getBoundingClientRect();
@@ -1521,6 +1684,14 @@ setInterval(()=>{ if(!checkDay()) renderToday(); },30000);
 // Coming back to the tab (phones pause hidden tabs): pick up the new day and any changes made elsewhere.
 document.addEventListener("visibilitychange",()=>{ if(document.hidden) return; checkDay(); reloadFromStorage(); });
 
+// The help text quotes some settings (the role names and their colours, clinic hours, the long-timer limit), so it
+// follows them if they are changed.
+{ const roles=[...ROLES.map(r=>[r.cls,midSentence(r.name)]),["r-other","other roles"]]
+    .map(([cls,name])=>`<span class="mark ${cls}">${esc(name)}</span>`);
+  $("helpRoles").innerHTML=roles.slice(0,-1).join(", ")+" or "+roles[roles.length-1];
+  const at=h=>clock(new Date(2000,0,1,0,Math.round(h*60))).replace(":00","");
+  $("helpLong").textContent=hm(LONG_TIMER_MIN);
+  $("helpHours").textContent=`before ${at(CLINIC_START_HOUR)} or from ${at(CLINIC_END_HOUR)}`; }
 showView("track");
 autoAfter();
 setRange(rangeKey);

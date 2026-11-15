@@ -1,6 +1,8 @@
 // Shared helpers for the browser tests. Every test opens tracker.html in headless Chromium
 // with a fake clock fixed to a known Wednesday morning in Pacific time, so results do not
 // depend on when or where the tests run.
+const fs = require("fs");
+const os = require("os");
 const path = require("path");
 const { chromium } = require("playwright");
 
@@ -56,4 +58,14 @@ function answerDialogs(page, answers) {
   return seen;
 }
 
-module.exports = { chromium, TRACKER, TZ, NOW, KEYS, entry, newContext, openTracker, saved, savedEntries, answerDialogs };
+// A copy of tracker.html with some lines changed, the way she would edit the settings. `edits` is a list of
+// [from, to] pairs. Line endings are made "\n" so the edits match on a Windows checkout too (Git may check out "\r\n").
+function editedTracker(edits) {
+  let src = fs.readFileSync(path.join(__dirname, "..", "tracker.html"), "utf8").replace(/\r\n/g, "\n");
+  for (const [from, to] of edits) { if (!src.includes(from)) throw new Error(`not found: ${from}`); src = src.replace(from, to); }
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ccwt-settings-"));
+  fs.writeFileSync(path.join(dir, "tracker.html"), src);
+  return "file://" + path.join(dir, "tracker.html");
+}
+
+module.exports = { chromium, TRACKER, TZ, NOW, KEYS, entry, newContext, openTracker, saved, savedEntries, answerDialogs, editedTracker };
