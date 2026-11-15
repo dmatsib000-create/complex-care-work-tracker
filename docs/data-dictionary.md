@@ -18,6 +18,7 @@ All fields are preset on each button so logging is a single click. Fields can be
 | Interrupted a visit | This task pulled her out of, or broke into, a patient visit | Yes / No. Tick it while the timer runs or later in the log |
 | Note | Optional one line, generic only | Never PHI |
 | Last edited | When the entry was last changed in the log | Automatic. When a backup is restored, the more recently edited copy of an entry is kept |
+| Deleted | Which entries were deleted, and when (kept separately from the entries, and in backup files) | Automatic. A deleted entry is not brought back by a restore, and a restore removes entries deleted on the device the backup came from, unless the entry was edited after it was deleted |
 
 ## Definitions that keep the argument clean
 

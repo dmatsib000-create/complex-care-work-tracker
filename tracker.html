@@ -617,13 +617,19 @@ const cleanEntry = e => ({ id:e.id, date:new Date(e.date).toISOString(), label:S
   // When the entry was last edited (ms), so a restore can keep the newer copy. Absent if never edited.
   ...(Number.isSafeInteger(e.updatedAt)&&e.updatedAt>0?{updatedAt:e.updatedAt}:{}) });
 const cleanButton = b => ({label:String(b.label).trim(),clinic:renamed(String(b.clinic||COMPLEX)),facing:!!b.facing,who:renamed(String(b.who||PHYSICIAN))});
+// Deleted entries: {id: when it was deleted (ms)}. Kept so that restoring a backup, here or on another device, does
+// not bring a deleted entry back. A deletion beats any copy of the entry changed at or before it; a later edit
+// beats the deletion. They travel in backup files. Each is two numbers, so they are kept indefinitely.
+const LS_D="ccwt_deleted_v1";
+const cleanDeleted = d => Object.fromEntries(Object.entries(d&&typeof d==="object"&&!Array.isArray(d)?d:{})
+  .map(([id,at])=>[Number(id),at]).filter(([id,at])=>safeId(id)&&safeId(at)));
 // Read one saved value. A damaged value is copied aside (so nothing is lost) instead of stopping the page.
 function readKey(key,fallback){
   let raw=null; try{ raw=localStorage.getItem(key); }catch(e){ return fallback; }
   if(raw==null) return fallback;
   try{ return JSON.parse(raw); }catch(e){ try{ localStorage.setItem(key+"_unreadable_"+Date.now(),raw); }catch(_){} return fallback; }
 }
-let buttons, buttonsCustom, entries, running;
+let buttons, buttonsCustom, entries, running, deleted;
 // Every name each key setting has had in this browser, starting from the names it shipped with.
 // The settings check uses this to spot data still under an old key name (a rename with no RENAMES line).
 const LS_NAMES="ccwt_key_names_v1";
@@ -651,6 +657,7 @@ function loadState(){
   lastId = entries.reduce((a,e)=>safeId(e.id)?Math.max(a,e.id):a,0);
   const seen=new Set(); let repaired=false;
   entries.forEach(e=>{ if(!safeId(e.id)||seen.has(e.id)){ e.id=newId(); repaired=true; } seen.add(e.id); });
+  deleted = cleanDeleted(readKey(LS_D,{}));
   const r = readKey(LS_R,null);
   if(stale(r)) renamedAny=true;
   running = (r && typeof r==="object" && typeof r.label==="string" && Number.isFinite(r.startedAt)) ? {...r, who:renamed(String(r.who||PHYSICIAN)), clinic:renamed(String(r.clinic||COMPLEX)), ...(r.presetWho?{presetWho:renamed(String(r.presetWho))}:{})} : null;
@@ -673,6 +680,7 @@ function askPersist(clicked){
 const save=()=>{ try{
   if(buttonsCustom) localStorage.setItem(LS_B,JSON.stringify(buttons)); else localStorage.removeItem(LS_B);
   localStorage.setItem(LS_E,JSON.stringify(entries)); localStorage.setItem(LS_R,JSON.stringify(running));
+  localStorage.setItem(LS_D,JSON.stringify(deleted));
   if(entries.length) askPersist(false);
   }catch(e){ alert("This browser would not save the change (storage may be full or blocked). Save a backup file now so nothing is lost.");
     // Opened after the current script finishes: this can run while the page is still starting up.
@@ -1207,7 +1215,10 @@ function renderButtonList(){
     <button class="btn quiet danger" onclick="delButton(${i})">Remove</button></div>`; }).join("");
 }
 
-window.delEntry=id=>{ if(!confirm("Delete this entry?")) return; entries=entries.filter(e=>e.id!==id); openEdit=null; save(); render(); };
+window.delEntry=id=>{ if(!confirm("Delete this entry?")) return;
+  // Never earlier than the entry's last change, so it still wins if that edit came from a device whose clock runs ahead.
+  const e=entries.find(x=>x.id===id); deleted[id]=Math.max(Date.now(), e?changedAt(e):0);
+  entries=entries.filter(x=>x.id!==id); openEdit=null; save(); render(); };
 window.editEntry=(id,field,v)=>{ const e=entries.find(x=>x.id===id); if(!e) return;
   if(field==="day"){ if(!v) return render(); const [y,m,d]=v.split("-").map(Number); const t=new Date(e.date); t.setFullYear(y,m-1,d); e.date=t.toISOString(); }
   else if(field==="minutes"){ const n=parseInt(v,10); if(!(n>0)) return render(); e.minutes=n; }
@@ -1297,6 +1308,9 @@ $("copyTeam").onclick=()=>copyText($("teamSummary").textContent,"teamCopied");
 // ---------- Backup file: save and restore ----------
 // One JSON file holds every entry, plus the button list if it was changed here. Nothing is sent anywhere.
 const LS_BACKUP="ccwt_last_backup_v1";
+// What a backup file says about itself. Raise BACKUP_FORMAT only for a change older copies cannot read safely;
+// a field they would simply ignore (like `deleted`) keeps it the same, so older copies can still restore the file.
+const BACKUP_APP="complex-care-work-tracker", BACKUP_FORMAT=1;
 const lastBackupAt=()=>{ try{ return +localStorage.getItem(LS_BACKUP)||0; }catch(e){ return 0; } };
 const daysAgo=t=>Math.floor((Date.now()-t)/86400000);
 // Calendar days, so a backup saved yesterday evening reads "yesterday" the next morning.
@@ -1305,6 +1319,8 @@ const ago=t=>{ const d=Math.round((Date.parse(localDay(Date.now()))-Date.parse(l
 const changedAt=e=>Math.max(safeId(e.id)?e.id:0,e.updatedAt||0);
 // Entries added or edited since the last backup file was saved: the work that would be lost today.
 const notBackedUp=()=>{ const t=lastBackupAt(); return entries.filter(e=>changedAt(e)>t); };
+// When each deletion since the last backup file was made. An older backup restored elsewhere would still have them.
+const deletionsNotBackedUp=()=>{ const t=lastBackupAt(); return Object.values(deleted).filter(at=>at>t); };
 // Phones and tablets get the share sheet (Mail, Files, Drive...), which is easier to find than a download.
 const isIOS=/iP(hone|ad|od)/.test(navigator.userAgent)||(navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1);
 const backupName=()=>`complex-care-work-backup_${localDay(Date.now())}.json`;
@@ -1315,13 +1331,17 @@ function download(blob,name){ const url=URL.createObjectURL(blob), a=document.cr
   a.href=url; a.download=name; a.click(); setTimeout(()=>URL.revokeObjectURL(url),10000); }
 function renderBackup(){
   const t=lastBackupAt(), n=entries.length, un=notBackedUp();
+  // Deletions since the last backup. Before any backup there is nothing they could come back from, so they are not counted.
+  const dels=t?deletionsNotBackedUp():[];
   // Button changes made on the page since the last backup (changes back to the file's list included).
   const bt=buttonsChangedAt(), btnNew=bt>t&&(buttonsCustom||t>0);
-  const has=n>0||buttonsCustom;
+  const has=n>0||buttonsCustom||dels.length>0;
   // Amber when there is real work to lose: something not backed up that is 2 or more days old.
-  const oldest=un.reduce((a,e)=>Math.min(a,changedAt(e)),btnNew?bt:Date.now());
-  const due=(un.length>0||btnNew)&&daysAgo(oldest)>=2;
-  const what=[un.length&&plural(un.length,"entry","entries"),btnNew&&(un.length?"button changes":"Button changes")].filter(Boolean).join(" and ");
+  const oldest=Math.min(...un.map(changedAt),...dels,btnNew?bt:Date.now());
+  const due=(un.length>0||dels.length>0||btnNew)&&daysAgo(oldest)>=2;
+  const parts=andList([un.length&&plural(un.length,"entry","entries"),dels.length&&plural(dels.length,"deletion","deletions"),
+    btnNew&&"button changes"].filter(Boolean));
+  const what=parts&&parts[0].toUpperCase()+parts.slice(1);
   const text = !has ? "Nothing saved in this browser yet."
     : !t ? (n?`Your ${plural(n,"entry is","entries are")} only in this browser.`:"Your button changes are only in this browser.")+" No backup saved yet."
     : !what ? `Everything is backed up. Last backup ${ago(t)}.`
@@ -1343,7 +1363,7 @@ function markBackedUp(){
   renderBackup();
 }
 async function saveBackup(){
-  const data={app:"complex-care-work-tracker",format:1,savedAt:new Date().toISOString(),entries,buttons:buttonsCustom?buttons:null};
+  const data={app:BACKUP_APP,format:BACKUP_FORMAT,savedAt:new Date().toISOString(),entries,buttons:buttonsCustom?buttons:null,deleted};
   const blob=new Blob([JSON.stringify(data,null,1)],{type:"application/json"});
   const file=new File([blob],backupName(),{type:"application/json"});
   askPersist(true);
@@ -1359,9 +1379,14 @@ async function saveBackup(){
 // {error} saying why it cannot be used. `name` starts the message: "That file", or the file's name on the Team tab.
 // A file that cannot be read at all throws, so each caller's own "could not be read" message is shown.
 async function readBackupFile(file, name="That file"){
-  const text=await file.text();
-  let data; try{ data=JSON.parse(text); }
-  catch(e){ return {error:`${name} is not a backup from this tracker. Choose a file saved with Save backup file.`}; }
+  const text=await file.text(), notOurs={error:`${name} is not a backup from this tracker. Choose a file saved with Save backup file.`};
+  let data; try{ data=JSON.parse(text); }catch(e){ return notOurs; }
+  if(data&&typeof data==="object"&&!Array.isArray(data)){
+    if(data.app!==undefined&&data.app!==BACKUP_APP) return notOurs;
+    // A later version may store things this one does not know about, so it is not read in part.
+    if(Number(data.format)>BACKUP_FORMAT) return {error:`${name} was saved by a newer version of this tracker, so this copy cannot read it. `+
+      "Open the tracker at its usual link, which is always the latest version, and use the file there."};
+  }
   // Older backups are a plain list of entries; newer ones are {app, format, savedAt, entries, buttons}.
   const list=Array.isArray(data)?data:(data&&typeof data==="object"?data.entries:null);
   if(!Array.isArray(list)) return {error:`${name} has no entries in it. Choose a file saved with Save backup file.`};
@@ -1375,14 +1400,22 @@ async function restoreBackup(file){
     if(error) return say(error);
     // Work out everything before changing anything, so a bad file cannot leave a half-finished restore.
     // An entry already here is replaced only if the backup's copy was edited more recently.
-    const byId=new Map(entries.map(e=>[e.id,e])), seen=new Set(), incoming=[], newer=new Map(); let skipped=0, bad=0;
+    const byId=new Map(entries.map(e=>[e.id,e])), seen=new Set(), incoming=[], newer=new Map(); let skipped=0, bad=0, kept=0;
+    // Deletions here and in the file, the later time for an id in both. An entry deleted at or after its last change
+    // stays deleted: it is not added from the file, and a copy here is removed (deleted where the backup was made).
+    const fileDel=cleanDeleted(data.deleted), allDel={...deleted};
+    for(const [id,at] of Object.entries(fileDel)) allDel[id]=Math.max(allDel[id]||0,at);
+    const gone=e=>allDel[e.id]!==undefined&&allDel[e.id]>=changedAt(e);
     // When each entry in the file was last edited (0 if never), to tell whether the file is a full backup of this browser.
     const fileEdit=new Map();
     list.forEach(raw=>{ if(validEntry(raw)&&safeId(raw.id)&&!fileEdit.has(raw.id)) fileEdit.set(raw.id,Number.isSafeInteger(raw.updatedAt)?raw.updatedAt:0); });
     list.forEach(raw=>{ if(!validEntry(raw)){ bad++; return; }
+      if(safeId(raw.id)&&!byId.has(raw.id)&&gone(cleanEntry(raw))){ if(!seen.has(raw.id)) kept++; seen.add(raw.id); return; }
       if(safeId(raw.id)&&(byId.has(raw.id)||seen.has(raw.id))){
         const mine=byId.get(raw.id), theirs=cleanEntry(raw);
-        if(mine&&!seen.has(raw.id)&&(theirs.updatedAt||0)>(mine.updatedAt||0)) newer.set(raw.id,theirs); else skipped++;
+        const isNewer=mine&&!seen.has(raw.id)&&(theirs.updatedAt||0)>(mine.updatedAt||0);
+        // A newer copy that is itself deleted is not an update: the copy here is removed (and counted) below.
+        if(isNewer&&!gone(theirs)) newer.set(raw.id,theirs); else if(!isNewer) skipped++;
         seen.add(raw.id); return; }
       const e=cleanEntry(raw); if(!safeId(e.id)) e.id=newId(); else lastId=Math.max(lastId,e.id);
       seen.add(e.id); incoming.push(e); });
@@ -1390,11 +1423,16 @@ async function restoreBackup(file){
     const useButtons=nb.length>0&&buttonKey(nb)!==buttonKey(buttons)
       &&confirm("This backup also has its own task buttons. Use those buttons in this browser? Entries are added either way.");
     if(useButtons){ buttons=nb; buttonsCustom=buttonKey(buttons)!==buttonKey(TAXONOMY); }
-    // The file is a full backup of this browser if it has every entry here, each at least as recently edited,
-    // and the same buttons. Then this browser counts as backed up as of when the file was saved.
+    // The file is a full backup of this browser if it has every entry kept here (not ones it deletes), each at least as
+    // recently edited, every deletion made here, and the same buttons. Then this browser counts as backed up as of when
+    // the file was saved.
     const fileButtons=nb.length?nb:TAXONOMY, savedAt=Date.parse(data.savedAt);
-    const covered=entries.every(e=>fileEdit.has(e.id)&&fileEdit.get(e.id)>=(e.updatedAt||0))&&buttonKey(buttons)===buttonKey(fileButtons);
-    entries=entries.map(e=>newer.get(e.id)||e).concat(incoming).sort((a,b)=>b.date.localeCompare(a.date));
+    const covered=entries.filter(e=>!gone(e)).every(e=>fileEdit.has(e.id)&&fileEdit.get(e.id)>=(e.updatedAt||0))&&buttonKey(buttons)===buttonKey(fileButtons)
+      &&Object.entries(deleted).every(([id,at])=>(fileDel[id]||0)>=at);
+    const merged=entries.map(e=>newer.get(e.id)||e), removed=merged.filter(gone).length;
+    entries=merged.filter(e=>!gone(e)).concat(incoming).sort((a,b)=>b.date.localeCompare(a.date));
+    // A deletion older than the entry's last change is spent (the entry is back), so it is dropped.
+    deleted=allDel; entries.forEach(e=>{ if(deleted[e.id]!==undefined&&deleted[e.id]<changedAt(e)) delete deleted[e.id]; });
     if(covered&&savedAt>lastBackupAt()&&savedAt<=Date.now()) try{ localStorage.setItem(LS_BACKUP,String(savedAt));
       // The buttons here are the file's, so any earlier change to them is in this backup too.
       if(buttonsChangedAt()>savedAt) localStorage.setItem(LS_BTN_CHANGED,String(savedAt)); }catch(e){}
@@ -1404,6 +1442,8 @@ async function restoreBackup(file){
     say([`Added ${plural(n,"entry","entries")}.`,
       newer.size?`Updated ${newer.size} that ${was(newer.size)} edited more recently in the backup.`:"",
       skipped?`${skipped} ${was(skipped)} already here.`:"",
+      removed?`Removed ${removed} that ${was(removed)} deleted where the backup was made.`:"",
+      kept?`${plural(kept,"deleted entry was","deleted entries were")} not brought back.`:"",
       bad?`${bad} could not be read and ${was(bad)} skipped.`:"",
       useButtons?"Buttons updated from the backup.":""].filter(Boolean).join(" "));
   }catch(err){ say("Could not restore from that file. Nothing was changed. Choose a file saved with Save backup file."); }
@@ -1454,7 +1494,7 @@ function renderSetupWarn(){ const p=settingsProblems(); $("setupWarn").hidden=!p
 // ---------- Staying current ----------
 // Another tab or window saved a change: reload from storage so this tab does not overwrite it.
 function reloadFromStorage(){ loadState(); if(openEdit!=null&&!entries.some(e=>e.id===openEdit)) openEdit=null; render(); }
-window.addEventListener("storage",e=>{ if(e.key===null||[LS_E,LS_B,LS_R].includes(e.key)) reloadFromStorage(); else if(e.key===LS_BACKUP||e.key===LS_BTN_CHANGED) renderBackup(); });
+window.addEventListener("storage",e=>{ if(e.key===null||[LS_E,LS_B,LS_R,LS_D].includes(e.key)) reloadFromStorage(); else if(e.key===LS_BACKUP||e.key===LS_BTN_CHANGED) renderBackup(); });
 // A new day while the page is open: move "Today"/"This week" etc. and the manual-add date to the new day.
 let shownDay=localDay(Date.now());
 function checkDay(){ const d=localDay(Date.now()); if(d===shownDay) return false; shownDay=d;
