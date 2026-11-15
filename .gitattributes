@@ -1,0 +1,5 @@
+# Check out every text file with "\n" line endings, on Windows too. The tests edit tracker.html by matching
+# exact lines, and the shell scripts in scripts/ do not run with "\r\n" endings.
+* text=auto eol=lf
+*.enc binary
+*.hmac -text

@@ -4,6 +4,14 @@
 
 The key is stored as the repository secret `RESEARCH_KEY`. GitHub never shows a secret again after it is saved, so keep a copy of the key in a password manager as well: without it the archive cannot be opened.
 
+**Use a random key, not a password you made up.** The 600,000 PBKDF2 iterations slow down guessing against the encrypted file, but the `.hmac` file is keyed with a single SHA-256 of the same secret, so anyone with this public repository can test guesses against it quickly. A long random key cannot be guessed either way. Make one with:
+
+```bash
+openssl rand -base64 32
+```
+
+If the current key is a word or phrase someone chose, switch to a random one: decrypt with the old key, set `RESEARCH_KEY` to the new key, run `scripts/encrypt-research.sh`, commit both files, and update the repository secret and the password manager copy.
+
 The scripts need only `bash` and `openssl`, which come with macOS and Linux.
 
 ## Read the research
