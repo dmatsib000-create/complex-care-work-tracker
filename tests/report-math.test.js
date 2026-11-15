@@ -93,6 +93,21 @@ test("the summary gives nursing hours and names other support roles (plan case m
   assert.match(await text(all), /did not require a physician or PA: 1\.0 h nursing, 0 h care coordination and 30 min clerical\. Other support roles: Plan case manager 30 min\./);
 });
 
+test("social work is counted on its own line, and named in the summary only when some was logged", async () => {
+  const all = [
+    entry("2026-11-10T09:00", { label: "Benefits / Medicaid / SSI", who: "Social work", minutes: 40 }),
+    entry("2026-11-10T10:00", { label: "PDN shift gaps", who: "Plan case manager", minutes: 30 }),
+    entry("2026-11-10T11:00", { label: "Forms", minutes: 30 }),
+  ];
+  const r = await report(all);
+  assert.deepEqual([r.social, r.otherSupport], [40, 30]);
+  const t = await text(all);
+  assert.match(t, /0 h nursing, 0 h care coordination, 40 min social work and 30 min clerical\. Other support roles: Plan case manager 30 min\./);
+  assert.match(t, /It needs dedicated nursing, care-coordination, social work and clerical support\./);
+  const none = await text(all.slice(1));
+  assert.doesNotMatch(none, /social work/);
+});
+
 test("times under an hour read in minutes, so the first days never show 0.0 h", async () => {
   assert.match(await text([entry("2026-11-11T09:00", { minutes: 1 })]), /I logged 1 min of work\. 1 min \(100%\) did not require/);
   assert.match(await text([entry("2026-11-11T09:00", { minutes: 59 })]), /I logged 59 min of work/);

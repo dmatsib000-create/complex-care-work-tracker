@@ -108,7 +108,7 @@ test("buttons changed on the page and a running timer under an old name are flag
 });
 
 test("removing a role that is not a key name does not raise a warning, and its entries still count", async () => {
-  const url = editedTracker([['"Social work", "Pharmacist",', '"Social work",']]);
+  const url = editedTracker([['SOCIAL, "Pharmacist",', 'SOCIAL,']]);
   const p = await openTracker(browser, { url, storage: { entries: [entry("2026-11-10T10:00", { who: "Pharmacist", minutes: 30 })] } });
   assert.ok(!(await p.isVisible("#setupWarn")));
   await p.click("#tab-report"); await p.click('#presets [data-range="week"]');
@@ -159,4 +159,14 @@ test("key names containing quotes or angle brackets display correctly", async ()
   await p.click("#tab-track");
   assert.match(await p.textContent("#stripLegend"), /Clerk "front" <desk> could do it/);
   assert.deepEqual(p.errors, []);
+});
+
+test("renaming SOCIAL carries social work over, and the summary uses the new name mid-sentence", async () => {
+  const url = editedTracker([['const SOCIAL      = "Social work";', 'const SOCIAL      = "Medical social work";'],
+    ["const RENAMES = {\n", 'const RENAMES = { "Social work": "Medical social work",\n']]);
+  const p = await openTracker(browser, { url, storage: { entries: [entry("2026-11-10T10:00", { label: "Community resources", who: "Social work", minutes: 30 })] } });
+  assert.ok(!(await p.isVisible("#setupWarn")));
+  await p.click("#tab-report"); await p.click('#presets [data-range="week"]');
+  assert.match(await p.textContent("#splitLegend"), /Medical social work: 30 min/);
+  assert.match(await p.textContent("#summaryText"), /30 min medical social work and 0 h clerical\..*It needs dedicated nursing, care-coordination, medical social work and clerical support\./);
 });

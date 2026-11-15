@@ -12,7 +12,7 @@ test("opens on Track with no timer running", async () => {
   assert.ok(await p.isVisible("#view-track"));
   assert.ok(!(await p.isVisible("#rangeBox")), "the date range only shows on Report and Entries");
   assert.ok(!(await p.isVisible("#running")));
-  assert.equal(await p.locator(".tile").count(), 20);
+  assert.equal(await p.locator(".tile").count(), 24);
   assert.deepEqual(p.errors, []);
 });
 

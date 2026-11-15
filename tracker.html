@@ -8,7 +8,7 @@
   /* Tokens. Blue ink = physician or PA work. Highlighter = work support staff could do. */
   :root{
     --paper:#F1F3EE; --surface:#FFFFFF; --ink:#1E2836; --muted:#566170; --rule:#D3D9CE; --rule-strong:#A9B2A5;
-    --doc:#2B4C8C; --hl-cler:#FFE45C; --hl-coord:#FFC27A; --hl-other:#F9CFE0; --hl-rn:#9FE7DD; --hl-edge:#A88900;
+    --doc:#2B4C8C; --hl-cler:#FFE45C; --hl-coord:#FFC27A; --hl-other:#F9CFE0; --hl-rn:#9FE7DD; --hl-sw:#B8A0F0; --hl-edge:#A88900;
     --dusk:#E4E1EE; --warn:#8A5A00; --warn-bg:#FFF4D6; --focus:#2B4C8C;
     /* No fonts are downloaded. Atkinson Hyperlegible is used only if it is installed on this computer. */
     --font:"Atkinson Hyperlegible Next","Atkinson Hyperlegible",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
@@ -31,7 +31,7 @@
   /* Marker swipe: the highlighter that marks support work everywhere on the page. */
   .mark{padding:0 .2em;margin:0 -.1em;-webkit-box-decoration-break:clone;box-decoration-break:clone;
     background:linear-gradient(transparent 12%, var(--m) 12%, var(--m) 88%, transparent 88%)}
-  .r-cler{--m:var(--hl-cler)} .r-coord{--m:var(--hl-coord)} .r-rn{--m:var(--hl-rn)} .r-other{--m:var(--hl-other)} .r-doc{--m:transparent}
+  .r-cler{--m:var(--hl-cler)} .r-coord{--m:var(--hl-coord)} .r-rn{--m:var(--hl-rn)} .r-sw{--m:var(--hl-sw)} .r-other{--m:var(--hl-other)} .r-doc{--m:transparent}
 
   /* Header */
   header{padding:var(--s5) 0 var(--s3)}
@@ -59,6 +59,7 @@
   .blk.r-cler{background:var(--hl-cler);box-shadow:inset 0 0 0 1px var(--hl-edge)}
   .blk.r-coord{background:var(--hl-coord);box-shadow:inset 0 0 0 1px #B86F14}
   .blk.r-rn{background:var(--hl-rn);box-shadow:inset 0 0 0 1px #2E8C80}
+  .blk.r-sw{background:var(--hl-sw);box-shadow:inset 0 0 0 1px #6E4FB3}
   .blk.r-other{background:var(--hl-other);box-shadow:inset 0 0 0 1px #B0607F}
   .blk.urgent{background-image:repeating-linear-gradient(135deg,rgba(255,255,255,.55) 0 3px,transparent 3px 7px)}
   .blk.live{outline:2px solid var(--ink);outline-offset:1px}
@@ -69,7 +70,7 @@
   .legend{display:flex;flex-wrap:wrap;gap:var(--s2) var(--s4);font-size:14px;color:var(--muted);margin-top:var(--s1)}
   .key{display:inline-block;width:14px;height:14px;border-radius:3px;vertical-align:-2px;margin-right:6px}
   .key.r-doc{background:var(--doc)} .key.r-cler{background:var(--hl-cler);box-shadow:inset 0 0 0 1px var(--hl-edge)}
-  .key.r-rn{background:var(--hl-rn);box-shadow:inset 0 0 0 1px #2E8C80}
+  .key.r-rn{background:var(--hl-rn);box-shadow:inset 0 0 0 1px #2E8C80} .key.r-sw{background:var(--hl-sw);box-shadow:inset 0 0 0 1px #6E4FB3}
   .key.r-coord{background:var(--hl-coord)} .key.r-other{background:var(--hl-other);box-shadow:inset 0 0 0 1px #B0607F}
   .key.dusk{background:var(--dusk);box-shadow:inset 0 0 0 1px var(--rule-strong)}
 
@@ -139,7 +140,7 @@
   .fte{font-size:18px;margin:var(--s3) 0 0;max-width:60ch}
   .split{display:flex;height:28px;border-radius:6px;overflow:hidden;margin:var(--s5) 0 var(--s2);background:var(--rule)}
   .split span{display:block;height:100%}
-  .split .r-doc{background:var(--doc)} .split .r-cler{background:var(--hl-cler)} .split .r-coord{background:var(--hl-coord)} .split .r-rn{background:var(--hl-rn)} .split .r-other{background:var(--hl-other)}
+  .split .r-doc{background:var(--doc)} .split .r-cler{background:var(--hl-cler)} .split .r-coord{background:var(--hl-coord)} .split .r-rn{background:var(--hl-rn)} .split .r-sw{background:var(--hl-sw)} .split .r-other{background:var(--hl-other)}
   .facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:var(--s4) var(--s5);margin:var(--s6) 0 0;padding:var(--s4) 0 0;border-top:1px solid var(--rule)}
   .facts div{margin:0} .facts dt{font-size:14px;color:var(--muted)} .facts dd{margin:2px 0 0;font-size:22px;font-weight:800}
   .facts dd small{font-size:14px;font-weight:400;color:var(--muted)}
@@ -504,6 +505,7 @@ const PHYSICIAN   = "Physician or PA";            // work that needs a clinician
 const CLERICAL    = "Clerical / admin";           // highlighted yellow, counted as clerical
 const COORDINATOR = "Care coordinator";           // highlighted orange, counted as care coordination
 const NURSE       = "RN";                         // highlighted aqua, counted as nursing work
+const SOCIAL      = "Social work";                // highlighted violet, counted as social work
 const COMPLEX     = "Complex Care";               // her own clinic
 const URGENT      = "Non-complex Healthy Urgent"; // any clinic other than COMPLEX is shown as work assigned on top
 
@@ -517,7 +519,7 @@ const RENAMES = {
 
 // Starter task buttons. Each one presets its clinic, patient-facing flag, and who could do it instead.
 // The defaults follow the research behind this tracker: change any of them to fit the clinic.
-// Support buttons are ordered by role (RN, coordinator, clerical) so each highlighter colour forms one block.
+// Support buttons are ordered by role (RN, coordinator, social work, clerical) so each highlighter colour forms one block.
 // A call or result that turns out to need a clinician is ticked "Needed a clinician" while timing.
 let TAXONOMY = [
  {label:"Complex visit",clinic:COMPLEX,facing:true,who:PHYSICIAN},
@@ -532,6 +534,10 @@ let TAXONOMY = [
  {label:"DME / supplies",clinic:COMPLEX,facing:false,who:COORDINATOR},
  {label:"Care plan coordination",clinic:COMPLEX,facing:false,who:COORDINATOR},
  {label:"School / specialist / insurer call",clinic:COMPLEX,facing:false,who:COORDINATOR},
+ {label:"Benefits / Medicaid / SSI",clinic:COMPLEX,facing:false,who:SOCIAL},
+ {label:"Community resources",clinic:COMPLEX,facing:false,who:SOCIAL},
+ {label:"Caregiver support / crisis",clinic:COMPLEX,facing:true,who:SOCIAL},
+ {label:"Transition / guardianship",clinic:COMPLEX,facing:false,who:SOCIAL},
  {label:"Forms",clinic:COMPLEX,facing:false,who:CLERICAL},
  {label:"Prior auth",clinic:COMPLEX,facing:false,who:CLERICAL},
  {label:"Auth renewals",clinic:COMPLEX,facing:false,who:CLERICAL},
@@ -544,7 +550,7 @@ let TAXONOMY = [
 // Dropdown options. Other roles (RN, MA, ...) can be added, renamed or removed freely.
 // "Plan case manager" is work the child's Medicaid plan is contracted to do (for example PDN staffing gaps).
 const CLINICS = [COMPLEX, URGENT];
-const WHO_OPTIONS = [PHYSICIAN, CLERICAL, COORDINATOR, NURSE, "MA", "Social work", "Pharmacist", "Plan case manager", "System / automation fix"];
+const WHO_OPTIONS = [PHYSICIAN, CLERICAL, COORDINATOR, NURSE, "MA", SOCIAL, "Pharmacist", "Plan case manager", "System / automation fix"];
 const SOURCES = ["Family","School","Pharmacy","Insurer","Specialist","Inbox","Phone","Internal","Walk-in"];
 // Clinic hours. Work that starts before CLINIC_START_HOUR, at or after CLINIC_END_HOUR, or on a weekend is marked after hours.
 const CLINIC_START_HOUR = 8, CLINIC_END_HOUR = 17;
@@ -569,7 +575,7 @@ const clock = d => { d=new Date(d); const h=d.getHours(); return `${h%12||12}:${
 const isAfterHours = t => { const d=new Date(t), hr=d.getHours()+d.getMinutes()/60, wd=d.getDay(); return wd===0||wd===6||hr<CLINIC_START_HOUR||hr>=CLINIC_END_HOUR; };
 // Colour role: physician ink, or which highlighter marks the support work.
 const isDoc = who => who===PHYSICIAN;
-const roleClass = who => isDoc(who) ? "r-doc" : who===CLERICAL ? "r-cler" : who===COORDINATOR ? "r-coord" : who===NURSE ? "r-rn" : "r-other";
+const roleClass = who => isDoc(who) ? "r-doc" : who===CLERICAL ? "r-cler" : who===COORDINATOR ? "r-coord" : who===NURSE ? "r-rn" : who===SOCIAL ? "r-sw" : "r-other";
 // <option> list; keeps a custom current value that is not in the list.
 const opts = (list,cur) => (cur&&!list.includes(cur)?[...list,cur]:list).map(o=>`<option${o===cur?" selected":""}>${esc(o)}</option>`).join("");
 const sourceOpts = cur => `<option value="">Source: not set</option>`+opts(SOURCES,cur);
@@ -604,9 +610,9 @@ let buttons, buttonsCustom, entries, running;
 // Every name each key setting has had in this browser, starting from the names it shipped with.
 // The settings check uses this to spot data still under an old key name (a rename with no RENAMES line).
 const LS_NAMES="ccwt_key_names_v1";
-const KEY_ROLES={PHYSICIAN,CLERICAL,COORDINATOR,NURSE}, KEY_CLINICS={COMPLEX};
+const KEY_ROLES={PHYSICIAN,CLERICAL,COORDINATOR,NURSE,SOCIAL}, KEY_CLINICS={COMPLEX};
 // Each key's names in shipped versions, oldest first.
-const SHIPPED_NAMES={PHYSICIAN:["Only a physician","Physician or PA"],CLERICAL:["Clerical / admin"],COORDINATOR:["Care coordinator"],NURSE:["RN"],COMPLEX:["Complex Care"]};
+const SHIPPED_NAMES={PHYSICIAN:["Only a physician","Physician or PA"],CLERICAL:["Clerical / admin"],COORDINATOR:["Care coordinator"],NURSE:["RN"],SOCIAL:["Social work"],COMPLEX:["Complex Care"]};
 let keyNames={};
 function rememberKeyNames(){
   const stored=readKey(LS_NAMES,{}), now={...KEY_ROLES,...KEY_CLINICS}; keyNames={};
@@ -775,7 +781,7 @@ function renderToday(){
   const pxPerHour=($("track").clientWidth||600)/(b-a), step=pxPerHour>=26?2:pxPerHour>=18?3:4;
   let ticks=""; for(let h=Math.ceil(a/step)*step; h<=b; h+=step) ticks+=`<span class="${h===a?"first":h===b?"last":""}" style="left:${pct(h)}">${h%12||12}${h<12||h===24?"am":"pm"}</span>`;
   $("ticks").innerHTML=ticks;
-  const LEG=[["r-doc","Needs a physician or PA"],["r-rn",`${esc(NURSE)} could do it`],["r-coord",`${esc(COORDINATOR)} could do it`],["r-cler",`${esc(CLERICAL)} could do it`],["r-other","Other support role"]];
+  const LEG=[["r-doc","Needs a physician or PA"],["r-rn",`${esc(NURSE)} could do it`],["r-coord",`${esc(COORDINATOR)} could do it`],["r-sw",`${esc(SOCIAL)} could do it`],["r-cler",`${esc(CLERICAL)} could do it`],["r-other","Other support role"]];
   // Every key, always: a legend that changes as she works would resize the strip and move the buttons below it.
   $("stripLegend").innerHTML=LEG.map(([c,l])=>`<span><i class="key ${c}"></i>${l}</span>`).join("")+`<span><i class="key dusk"></i>After hours</span>`;
   $("stripNote").textContent = !items.length ? "Tap a task to start. Today's work builds up here."
@@ -825,12 +831,12 @@ function computeReport(list, all, from, to, today){
   const sum=a=>a.reduce((t,e)=>t+e.minutes,0);
   const supportEntries=list.filter(e=>!isDoc(e.who));
   const r={ count:list.length, total:sum(list), support:sum(supportEntries),
-    clerical:sum(list.filter(e=>e.who===CLERICAL)), coordination:sum(list.filter(e=>e.who===COORDINATOR)), nurse:sum(list.filter(e=>e.who===NURSE)),
+    clerical:sum(list.filter(e=>e.who===CLERICAL)), coordination:sum(list.filter(e=>e.who===COORDINATOR)), nurse:sum(list.filter(e=>e.who===NURSE)), social:sum(list.filter(e=>e.who===SOCIAL)),
     notFacing:sum(list.filter(e=>!e.facing)), urgent:sum(list.filter(e=>e.clinic!==COMPLEX)),
     afterHours:sum(list.filter(e=>e.afterHours)), afterHoursCount:list.filter(e=>e.afterHours).length,
     interruptions:list.filter(e=>e.interrupted).length };
   r.physician=r.total-r.support;
-  r.otherSupport=r.support-r.clerical-r.coordination-r.nurse;
+  r.otherSupport=r.support-r.clerical-r.coordination-r.nurse-r.social;
 
   // Days covered: the chosen From/To, or the first to last logged day when left open.
   // Days before her very first entry, or after today, are not counted: no work was being tracked then.
@@ -870,20 +876,29 @@ const listUnit=list=>{ const inHours=list.some(m=>Math.round(m)>=60);
 const pctOf=(m,total)=>total?Math.round(m/total*100)+"%":"0%";
 const plural=(n,one,many)=>`${n} ${n===1?one:many}`;
 
+// Phrases shared by the personal and team summaries. Social work is named only when it rounds to at least
+// a minute, so a summary without it reads as it always has. Its name follows SOCIAL, lower-cased mid-sentence
+// ("Social work" -> "social work") unless it starts with an acronym ("SW" stays "SW").
+const midSentence=v=>/^[A-Z][a-z]/.test(v)?v[0].toLowerCase()+v.slice(1):v;
+const hasSocial=x=>Math.round(x.social)>0;
+const roleSplit=x=>`${hrs(x.nurse)} nursing, ${hrs(x.coordination)} care coordination${hasSocial(x)?`, ${hrs(x.social)} ${midSentence(SOCIAL)}`:""} and ${hrs(x.clerical)} clerical`;
+const supportNeeded=x=>`dedicated nursing, care-coordination${hasSocial(x)?`, ${midSentence(SOCIAL)}`:""} and clerical support`;
+const otherRoles=x=>x.byRole.filter(y=>![CLERICAL,COORDINATOR,NURSE,SOCIAL].includes(y.role)).map(y=>`${y.role} ${hrs(y.minutes)}`).join(", ");
+
 // The plain-text summary for a supervisor, built from a computeReport result.
 function summaryText(r){
   const top=r.byTask.slice(0,3).map(g=>`${g.label} (${hrs(g.minutes)})`).join(", ");
-  const others=r.byRole.filter(x=>x.role!==CLERICAL&&x.role!==COORDINATOR&&x.role!==NURSE).map(x=>`${x.role} ${hrs(x.minutes)}`).join(", ");
+  const others=otherRoles(r);
   return [
     `In this period${r.spanDays?` (${plural(r.spanDays,"day","days")})`:""} I logged ${hrs(r.total)} of work${r.fullWeek?`, about ${hrs(r.totalPerWeek)} a week`:""}.`,
-    `${hrs(r.support)} (${pctOf(r.support,r.total)}) did not require a physician or PA: ${hrs(r.nurse)} nursing, ${hrs(r.coordination)} care coordination and ${hrs(r.clerical)} clerical.`,
+    `${hrs(r.support)} (${pctOf(r.support,r.total)}) did not require a physician or PA: ${roleSplit(r)}.`,
     others?`Other support roles: ${others}.`:"",
     top?`The largest delegable categories were ${top}.`:"",
     `${hrs(r.notFacing)} was not patient-facing. ${hrs(r.urgent)} was non-complex healthy urgent work assigned on top of complex care.`,
     r.afterHours?`${hrs(r.afterHours)} was done after hours.`:"",
     r.interruptions?`This work interrupted a visit ${plural(r.interruptions,"time","times")}.`:"",
     r.support&&r.fullWeek?`That is about ${hrs(r.supportPerWeek)} a week of delegable work, roughly ${r.fte.toFixed(2)} of a 40-hour support FTE.`:"",
-    `This is necessary complex-clinic work, not inefficiency. It needs dedicated nursing, care-coordination and clerical support.`,
+    `This is necessary complex-clinic work, not inefficiency. It needs ${supportNeeded(r)}.`,
   ].filter(Boolean).join(" ");
 }
 
@@ -892,7 +907,7 @@ const niceDay=ymd=>ymdDate(ymd).toLocaleDateString(undefined,{weekday:"short",da
 const rangeName=()=>({today:"Today",week:"This week",["7d"]:"Last 7 days",["4w"]:"Last 4 weeks",all:"All time"}[rangeKey]||"Custom range");
 // The split by who could do the work: [class, label, minutes] for each part with any time.
 const splitSegs=r=>[["r-doc","Needs a physician or PA",r.physician],["r-rn",NURSE,r.nurse],
-  ["r-coord",COORDINATOR,r.coordination],["r-cler",CLERICAL,r.clerical],["r-other","Other support roles",r.otherSupport]].filter(s=>s[2]>0);
+  ["r-coord",COORDINATOR,r.coordination],["r-sw",SOCIAL,r.social],["r-cler",CLERICAL,r.clerical],["r-other","Other support roles",r.otherSupport]].filter(s=>s[2]>0);
 const splitUnit=r=>listUnit(splitSegs(r).map(s=>s[2]));
 const splitSpans=r=>{ const u=splitUnit(r); return splitSegs(r).map(([c,l,m])=>`<span class="${c}" style="width:${m/r.total*100}%" title="${esc(l)}: ${u(m)}"></span>`).join(""); };
 const splitLabel=r=>{ const u=splitUnit(r); return splitSegs(r).map(([,l,m])=>`${l} ${u(m)}`).join(", ")||"No data"; };
@@ -978,7 +993,7 @@ function computeTeam(people, from, to, today){
   // Weekly figures add up each person's own hours a week. People with less than a full week logged are left out.
   const wk=each.filter(p=>p.weekly), perWeek=k=>wk.reduce((a,p)=>a+p.r[k]/p.r.weeks,0);
   t.week=wk.length?{people:wk.length, total:perWeek("total"), support:perWeek("support"), nurse:perWeek("nurse"),
-    coordination:perWeek("coordination"), clerical:perWeek("clerical"), otherSupport:perWeek("otherSupport"),
+    coordination:perWeek("coordination"), social:perWeek("social"), clerical:perWeek("clerical"), otherSupport:perWeek("otherSupport"),
     fte:wk.reduce((a,p)=>a+p.r.fte,0), low:Math.min(...wk.map(p=>p.r.supportPerWeek)), high:Math.max(...wk.map(p=>p.r.supportPerWeek))}:null;
   t.short=each.filter(p=>p.r.count&&!p.r.fullWeek).map(p=>p.label);
   t.empty=each.filter(p=>!p.r.count).map(p=>p.label);
@@ -990,20 +1005,20 @@ const andList=a=>a.length<2?a.join(""):a.slice(0,-1).join(", ")+" and "+a[a.leng
 function teamSummaryText(t){
   const w=t.week, n=t.people, who=plural(n,"clinician","clinicians");
   const top=t.byTask.slice(0,3).map(g=>`${g.label} (${hrs(g.minutes)})`).join(", ");
-  const others=t.byRole.filter(x=>x.role!==CLERICAL&&x.role!==COORDINATOR&&x.role!==NURSE).map(x=>`${x.role} ${hrs(x.minutes)}`).join(", ");
+  const others=otherRoles(t);
   return [
     `In this period${t.spanDays?` (${plural(t.spanDays,"day","days")})`:""} `+(n>1?`${who} each tracked their own work and together logged ${hrs(t.total)}.`:`1 clinician logged ${hrs(t.total)}.`),
-    `${hrs(t.support)} (${pctOf(t.support,t.total)}) did not require a physician or PA: ${hrs(t.nurse)} nursing, ${hrs(t.coordination)} care coordination and ${hrs(t.clerical)} clerical.`,
+    `${hrs(t.support)} (${pctOf(t.support,t.total)}) did not require a physician or PA: ${roleSplit(t)}.`,
     others?`Other support roles: ${others}.`:"",
     top?`The largest delegable categories across the team were ${top}.`:"",
     `${hrs(t.notFacing)} was not patient-facing. ${hrs(t.urgent)} was non-complex healthy urgent work assigned on top of complex care.`,
     t.afterHours?`${hrs(t.afterHours)} was done after hours.`:"",
     t.interruptions?`This work interrupted a visit ${plural(t.interruptions,"time","times")}.`:"",
     w&&w.support?`${w.people===n?"Across the team":`Across the ${plural(w.people,"clinician","clinicians")} with a full week logged`}, that is about ${hrs(w.support)} a week of delegable work`+
-      ` (${hrs(w.nurse)} nursing, ${hrs(w.coordination)} care coordination, ${hrs(w.clerical)} clerical), roughly ${w.fte.toFixed(2)} of a 40-hour support FTE.`+
+      ` (${roleSplit(w)}), roughly ${w.fte.toFixed(2)} of a 40-hour support FTE.`+
       (w.people>1?` Per clinician it ranged from ${hrs(w.low)} to ${hrs(w.high)} a week.`:""):"",
     n>1?`Measured across ${who}, this is a question of how the team is staffed, not one person's workload.`:"",
-    `This is necessary complex-clinic work, not inefficiency. It needs dedicated nursing, care-coordination and clerical support.`,
+    `This is necessary complex-clinic work, not inefficiency. It needs ${supportNeeded(t)}.`,
   ].filter(Boolean).join(" ");
 }
 
@@ -1076,7 +1091,7 @@ function renderTeam(){
     if(!r.count) body=`<p class="p-fig">Nothing logged in this range.${p.today&&fromV>p.today?` This backup was saved before the range starts.`:""}</p>`;
     else body=`<p class="p-fig"><b>${hrs(r.total)}</b> logged${x.weekly?`, ${hrs(r.totalPerWeek)} a week`:""}. <span class="mark r-cler">${hrs(r.support)} (${pc(r.support)})</span> did not need a physician or PA.</p>
       <div class="split" role="img" aria-label="${esc(splitLabel(r))}">${splitSpans(r)}</div>
-      <p class="p-more">${unitLine([[NURSE,r.nurse],[COORDINATOR,r.coordination],[CLERICAL,r.clerical],["Other support",r.otherSupport],
+      <p class="p-more">${unitLine([[NURSE,r.nurse],[COORDINATOR,r.coordination],[SOCIAL,r.social],[CLERICAL,r.clerical],["Other support",r.otherSupport],
         ["Healthy urgents",r.urgent],["Not patient-facing",r.notFacing],["After hours",r.afterHours]])
         .concat(r.interruptions?[`Interrupted a visit ${plural(r.interruptions,"time","times")}`]:[]).map(esc).join(" · ")}</p>
       <p class="p-more">${x.weekly?(r.support?`About ${r.fte.toFixed(2)} of a full-time support role (${hrs(r.supportPerWeek)} a week of support work).`:"")

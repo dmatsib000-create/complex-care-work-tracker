@@ -20,6 +20,20 @@ test("support hours are per week across the range (6 h over 4 weeks = 1.5 h a we
   assert.match(await p.textContent("#summaryText"), /about 1\.5 h a week of delegable work, roughly 0\.04 of a 40-hour support FTE/);
 });
 
+test("social work has its own violet colour: tiles, the Today legend, the report split and its legend", async () => {
+  const p = await openTracker(browser, { storage: { entries: [
+    entry("2026-11-11T08:00", { label: "Community resources", who: "Social work", minutes: 30 }),
+    entry("2026-11-11T09:00", { label: "PDN shift gaps", who: "Plan case manager", minutes: 20 })] } });
+  for (const label of ["Benefits / Medicaid / SSI", "Community resources", "Caregiver support / crisis", "Transition / guardianship"])
+    assert.match(await p.locator(".tile", { hasText: label }).getAttribute("class"), /\br-sw\b/, label);
+  assert.equal(await p.locator("#track .blk.r-sw").count(), 1);
+  assert.match(await p.textContent("#stripLegend"), /Social work could do it/);
+  assert.equal(await p.locator("#stripLegend .key.r-sw").count(), 1);
+  await report(p, "week");
+  assert.equal(await p.locator("#splitBar .r-sw").count(), 1);
+  assert.match(await p.textContent("#splitLegend"), /Social work: 30 min .*Other support roles: 20 min/);
+});
+
 test("weeks are counted from the first day anything was logged, so early on the figure is not watered down", async () => {
   const p = await openTracker(browser, { storage: { entries: ["09", "10", "11"].map((d) => entry(`2026-11-${d}T10:00`, { minutes: 120 })) } });
   await report(p, "4w");

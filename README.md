@@ -34,7 +34,7 @@ The page saves entries only in the browser it is opened in (localStorage), expor
 
 The page has five tabs:
 
-- **Track:** today's timeline (blue for work that needs a physician or PA, highlighter yellow and orange for work support staff could do, shaded after hours) and the task buttons, grouped into "Needs a physician or PA" and "Could be done by support staff". Each clinician button shows today's time on that task; each support button shows who could do it instead. (Renaming a button on the Buttons tab does not rename work already saved, so a renamed button's time counts from its next tap.) While a timer runs, a bar pinned to the bottom of the screen shows it with Stop and save.
+- **Track:** today's timeline (blue for work that needs a physician or PA, highlighters for work support staff could do, shaded after hours) and the task buttons, grouped into "Needs a physician or PA" and "Could be done by support staff". Each clinician button shows today's time on that task; each support button shows who could do it instead. (Renaming a button on the Buttons tab does not rename work already saved, so a renamed button's time counts from its next tap.) While a timer runs, a bar pinned to the bottom of the screen shows it with Stop and save.
 - **Report:** the date range, the headline share of work that did not need a physician or PA, the support-FTE estimate, support work by task, and a summary to copy for a supervisor.
 - **Entries:** the log grouped by day, with Edit on each entry, and "Add work you forgot to time".
 - **Buttons:** add, rename, re-preset, or remove task buttons.
@@ -54,12 +54,12 @@ Only the clinician doing this work knows its ins and outs, so nothing here is lo
 **In `tracker.html`:** everything meant to be edited is in one block at the top of the script, between `SETTINGS START` and `SETTINGS END`:
 
 - `TAXONOMY`: the starter task buttons.
-- `CLINICS`, `WHO_OPTIONS`, `SOURCES`: the dropdown options. Roles other than the three named below (RN, MA, Social work, ...) can be added, renamed or removed freely.
+- `CLINICS`, `WHO_OPTIONS`, `SOURCES`: the dropdown options. Roles other than the ones named below (MA, Pharmacist, ...) can be added, renamed or removed freely.
 - `CLINIC_START_HOUR`, `CLINIC_END_HOUR`: clinic hours, used to mark after-hours work.
 - `LONG_TIMER_MIN`: how long a timer can run before she is asked whether it was left on. A panel then lets her save the real time (minutes like `45`, or `1:30`), discard it, or keep timing.
-- `PHYSICIAN`, `CLERICAL`, `COORDINATOR`, `COMPLEX`, `URGENT`: the names the report depends on. `PHYSICIAN` ("Physician or PA") decides what counts as needing a clinician (everything else is support work), `CLERICAL` and `COORDINATOR` are the two support totals, and anything not in `COMPLEX` counts as work assigned on top.
+- `PHYSICIAN`, `CLERICAL`, `COORDINATOR`, `NURSE`, `SOCIAL`, `COMPLEX`, `URGENT`: the names the report depends on. `PHYSICIAN` ("Physician or PA") decides what counts as needing a clinician (everything else is support work), `NURSE`, `COORDINATOR`, `SOCIAL` and `CLERICAL` are the support totals, and anything not in `COMPLEX` counts as work assigned on top.
 
-**Renaming one of those five names:** change it in its line (for example `const CLERICAL = "Front desk";`), then add the old name to `RENAMES` so entries saved under it follow:
+**Renaming one of those names:** change it in its line (for example `const CLERICAL = "Front desk";`), then add the old name to `RENAMES` so entries saved under it follow:
 
 ```
 const RENAMES = { "Clerical / admin": "Front desk" };
@@ -72,7 +72,7 @@ If a settings edit would make the report wrong, the page shows a yellow "Check t
 - a `RENAMES` line that leads to a name not in the lists;
 - a starter button using a role or clinic that is not in the lists.
 
-Renamed values are saved as soon as the page opens, so the `RENAMES` line can be removed afterwards on that device; keep it if the tracker is used on other devices or old backups may be restored. Other roles (RN, MA, ...) can be removed from `WHO_OPTIONS` without a notice: entries that used them still count as other support work.
+Renamed values are saved as soon as the page opens, so the `RENAMES` line can be removed afterwards on that device; keep it if the tracker is used on other devices or old backups may be restored. Other roles (MA, Pharmacist, ...) can be removed from `WHO_OPTIONS` without a notice: entries that used them still count as other support work.
 
 Keep `config/taxonomy.json` the same as the settings block; `npm test` checks that they match.
 
@@ -145,7 +145,8 @@ Cited research reports set the starter buttons and roles. They are kept in the r
 - **Calls default to RN, with a tick for decisions.** "Phone with family" and "Results follow-up" default to RN, because protocol triage and relaying classified results are generally RN scope. She often cannot know when a call starts whether it will need a decision, so instead of a separate button she ticks "Needed a clinician" in the timer bar and that call counts as clinician work.
 - **Prior auth is split.** The peer-to-peer and clinical argument need a clinician; paperwork and the renewal calendar ("Prior auth", "Auth renewals") are clerical.
 - **Medicaid renewal cycles get their own buttons.** "HH / PDN / PPEC orders" (home health, private duty nursing and PPEC orders and plans of care; an RN can draft, the clinician signs) and "PDN shift gaps" (the Medicaid plan's case manager is contracted to coordinate this; logged as "Plan case manager").
-- **The buttons are ordered by role, and each role has its own highlighter:** aqua for RN, orange for care coordinator, yellow for clerical, pink for other roles such as the plan case manager. The three main colours match the three staffing asks.
+- **Social work gets its own buttons.** "Benefits / Medicaid / SSI", "Community resources" (housing, food, transport, respite), "Caregiver support / crisis" and "Transition / guardianship" are work a social worker usually does in a complex care team. When there is none, it falls to the clinicians. Social work appears in the written summary only when some was logged.
+- **The buttons are ordered by role, and each role has its own highlighter:** aqua for RN, orange for care coordinator, violet for social work, yellow for clerical, pink for other roles such as the plan case manager. Each main colour matches a staffing ask.
 
 Each split is labeled in the reports as a law or payer rule, published evidence, or professional convention. Change any default to fit the clinic.
 
